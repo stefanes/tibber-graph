@@ -36,22 +36,28 @@ with open(defaults_file, 'r', encoding='utf-8') as f:
 
 # Load configuration based on mode
 if config_mode == 'test':
-    # Load test-specific configuration overrides
+    # Load test-specific configuration overrides (if it exists)
     # Note: We skip the component's config.py and only use the test config.py
     test_config_file = Path(__file__).parent / "config.py"
-    with open(test_config_file, 'r', encoding='utf-8') as f:
-        test_config_code = f.read()
-        exec(test_config_code, globals())
-    print("Using test configuration from tests/local_render/config.py")
+    if test_config_file.exists():
+        with open(test_config_file, 'r', encoding='utf-8') as f:
+            test_config_code = f.read()
+            exec(test_config_code, globals())
+        print("Using test configuration from tests/local_render/config.py")
+    else:
+        print("Using only defaults.py (test config.py not found)")
 elif config_mode == 'component':
-    # Use the component's config.py
+    # Use the component's config.py (if it exists)
     config_file = component_dir / "config.py"
-    with open(config_file, 'r', encoding='utf-8') as f:
-        config_code = f.read()
-        # Replace relative import since we've already loaded defaults
-        config_code = config_code.replace('from .defaults import *', '')
-        exec(config_code, globals())
-    print("Using component configuration from config.py")
+    if config_file.exists():
+        with open(config_file, 'r', encoding='utf-8') as f:
+            config_code = f.read()
+            # Replace relative import since we've already loaded defaults
+            config_code = config_code.replace('from .defaults import *', '')
+            exec(config_code, globals())
+        print("Using component configuration from config.py")
+    else:
+        print("Using only defaults.py (config.py not found)")
 elif config_mode == 'defaults':
     # Use only defaults, no config overrides
     print("Using only defaults.py (no configuration overrides)")
@@ -60,7 +66,16 @@ elif config_mode == 'defaults':
 renderer_file = component_dir / "renderer.py"
 with open(renderer_file, 'r', encoding='utf-8') as f:
     renderer_code = f.read()
-    # Replace relative import with already loaded constants
+    # Replace the try-except import block with nothing (constants already loaded)
+    import re
+    # Remove the entire try-except import block
+    renderer_code = re.sub(
+        r'# Import configuration.*?\n(?:try:.*?except.*?:.*?\n(?:    .*?\n)*)',
+        '',
+        renderer_code,
+        flags=re.DOTALL
+    )
+    # Also handle old-style import if present
     renderer_code = renderer_code.replace('from .config import *', '')
     exec(renderer_code, globals())
 

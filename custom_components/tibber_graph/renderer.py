@@ -7,7 +7,11 @@ import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
-from .config import *
+# Import configuration - try config.py first, fall back to defaults.py if not present
+try:
+    from .config import *
+except (ImportError, FileNotFoundError):
+    from .defaults import *
 
 # Matplotlib heavy imports: import once at module load to reduce per-render overhead
 matplotlib.use("Agg")
@@ -238,11 +242,13 @@ def render_plot_to_path(
             show_price = False
 
         # Build label text
+        # For current label, use now_local time; for min/max use dates_raw[i]
+        time_str = now_local.strftime('%H:%M') if is_current else dates_raw[i].strftime('%H:%M')
         if show_price:
             price_display = prices_raw[i] * price_multiplier
-            label_text = f"{price_display:.{decimals}f}{currency_label}\nat {dates_raw[i].strftime('%H:%M')}"
+            label_text = f"{price_display:.{decimals}f}{currency_label}\nat {time_str}"
         else:
-            label_text = dates_raw[i].strftime('%H:%M')
+            label_text = time_str
 
         # Set vertical alignment: max labels optionally go below (top alignment) if configured
         vertical_align = "top" if (is_max and LABEL_MAX_BELOW_POINT) else "bottom"

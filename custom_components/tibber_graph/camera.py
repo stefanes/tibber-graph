@@ -8,7 +8,12 @@ from pathlib import Path
 from homeassistant.components.local_file.camera import LocalFile
 from homeassistant.util import dt as dt_util
 
-from .config import *
+# Import configuration - try config.py first, fall back to defaults.py if not present
+try:
+    from .config import *
+except (ImportError, FileNotFoundError):
+    from .defaults import *
+
 from .renderer import render_plot_to_path
 
 _LOGGER = logging.getLogger(__name__)
