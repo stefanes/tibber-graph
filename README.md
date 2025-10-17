@@ -1,6 +1,6 @@
 # Tibber Graph :bar_chart:
 
-Display Tibber prices as a graph, exposed as a camera entity.
+Display Tibber prices as a graph in Home Assistant, exposed as a camera entity.
 
 > [!NOTE]
 > Modified version of [Tibber Custom](https://github.com/Danielhiversen/home_assistant_tibber_custom) by [Daniel Hjelseth Høyer](https://github.com/Danielhiversen), with inspiration from [this comment](https://github.com/Danielhiversen/home_assistant_tibber_custom/issues/65#issuecomment-3371070128) by [Jvgvisser](https://github.com/Jvgvisser).
