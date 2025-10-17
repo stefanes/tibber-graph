@@ -149,12 +149,12 @@ def render_plot_to_path(
 
     # Define X-range: can either show from midnight-to-midnight or from one hour before current to last data point
     if START_AT_MIDNIGHT:
-        # Start at local midnight
+        # Start at local midnight and show 24 hours
         start_hour = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
         start_hour = start_hour if start_hour.tzinfo else start_hour.replace(tzinfo=LOCAL_TZ)
         end_hour = start_hour + datetime.timedelta(days=1)
     else:
-        # Start one hour before the current hour
+        # Start one hour before the current hour and show data up to the last available point
         start_hour = now_local.replace(minute=0, second=0, microsecond=0) - datetime.timedelta(hours=1)
         start_hour = start_hour if start_hour.tzinfo else start_hour.replace(tzinfo=LOCAL_TZ)
         # End at the last available plotted data point instead of a fixed 24h span
@@ -170,46 +170,48 @@ def render_plot_to_path(
     start_ts = start_hour.timestamp()
     end_ts = end_hour.timestamp()
 
-    # Filter visible data in one pass
+    # Filter visible data in one pass - build both prices and indices lists simultaneously
     visible_prices = []
     visible_indices = []
     for i, (d, p) in enumerate(zip(dates_plot, prices_plot)):
-        d_ts = d.timestamp()
-        if start_ts <= d_ts <= end_ts:
+        if start_ts <= d.timestamp() <= end_ts:
             visible_prices.append(p)
+            # Only track indices that correspond to raw data (plot has one extra point)
             if i < len(dates_raw):
                 visible_indices.append(i)
 
+    # Fallback if no visible data found
     if not visible_prices:
-        # Fallback to raw prices or the provided plot prices
         visible_prices = prices_plot or prices_raw or [0]
-
     if not visible_indices and prices_raw:
-        # Fallback to all indices
         visible_indices = list(range(len(prices_raw)))
 
-    # Now determine which labels to show (min, max, current) based on visible data only
+    # Determine which data points to label (min, max, current) based on visible data
     chosen = set()
     min_idx = None
     max_idx = None
     current_idx = None
 
     if prices_raw:
-        # Determine which indices to consider for min/max
-        # If START_AT_MIDNIGHT, consider entire visible range; otherwise only future prices
+        # Determine which indices to consider for min/max labels
+        # If START_AT_MIDNIGHT: consider entire visible range (past and future)
+        # Otherwise: only consider future prices (from current time onwards)
         if START_AT_MIDNIGHT:
-            # Consider all visible indices for min/max
             candidate_indices = visible_indices
         else:
-            # Only consider indices at or after now_local for min/max
+            # Only future prices: at or after the current time
+            # Note: For labels on the plot, we use strict > comparison
             candidate_indices = [i for i in visible_indices if dates_raw[i] > now_local]
 
+        # Find indices of min and max prices among candidates
         min_idx = min(candidate_indices, key=lambda i: prices_raw[i]) if candidate_indices else None
         max_idx = max(candidate_indices, key=lambda i: prices_raw[i]) if candidate_indices else None
         current_idx = idx if idx in visible_indices else None
-        # If labeling current, do not label min/max if it is at the same time as current
+
+        # Build set of indices to label, avoiding duplicates
         if LABEL_CURRENT and current_idx is not None:
             chosen.add(current_idx)
+            # Don't label min/max if they coincide with current
             if LABEL_MIN and min_idx is not None and min_idx != current_idx:
                 chosen.add(min_idx)
             if LABEL_MAX and max_idx is not None and max_idx != current_idx:
@@ -220,29 +222,27 @@ def render_plot_to_path(
             if LABEL_MAX and max_idx is not None:
                 chosen.add(max_idx)
 
-    # Pre-calculate label settings once
+    # Pre-calculate label settings once to avoid repeated calculations
     label_effects = [pe.withStroke(linewidth=2, foreground="#00000080")] if LABEL_STROKE else None
     price_multiplier = 100 if USE_CENTS else 1
     decimals = 0 if USE_CENTS else PRICE_DECIMALS
-    # Show currency on price labels if configured
     currency_label = f" {currency}" if (LABEL_SHOW_CURRENCY and currency) else ""
 
+    # Draw labels for chosen data points (min, max, current)
     for i in sorted(chosen):
-        # Only label min/max here; current will be handled separately if LABEL_CURRENT_AT_TOP
+        # Skip current label here if it will be drawn at top of chart
         if LABEL_CURRENT and i == current_idx and LABEL_CURRENT_AT_TOP:
             continue
 
-        # Determine if this is min or max to check if we should show price
+        # Classify this point to determine styling
         is_min = (min_idx is not None and i == min_idx)
         is_max = (max_idx is not None and i == max_idx)
         is_current = (current_idx is not None and i == current_idx)
-        show_price = True
 
-        if (is_min or is_max) and not LABEL_MINMAX_SHOW_PRICE:
-            show_price = False
+        # Determine if price should be shown (can be disabled for min/max)
+        show_price = not ((is_min or is_max) and not LABEL_MINMAX_SHOW_PRICE)
 
-        # Build label text
-        # For current label, use now_local time; for min/max use dates_raw[i]
+        # Build label text: price + time or just time
         time_str = now_local.strftime('%H:%M') if is_current else dates_raw[i].strftime('%H:%M')
         if show_price:
             price_display = prices_raw[i] * price_multiplier
@@ -253,8 +253,7 @@ def render_plot_to_path(
         # Set vertical alignment: max labels optionally go below (top alignment) if configured
         vertical_align = "top" if (is_max and LABEL_MAX_BELOW_POINT) else "bottom"
 
-        # Determine label color: use colored labels if enabled, otherwise use default
-        # Only color min/max labels when LABEL_USE_COLORS is enabled
+        # Determine label color: use colored labels if enabled
         if LABEL_USE_COLORS:
             if is_min:
                 label_color = LABEL_COLOR_MIN
@@ -278,22 +277,19 @@ def render_plot_to_path(
             path_effects=label_effects,
         )
 
-    # Draw current label at fixed position (top left above graph) if enabled
+    # Draw current price label at fixed position (top left above graph) if enabled
     if LABEL_CURRENT and current_idx is not None and LABEL_CURRENT_AT_TOP:
         price_display = prices_raw[current_idx] * price_multiplier
-        # Use the current local time for the label
         now_time = now_local.strftime("%H:%M")
-        # Align label with the left edge of the graph canvas
         ax_pos = ax.get_position()
         # Always show currency for top label (for clarity and consistency)
-        currency_label = f" {currency}" if currency else ""
-        # Calculate vertical position with padding from top
+        currency_label_top = f" {currency}" if currency else ""
         label_y = 1.0 - LABEL_CURRENT_AT_TOP_PADDING
-        # Current label always uses default axis label color
+
         fig.text(
             ax_pos.x0,
-            label_y,  # x, y in figure coordinates (top left with padding)
-            f"{price_display:.{decimals}f}{currency_label} at {now_time}",
+            label_y,
+            f"{price_display:.{decimals}f}{currency_label_top} at {now_time}",
             fontsize=LABEL_CURRENT_AT_TOP_FONT_SIZE,
             color=LABEL_COLOR,
             fontweight=LABEL_CURRENT_AT_TOP_FONT_WEIGHT,
@@ -303,64 +299,96 @@ def render_plot_to_path(
             path_effects=label_effects,
         )
 
-    # Apply X-range and Y-limits based on visible prices
+    # Set X-axis range and Y-axis limits based on visible data
     ax.set_xlim((start_hour, end_hour))
     y_min = min(visible_prices)
     y_max = max(visible_prices)
-    # Add small padding
+    # Add small padding to prevent data from touching the edges
     pad_low = 0.005
     pad_high = 0.0075
     ax.set_ylim((y_min - pad_low, y_max + pad_high))
 
-    # Format Y-axis (only when Y axis is visible)
+    # Calculate Y-axis tick min/max values
+    # Key difference: For labels we use strict future (>), but for ticks we use current hour onwards (>=)
+    # When not starting at midnight, ticks should only consider future prices (from current hour onwards)
+    if START_AT_MIDNIGHT:
+        # Use all visible prices for ticks (past and future)
+        y_min_tick = y_min
+        y_max_tick = y_max
+        prices_for_ticks = visible_prices
+    elif candidate_indices:
+        # Use only future prices for ticks (from current hour onwards for hourly data)
+        # This ensures ticks reflect only what's ahead, not what's already past
+        now_hour_start = now_local.replace(minute=0, second=0, microsecond=0)
+        future_indices = [i for i in visible_indices if dates_raw[i] >= now_hour_start]
+
+        if future_indices:
+            future_prices = [prices_raw[i] for i in future_indices]
+            y_min_tick = min(future_prices)
+            y_max_tick = max(future_prices)
+            prices_for_ticks = future_prices
+        else:
+            # Fallback to all visible prices if no future prices
+            y_min_tick = y_min
+            y_max_tick = y_max
+            prices_for_ticks = visible_prices
+    else:
+        # Fallback to all visible prices if no candidates
+        y_min_tick = y_min
+        y_max_tick = y_max
+        prices_for_ticks = visible_prices
+
+    # Configure Y-axis formatting and ticks (only when Y axis is visible)
     if SHOW_Y_AXIS:
-        # When showing cents, multiply axis values by 100
+        # Format Y-axis labels: multiply by 100 if showing cents
         decimals_axis = 0 if USE_CENTS else PRICE_DECIMALS
         if USE_CENTS:
             ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, pos: f"{v * 100:.{decimals_axis}f}"))
         else:
             ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, pos: f"{v:.{decimals_axis}f}"))
+
         # Apply tick count if configured
         if Y_TICK_COUNT:
             try:
                 if Y_TICK_COUNT == 1:
-                    # Show average of visible prices as the single tick
-                    y_avg = sum(visible_prices) / len(visible_prices)
+                    # Show average of prices (future only if not START_AT_MIDNIGHT)
+                    y_avg = sum(prices_for_ticks) / len(prices_for_ticks)
                     ax.yaxis.set_major_locator(mticker.FixedLocator([y_avg]))
-                    # Color the avg tick if Y-axis tick colors are enabled
                     if Y_TICK_USE_COLORS:
                         for tick_label in ax.yaxis.get_ticklabels():
                             tick_label.set_color(LABEL_COLOR_AVG)
+
                 elif Y_TICK_COUNT == 2:
-                    # Show min and max
-                    ax.yaxis.set_major_locator(mticker.FixedLocator([y_min, y_max]))
-                    # Color the min/max ticks if Y-axis tick colors are enabled
+                    # Show min and max (future only if not START_AT_MIDNIGHT)
+                    ax.yaxis.set_major_locator(mticker.FixedLocator([y_min_tick, y_max_tick]))
                     if Y_TICK_USE_COLORS:
                         tick_labels = ax.yaxis.get_ticklabels()
                         if len(tick_labels) >= 2:
                             tick_labels[0].set_color(LABEL_COLOR_MIN)
                             tick_labels[1].set_color(LABEL_COLOR_MAX)
+
                 elif Y_TICK_COUNT == 3:
-                    # Show min, max, and average
-                    y_avg = sum(visible_prices) / len(visible_prices)
-                    ax.yaxis.set_major_locator(mticker.FixedLocator([y_min, y_avg, y_max]))
-                    # Color the min/avg/max ticks if Y-axis tick colors are enabled
+                    # Show min, max, and average (future only if not START_AT_MIDNIGHT)
+                    y_avg = sum(prices_for_ticks) / len(prices_for_ticks)
+                    ax.yaxis.set_major_locator(mticker.FixedLocator([y_min_tick, y_avg, y_max_tick]))
                     if Y_TICK_USE_COLORS:
                         tick_labels = ax.yaxis.get_ticklabels()
                         if len(tick_labels) >= 3:
                             tick_labels[0].set_color(LABEL_COLOR_MIN)
                             tick_labels[1].set_color(LABEL_COLOR_AVG)
                             tick_labels[2].set_color(LABEL_COLOR_MAX)
+
                 elif Y_TICK_COUNT >= 4:
-                    # Show evenly distributed ticks, excluding min and max at the edges
-                    # Distribute Y_TICK_COUNT ticks evenly within the range (not at min/max)
-                    step = (y_max - y_min) / (Y_TICK_COUNT + 1)
-                    tick_positions = [y_min + step * (i + 1) for i in range(Y_TICK_COUNT)]
+                    # Show evenly distributed ticks between min and max (excluding edges)
+                    step = (y_max_tick - y_min_tick) / (Y_TICK_COUNT + 1)
+                    tick_positions = [y_min_tick + step * (i + 1) for i in range(Y_TICK_COUNT)]
                     ax.yaxis.set_major_locator(mticker.FixedLocator(tick_positions))
             except Exception:
+                # Silently ignore errors in tick configuration (e.g., division by zero)
                 pass
 
-    # Manually draw X-axis lines, labels, and set ticks
+    # Draw X-axis tick lines and labels manually
+    # Generate tick times at configured intervals
     tick_times = []
     t = start_hour
     while t <= end_hour:
@@ -370,11 +398,12 @@ def render_plot_to_path(
     ylim = ax.get_ylim()
     xlab_effects = [pe.withStroke(linewidth=2, foreground="#00000080")] if LABEL_STROKE else None
 
-    # Set x-ticks at the same positions if enabled
+    # Enable X-ticks at the tick positions if configured
     if SHOW_X_TICKS:
         ax.set_xticks(tick_times)
         ax.tick_params(axis="x", which="both", bottom=True, top=False, labelbottom=False, color=TICK_COLOR)
 
+    # Draw vertical tick lines and time labels
     for tt in tick_times:
         ax.vlines([tt], ymin=ylim[0], ymax=ylim[1], colors=TICKLINE_COLOR, linewidth=1.5, alpha=1.0, zorder=1)
         ax.text(
@@ -392,12 +421,14 @@ def render_plot_to_path(
             path_effects=xlab_effects,
         )
 
+    # Finalize plot layout and save
     ax.margins(x=0)
     fig.subplots_adjust(bottom=X_AXIS_BOTTOM_MARGIN)
 
     try:
-        # Important: save with correct figure background to avoid white edges
+        # Save with correct figure background to avoid white edges
         fig.savefig(out_path, facecolor=fig.get_facecolor())
     finally:
+        # Clean up to prevent memory leaks
         plt.close(fig)
         plt.close("all")
