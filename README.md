@@ -7,7 +7,7 @@ Display Tibber prices as a graph in Home Assistant, exposed as a camera entity.
 
 ## Installation
 
-1. Copy `tibber_graph` folder into `/config/custom_components`
+1. Copy `tibber_graph` folder into `config/custom_components`
 2. Configure _Tibber Graph_ (see below)
 3. Restart Home Assistant
 
@@ -28,7 +28,7 @@ tibber_graph:
 
 ### `config.py`
 
-In `config.py` you can adjust the graph appearance by changing the parameters controlling how the graph is rendered. For example, you can modify colors, dimensions, and other visual aspects of the graph to your liking.
+In `custom_components/tibber_graph/config.py` you can adjust the graph appearance by changing the parameters controlling how the graph is rendered. For example, you can modify colors, dimensions, and other visual aspects of the graph to your liking.
 
 **Optional colored labels:** Enable colored min/max price markers and Y-axis ticks with:
 
@@ -37,9 +37,15 @@ LABEL_USE_COLORS = True      # Color min/max labels (green/red)
 Y_TICK_USE_COLORS = True     # Color Y-axis ticks (green/amber/red)
 ```
 
-The default setting renders a graph similar to this:
-
-![Tibber Graph with default settings](example.png)
-
 > [!TIP]
 > After changing any of the parameters, make sure to restart Home Assistant to apply the changes.
+
+#### Examples
+
+Graph rendered with only defaults (only values from `defaults.py`):
+
+![Tibber Graph with only defaults](docs/resources/defaults-only.png)
+
+Graph rendered with the default component configuration (including values from `config.py`):
+
+![Tibber Graph with the default component configuration](docs/resources/component-config.png)

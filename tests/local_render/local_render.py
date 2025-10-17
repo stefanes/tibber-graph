@@ -1,11 +1,11 @@
 """Local rendering script for Tibber graph with sample data.
 
 Usage:
-    python local_render.py                 # Use defaults.py + tests/local_render/config.py (test configuration)
-    python local_render.py --no-override   # Use defaults.py + component config.py (production configuration)
-    python local_render.py --defaults-only # Use only defaults.py (pure defaults, no overrides)
-    python local_render.py --random        # Use random generated price data instead of real Tibber data
-    python local_render.py --time 19:34    # Simulate a specific time (e.g., 19:34 today)
+    python local_render.py                    # Use defaults.py + tests/local_render/config.py (test configuration)
+    python local_render.py --component-config # Use defaults.py + component config.py (production configuration)
+    python local_render.py --defaults-only    # Use only defaults.py (pure defaults, no overrides)
+    python local_render.py --random           # Use random generated price data instead of real Tibber data
+    python local_render.py --time 19:34       # Simulate a specific time (e.g., 19:34 today)
 
 This will generate a rendered graph image 'local_render.png' in the current directory.
 """
@@ -21,7 +21,7 @@ fixed_time = None
 i = 1
 while i < len(sys.argv):
     arg = sys.argv[i]
-    if arg in ('--no-override', '--no-overrides', '-n'):
+    if arg in ('--component-config', '--component', '-c'):
         config_mode = 'component'
         print("Running with component configuration (defaults.py + config.py)")
     elif arg in ('--defaults-only', '--defaults', '-d'):
