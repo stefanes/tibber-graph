@@ -42,10 +42,10 @@ Y_TICK_USE_COLORS = True     # Color Y-axis ticks (green/amber/red)
 
 #### Examples
 
-Graph rendered with only defaults (only values from `defaults.py`):
+Graph rendered with only defaults (only values from [`defaults.py`](custom_components/tibber_graph/defaults.py)):
 
 ![Tibber Graph with only defaults](docs/resources/defaults-only.png)
 
-Graph rendered with the default component configuration (including values from `config.py`):
+Graph rendered with the default component configuration (including values from [`config.py`](custom_components/tibber_graph/config.py)):
 
 ![Tibber Graph with the default component configuration](docs/resources/component-config.png)
