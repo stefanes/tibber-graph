@@ -25,8 +25,8 @@ modifying the production configuration.
 # Y_AXIS_LABEL_VERTICAL = False
 # Y_AXIS_LABEL_VERTICAL_ANCHOR = False
 # Y_AXIS_SIDE = "left"
-# Y_TICK_COUNT = None
-# Y_TICK_USE_COLORS = False
+Y_TICK_COUNT = 3  # Default: None
+Y_TICK_USE_COLORS = True  # Default: False
 
 # Price labels
 # CURRENCY_OVERRIDE = None
@@ -40,15 +40,15 @@ modifying the production configuration.
 # LABEL_MAX = True
 # LABEL_MAX_BELOW_POINT = False
 # LABEL_MIN = True
-# LABEL_MINMAX_SHOW_PRICE = True
+LABEL_MINMAX_SHOW_PRICE = False  # Default: True
 # LABEL_SHOW_CURRENCY = True
-# LABEL_USE_COLORS = False
+LABEL_USE_COLORS = True  # Default: False
 # PRICE_DECIMALS = 2
 # USE_CENTS = False
 # USE_HOURLY_PRICES = False
 
 # Theme
-# THEME = "dark"
+THEME = "light"  # Default: "dark"
 # LIGHT_AXIS_LABEL_COLOR = "#000000"
 # LIGHT_BACKGROUND_COLOR = "white"
 # LIGHT_FILL_ALPHA = 0.25

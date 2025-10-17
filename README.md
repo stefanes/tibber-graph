@@ -49,3 +49,7 @@ Graph rendered with only defaults (only values from [`defaults.py`](custom_compo
 Graph rendered with the default component configuration (including values from [`config.py`](custom_components/tibber_graph/config.py)):
 
 ![Tibber Graph with the default component configuration](docs/resources/component-config.png)
+
+Graph rendered with random price data and light mode (including values from [`config.py`](tests/local_render/config.py)):
+
+![Tibber Graph with random price data and light mode](docs/resources/random-light.png)
