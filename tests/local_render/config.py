@@ -1,4 +1,3 @@
-
 """Test configuration values override the settings from the component's defaults.py and config.py
 for local testing purposes. Edit this file to customize the test rendering without
 modifying the production configuration.
@@ -10,10 +9,10 @@ modifying the production configuration.
 # FORCE_FIXED_SIZE = True
 
 # X-axis settings
-START_AT_MIDNIGHT = True  # Default: False
+# START_AT_MIDNIGHT = True
 # SHOW_X_TICKS = True
 # X_AXIS_BOTTOM_MARGIN = 0.25
-X_AXIS_LABEL_FONT_SIZE = 12  # Default: 17
+# X_AXIS_LABEL_FONT_SIZE = 12
 # X_AXIS_LABEL_ROTATION_DEG = 45
 # X_AXIS_LABEL_Y_OFFSET = 0.05
 # X_TICK_STEP_HOURS = 3
@@ -21,41 +20,45 @@ X_AXIS_LABEL_FONT_SIZE = 12  # Default: 17
 # Y-axis settings
 # SHOW_Y_AXIS = True
 # SHOW_Y_GRID = True
-Y_AXIS_LABEL_FONT_SIZE = 11  # Default: 17
-Y_AXIS_LABEL_PADDING = 3  # Default: 11
-Y_AXIS_LABEL_VERTICAL = False  # Default: True
-# Y_AXIS_LABEL_VERTICAL_ANCHOR = True
-Y_AXIS_SIDE = "left"  # Default: "right"
-Y_TICK_COUNT = 3  # Default: 3
-Y_TICK_USE_COLORS = False  # Default: True
+# Y_AXIS_LABEL_FONT_SIZE = 11
+# Y_AXIS_LABEL_PADDING = 3
+# Y_AXIS_LABEL_VERTICAL = False
+# Y_AXIS_LABEL_VERTICAL_ANCHOR = False
+# Y_AXIS_SIDE = "left"
+# Y_TICK_COUNT = 4
+# Y_TICK_USE_COLORS = False
 
 # Price labels
-CURRENCY_OVERRIDE = None  # Default: "öre"
+# CURRENCY_OVERRIDE = None
 # LABEL_CURRENT = True
-LABEL_CURRENT_AT_TOP = False  # Default: True
+# LABEL_CURRENT_AT_TOP = False
 # LABEL_CURRENT_AT_TOP_FONT_SIZE = 17
 # LABEL_CURRENT_AT_TOP_FONT_WEIGHT = "normal"
 # LABEL_CURRENT_AT_TOP_PADDING = 0.035
-LABEL_FONT_SIZE = 12  # Default: 17
+# LABEL_FONT_SIZE = 12
 # LABEL_FONT_WEIGHT = "normal"
 # LABEL_MAX = True
-LABEL_MAX_BELOW_POINT = False  # Default: True
+# LABEL_MAX_BELOW_POINT = False
 # LABEL_MIN = True
-LABEL_MINMAX_SHOW_PRICE = True  # Default: False
-LABEL_SHOW_CURRENCY = True  # Default: False
+# LABEL_MINMAX_SHOW_PRICE = True
+# LABEL_SHOW_CURRENCY = True
 # LABEL_USE_COLORS = False
 # PRICE_DECIMALS = 2
-USE_CENTS = False  # Default: True
-USE_HOURLY_PRICES = False  # Default: True
+# USE_CENTS = False
+# USE_HOURLY_PRICES = False
 
 # Theme
 # THEME = "dark"
+# LIGHT_AXIS_LABEL_COLOR = "#000000"
 # LIGHT_BACKGROUND_COLOR = "white"
 # LIGHT_FILL_ALPHA = 0.25
 # LIGHT_FILL_COLOR = "#039be5"
 # LIGHT_GRID_ALPHA = 0.25
 # LIGHT_GRID_COLOR = "gray"
 # LIGHT_LABEL_COLOR = "#000000"
+# LIGHT_LABEL_COLOR_AVG = "#fbbf24"
+# LIGHT_LABEL_COLOR_MAX = "#ef4444"
+# LIGHT_LABEL_COLOR_MIN = "#22c55e"
 # LIGHT_LABEL_STROKE = False
 # LIGHT_NOWLINE_ALPHA = 0.35
 # LIGHT_NOWLINE_COLOR = "r"
@@ -65,16 +68,16 @@ USE_HOURLY_PRICES = False  # Default: True
 # LIGHT_STYLE_NAME = "ggplot"
 # LIGHT_TICK_COLOR = "#000000"
 # LIGHT_TICKLINE_COLOR = "#e0e0e0"
-# LIGHT_AXIS_LABEL_COLOR = "#000000"
-# LIGHT_LABEL_COLOR_MIN = "#22c55e"
-# LIGHT_LABEL_COLOR_MAX = "#ef4444"
-# LIGHT_LABEL_COLOR_AVG = "#fbbf24"
+# DARK_AXIS_LABEL_COLOR = "#cfd6e6"
 # DARK_BACKGROUND_COLOR = "#0b0f14"
 # DARK_FILL_ALPHA = 0.18
 # DARK_FILL_COLOR = "#7dc3ff"
 # DARK_GRID_ALPHA = 0.45
 # DARK_GRID_COLOR = "#2a2f36"
 # DARK_LABEL_COLOR = "#e6edf3"
+# DARK_LABEL_COLOR_AVG = "#fcd34d"
+# DARK_LABEL_COLOR_MAX = "#f87171"
+# DARK_LABEL_COLOR_MIN = "#6ee7b7"
 # DARK_LABEL_STROKE = True
 # DARK_NOWLINE_ALPHA = 0.5
 # DARK_NOWLINE_COLOR = "#ff6b6b"
@@ -84,10 +87,6 @@ USE_HOURLY_PRICES = False  # Default: True
 # DARK_STYLE_NAME = "default"
 # DARK_TICK_COLOR = "#cfd6e6"
 # DARK_TICKLINE_COLOR = "#1f2530"
-# DARK_AXIS_LABEL_COLOR = "#cfd6e6"
-# DARK_LABEL_COLOR_MIN = "#6ee7b7"
-# DARK_LABEL_COLOR_MAX = "#f87171"
-# DARK_LABEL_COLOR_AVG = "#fcd34d"
 
 # Refresh settings
 # AUTO_REFRESH_ENABLED = True

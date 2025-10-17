@@ -8,7 +8,7 @@ Display Tibber prices as a graph, exposed as a camera entity.
 ## Installation
 
 1. Copy `tibber_graph` folder into `/config/custom_components`
-2. Configure *Tibber Graph* (see below)
+2. Configure _Tibber Graph_ (see below)
 3. Restart Home Assistant
 
 You will now have a `camera.tibber_graph_[your_address]` entity that displays the Tibber prices as a graph (and an image available at `http://homeassistant.local:8123/local/tibber_graph_[your_address].png`).
@@ -22,7 +22,7 @@ You will now have a `camera.tibber_graph_[your_address]` entity that displays th
 
 Simply add the following line:
 
-``` yaml
+```yaml
 tibber_graph:
 ```
 

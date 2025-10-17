@@ -1,8 +1,9 @@
 """Local rendering script for Tibber graph with sample data.
 
 Usage:
-    python local_render.py               # Use defaults.py + config.py with test overrides from tests/local_render/config.py
-    python local_render.py --no-override # Use only component defaults.py + config.py (ignore test overrides)
+    python local_render.py                 # Use defaults.py + tests/local_render/config.py (test configuration)
+    python local_render.py --no-override   # Use defaults.py + component config.py (production configuration)
+    python local_render.py --defaults-only # Use only defaults.py (pure defaults, no overrides)
 
 This will generate a rendered graph image 'local_render.png' in the current directory.
 """
@@ -11,11 +12,14 @@ import sys
 from pathlib import Path
 
 # Check for command-line arguments
-use_overrides = True
+config_mode = 'test'  # 'test', 'component', or 'defaults'
 if len(sys.argv) > 1:
     if sys.argv[1] in ('--no-override', '--no-overrides', '-n'):
-        use_overrides = False
-        print("Running with component configuration only (test overrides disabled)")
+        config_mode = 'component'
+        print("Running with component configuration (defaults.py + config.py)")
+    elif sys.argv[1] in ('--defaults-only', '--defaults', '-d'):
+        config_mode = 'defaults'
+        print("Running with defaults only (no configuration overrides)")
     elif sys.argv[1] in ('--help', '-h'):
         print(__doc__)
         sys.exit(0)
@@ -30,23 +34,27 @@ with open(defaults_file, 'r', encoding='utf-8') as f:
     defaults_code = f.read()
     exec(defaults_code, globals())
 
-# Read and execute config.py to load user configuration (overrides defaults.py)
-config_file = component_dir / "config.py"
-with open(config_file, 'r', encoding='utf-8') as f:
-    config_code = f.read()
-    # Replace relative import since we've already loaded defaults
-    config_code = config_code.replace('from .defaults import *', '')
-    exec(config_code, globals())
-
-# Load test-specific configuration overrides (unless disabled)
-if use_overrides:
+# Load configuration based on mode
+if config_mode == 'test':
+    # Load test-specific configuration overrides
+    # Note: We skip the component's config.py and only use the test config.py
     test_config_file = Path(__file__).parent / "config.py"
     with open(test_config_file, 'r', encoding='utf-8') as f:
         test_config_code = f.read()
         exec(test_config_code, globals())
     print("Using test configuration from tests/local_render/config.py")
-else:
-    print("Using component configuration only (defaults.py + config.py)")
+elif config_mode == 'component':
+    # Use the component's config.py
+    config_file = component_dir / "config.py"
+    with open(config_file, 'r', encoding='utf-8') as f:
+        config_code = f.read()
+        # Replace relative import since we've already loaded defaults
+        config_code = config_code.replace('from .defaults import *', '')
+        exec(config_code, globals())
+    print("Using component configuration from config.py")
+elif config_mode == 'defaults':
+    # Use only defaults, no config overrides
+    print("Using only defaults.py (no configuration overrides)")
 
 # Read and execute renderer.py (replacing relative import)
 renderer_file = component_dir / "renderer.py"
@@ -110,7 +118,7 @@ def generate_price_data():
     prices = []
 
     # Create 15-minute interval price data with some variation
-    base_price = 0.45  # Base price in currency units (e.g., NOK/kWh)
+    base_price = 0.45  # Base price in currency units (e.g., SEK/kWh)
 
     # 48 hours * 4 intervals per hour = 192 data points
     for i in range(48 * 4):
@@ -128,10 +136,10 @@ def generate_price_data():
             price = base_price * 0.9
         # Peak hours (09:00-17:00)
         elif 9 <= hour < 17:
-            price = base_price * 1.3
+            price = base_price * 1.5
         # Evening (17:00-21:00)
         elif 17 <= hour < 21:
-            price = base_price * 1.5
+            price = base_price * 1.3
         # Night (21:00-00:00)
         else:
             price = base_price * 0.8

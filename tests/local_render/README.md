@@ -1,4 +1,4 @@
-# Local Rendering Tests
+# Local rendering
 
 This directory contains tools for rendering and testing the Tibber Graph locally without needing to load it into Home Assistant.
 
@@ -21,58 +21,39 @@ This directory contains tools for rendering and testing the Tibber Graph locally
 Run the local render script to generate a sample graph:
 
 ```bash
-python local_render.py
-```
-
-To use only the base configuration (ignoring test overrides):
-
-```bash
-python local_render.py --no-override
+python local_render.py                 # Test configuration (defaults.py + test config.py)
+python local_render.py --no-override   # Component configuration (defaults.py + component config.py)
+python local_render.py --defaults-only # Pure defaults (only defaults.py, no overrides)
 ```
 
 This will:
 
 - Generate sample price data (48 hours in 15-minute intervals, from midnight today through tomorrow)
-- Render the graph using your current configuration (`defaults.py` + component `config.py` + test `config.py`)
+- Render the graph using your current configuration (see below)
 - Save the output as `local_render.png` in the current directory
 
-## Configuration Hierarchy
+## Configuration
 
-The component uses a three-level configuration system:
+The script supports three configuration modes:
 
-1. **defaults.py** (component) - Base defaults (don't edit this)
-2. **config.py** (component) - User/production configuration overrides
-3. **config.py** (tests/local_render) - Test-specific overrides
+**Default mode** (no arguments):
 
-## Making Cosmetic Changes
+1. `/custom_components/tibber_graph/defaults.py` - Base defaults
+2. `/tests/local_render/config.py` - Test-specific overrides
 
-1. Edit your user configuration in `../../custom_components/tibber_graph/config.py`
-2. (Optional) Override specific settings for testing by editing `config.py` in this directory
-3. Run `python local_render.py` from the local_render directory to see the changes
-4. Open `local_render.png` to view the result
+**Component mode** (`--no-override`):
+
+1. `/custom_components/tibber_graph/defaults.py` - Base defaults
+2. `/custom_components/tibber_graph/config.py` - User/production configuration
+
+**Defaults only mode** (`--defaults-only`):
+
+1. `/custom_components/tibber_graph/defaults.py` - Base defaults only (no overrides)
+
+## Making changes
+
+1. (Optional) Make changes to the configuration (see above) or component code in `../../custom_components/tibber_graph`
+2. (Optional) Override specific settings for testing by editing `/tests/local_render/config.py`
+3. Run `python local_render.py`
+4. Open `local_render.png` to see your changes in action
 5. Repeat until satisfied!
-
-This workflow is much faster than reloading the component in Home Assistant for every visual tweak.
-
-## Test Configuration Overrides
-
-The `config.py` file in this directory allows you to override specific settings for testing purposes without modifying your production configuration. This is useful for:
-
-- Testing with different currencies
-- Testing with different display modes (cents vs. full units)
-- Testing different time ranges (midnight-to-midnight vs. current hour)
-- Testing different themes or canvas sizes
-
-Simply edit `config.py` in the test directory to override any setting you want to test.
-
-## Output
-
-The local render script generates a PNG image with:
-
-- 48 hours of sample data in 15-minute intervals (192 data points total)
-- Covers today (from midnight) and tomorrow
-- Realistic price patterns (cheaper at night, more expensive during peak hours)
-- Current time marker
-- Price labels based on your configuration
-
-The output file (`local_render.png`) is automatically ignored by git.

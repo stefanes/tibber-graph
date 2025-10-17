@@ -43,7 +43,7 @@ def render_plot_to_path(
         prices_raw: Original list of prices (raw data)
         now_local: Current local time as datetime
         idx: Index of current price in raw data
-        currency: Currency code string (e.g., "NOK", "SEK", "EUR")
+        currency: Currency code string (e.g., "EUR", "SEK", "NOK")
         out_path: Output file path for the rendered image
     """
     # Matplotlib imports and rc settings are prepared at module import to
