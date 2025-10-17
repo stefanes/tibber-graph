@@ -32,7 +32,7 @@ Y_AXIS_LABEL_PADDING = 3                    # Distance between tick and label (i
 Y_AXIS_LABEL_VERTICAL = False               # If True, rotate Y-axis tick labels vertically
 Y_AXIS_LABEL_VERTICAL_ANCHOR = False        # If True, anchor vertical labels at tick; False = center on tick
 Y_AXIS_SIDE = "left"                        # "left" or "right" - which side to draw the Y axis on
-Y_TICK_COUNT = 4                            # Set to an int to control number of Y-axis ticks (e.g., 5). None = automatic.
+Y_TICK_COUNT = None                         # Set to an int to control number of Y-axis ticks (e.g., 5). None = automatic.
 Y_TICK_USE_COLORS = False                   # True = color Y-axis ticks (min/avg/max); False = use default tick color
 
 # Price labels

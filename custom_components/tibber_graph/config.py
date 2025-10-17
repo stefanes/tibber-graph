@@ -40,7 +40,7 @@ Y_AXIS_LABEL_PADDING = 11  # Default: 3
 Y_AXIS_LABEL_VERTICAL = True  # Default: False
 Y_AXIS_LABEL_VERTICAL_ANCHOR = True  # Default: False
 Y_AXIS_SIDE = "right"  # Default: "left"
-Y_TICK_COUNT = 3  # Default: 4
+Y_TICK_COUNT = 3  # Default: None
 Y_TICK_USE_COLORS = True  # Default: False
 
 # Price labels

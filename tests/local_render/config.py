@@ -25,7 +25,7 @@ modifying the production configuration.
 # Y_AXIS_LABEL_VERTICAL = False
 # Y_AXIS_LABEL_VERTICAL_ANCHOR = False
 # Y_AXIS_SIDE = "left"
-# Y_TICK_COUNT = 4
+# Y_TICK_COUNT = None
 # Y_TICK_USE_COLORS = False
 
 # Price labels
