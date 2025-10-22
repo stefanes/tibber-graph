@@ -1,32 +1,79 @@
 """Camera platform for Tibber Graph component."""
+from __future__ import annotations
+
 import asyncio
 import datetime
 import logging
 from bisect import bisect_right
 from pathlib import Path
+from typing import Any
 
 from homeassistant.components.local_file.camera import LocalFile
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-# Import configuration - try config.py first, fall back to defaults.py if not present
-try:
-    from .config import *
-except (ImportError, FileNotFoundError):
-    from .defaults import *
+from .const import (
+    DOMAIN,
+    # General config keys
+    CONF_THEME,
+    CONF_CANVAS_WIDTH,
+    CONF_CANVAS_HEIGHT,
+    CONF_FORCE_FIXED_SIZE,
+    # X-axis config keys
+    CONF_SHOW_X_TICKS,
+    CONF_START_AT_MIDNIGHT,
+    CONF_X_AXIS_LABEL_ROTATION_DEG,
+    CONF_X_TICK_STEP_HOURS,
+    # Y-axis config keys
+    CONF_SHOW_Y_AXIS,
+    CONF_SHOW_Y_GRID,
+    CONF_Y_AXIS_LABEL_ROTATION_DEG,
+    CONF_Y_AXIS_SIDE,
+    CONF_Y_TICK_COUNT,
+    CONF_Y_TICK_USE_COLORS,
+    # Price label config keys
+    CONF_USE_HOURLY_PRICES,
+    CONF_USE_CENTS,
+    CONF_CURRENCY_OVERRIDE,
+    CONF_LABEL_CURRENT,
+    CONF_LABEL_CURRENT_AT_TOP,
+    CONF_LABEL_FONT_SIZE,
+    CONF_LABEL_MAX,
+    CONF_LABEL_MIN,
+    CONF_LABEL_MINMAX_SHOW_PRICE,
+    CONF_LABEL_SHOW_CURRENCY,
+    CONF_LABEL_USE_COLORS,
+    CONF_PRICE_DECIMALS,
+    # Refresh config keys
+    CONF_AUTO_REFRESH_ENABLED,
+)
+
+# Import all configuration values from defaults.py (fallback values)
+from .defaults import *
 
 from .renderer import render_plot_to_path
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up the Tibber Graph camera platform."""
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up Tibber Graph camera from a config entry."""
     Path(hass.config.path("www/")).mkdir(parents=True, exist_ok=True)
     entities = []
+
+    # Get options with fallbacks to defaults
+    options = entry.options if entry.options else {}
+
     for home in hass.data["tibber"].get_homes(only_active=True):
         if not home.info:
             await home.update_info()
-        entities.append(TibberCam(home, hass))
+        entities.append(TibberCam(home, hass, entry, options))
 
     _LOGGER.info("Setting up %d Tibber Graph camera(s)", len(entities))
     async_add_entities(entities)
@@ -35,13 +82,15 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 class TibberCam(LocalFile):
     """Camera entity that generates a dynamic Tibber price graph image."""
 
-    def __init__(self, home, hass):
+    def __init__(self, home, hass, entry: ConfigEntry | None, options: dict[str, Any]):
         """Initialize the Tibber Graph camera."""
         self._name = f"Tibber Graph {home.info['viewer']['home']['appNickname'] or home.info['viewer']['home']['address'].get('address1', '')}"
         name_sanitized = self._name.lower().replace(" ", "_")
         self._path = hass.config.path(f"www/{name_sanitized}.png")
         self._home = home
         self.hass = hass
+        self._entry = entry
+        self._options = options
         self._last_update = dt_util.now() - datetime.timedelta(hours=1)
         self._render_lock = asyncio.Lock()
         self._uniqueid = f"camera_{name_sanitized}"
@@ -49,9 +98,21 @@ class TibberCam(LocalFile):
         super().__init__(self._name, self._path, self._uniqueid)
 
         # Start auto-refresh task if enabled
-        if AUTO_REFRESH_ENABLED:
+        auto_refresh = self._get_option(CONF_AUTO_REFRESH_ENABLED, AUTO_REFRESH_ENABLED)
+        if auto_refresh:
             self._refresh_task = self.hass.async_create_task(self._auto_refresh_loop())
             _LOGGER.debug("Initialized %s with auto-refresh every %d minutes", self._name, AUTO_REFRESH_INTERVAL_MINUTES)
+
+    def _get_option(self, key: str, fallback: Any) -> Any:
+        """Get an option value with fallback to defaults."""
+        # Priority: UI options > defaults.py
+        if self._options and key in self._options:
+            value = self._options[key]
+            # Handle empty string for currency override
+            if key == CONF_CURRENCY_OVERRIDE and value == "":
+                return None
+            return value
+        return fallback
 
     async def async_will_remove_from_hass(self):
         """Cancel the auto-refresh task when entity is removed."""
@@ -82,11 +143,15 @@ class TibberCam(LocalFile):
 
     async def async_camera_image(self, width=None, height=None):
         """Render the chart image if needed and return its bytes."""
-        if FORCE_FIXED_SIZE:
-            w, h = CANVAS_WIDTH, CANVAS_HEIGHT
+        force_fixed = self._get_option(CONF_FORCE_FIXED_SIZE, FORCE_FIXED_SIZE)
+        canvas_width = self._get_option(CONF_CANVAS_WIDTH, CANVAS_WIDTH)
+        canvas_height = self._get_option(CONF_CANVAS_HEIGHT, CANVAS_HEIGHT)
+
+        if force_fixed:
+            w, h = canvas_width, canvas_height
         else:
-            w = width or CANVAS_WIDTH
-            h = height or CANVAS_HEIGHT
+            w = width or canvas_width
+            h = height or canvas_height
         await self._generate_fig(w, h)
         return await self.hass.async_add_executor_job(self.camera_image)
 
@@ -133,7 +198,8 @@ class TibberCam(LocalFile):
         dates, prices = list(dates), list(prices)
 
         # Aggregate to hourly prices if configured
-        if USE_HOURLY_PRICES:
+        use_hourly = self._get_option(CONF_USE_HOURLY_PRICES, USE_HOURLY_PRICES)
+        if use_hourly:
             dates, prices = self._aggregate_to_hourly(dates, prices)
 
         _LOGGER.debug("Parsed %d price data points for %s", len(prices), self._name)
@@ -172,7 +238,7 @@ class TibberCam(LocalFile):
                 return
 
             try:
-                if (self._home.last_data_timestamp - now).total_seconds() > 11 * 3600:
+                if self._home.last_data_timestamp is None or (self._home.last_data_timestamp - now).total_seconds() > 11 * 3600:
                     _LOGGER.debug("Fetching updated price data for %s", self._name)
                     await self._home.update_info_and_price_info()
             except Exception as err:
@@ -186,7 +252,8 @@ class TibberCam(LocalFile):
                 return
 
             # Determine step size based on actual data interval
-            step_minutes = int((dates[1] - dates[0]).total_seconds() // 60) or (60 if USE_HOURLY_PRICES else 15)
+            use_hourly = self._get_option(CONF_USE_HOURLY_PRICES, USE_HOURLY_PRICES)
+            step_minutes = int((dates[1] - dates[0]).total_seconds() // 60) or (60 if use_hourly else 15)
             interval_td = datetime.timedelta(minutes=step_minutes)
             dates_plot = list(dates) + [dates[-1] + interval_td]
             prices_plot = list(prices) + [prices[-1]]
@@ -195,8 +262,19 @@ class TibberCam(LocalFile):
             idx = bisect_right(dates, now_local) - 1
             idx = max(0, min(idx, len(prices) - 1))
 
-            # Determine currency to display: override if configured, otherwise use Tibber home currency
-            currency = CURRENCY_OVERRIDE if CURRENCY_OVERRIDE else (self._home.currency or "")
+            # Determine currency to display: override if configured, otherwise auto-select based on cents mode
+            currency_override = self._get_option(CONF_CURRENCY_OVERRIDE, CURRENCY_OVERRIDE)
+            use_cents = self._get_option(CONF_USE_CENTS, USE_CENTS)
+
+            if currency_override:
+                currency = currency_override
+            elif use_cents:
+                currency = "¢"
+            else:
+                currency = self._home.currency or ""
+
+            # Collect rendering options to pass to renderer
+            render_options = self._get_render_options()
 
             try:
                 await self.hass.async_add_executor_job(
@@ -211,8 +289,52 @@ class TibberCam(LocalFile):
                     idx,
                     currency,
                     self._path,
+                    render_options,
                 )
                 _LOGGER.debug("Rendered chart for %s", self._name)
             except Exception as err:
                 _LOGGER.error("Failed to render chart for %s: %s", self._name, err, exc_info=True)
                 raise
+
+    def _get_render_options(self) -> dict[str, Any]:
+        """Collect rendering options from config entry (UI) or defaults.py."""
+        return {
+            # General settings
+            "theme": self._get_option(CONF_THEME, THEME),
+            "canvas_width": self._get_option(CONF_CANVAS_WIDTH, CANVAS_WIDTH),
+            "canvas_height": self._get_option(CONF_CANVAS_HEIGHT, CANVAS_HEIGHT),
+            "force_fixed_size": self._get_option(CONF_FORCE_FIXED_SIZE, FORCE_FIXED_SIZE),
+            "bottom_margin": BOTTOM_MARGIN,
+            "left_margin": LEFT_MARGIN,
+            # X-axis settings
+            "show_x_ticks": self._get_option(CONF_SHOW_X_TICKS, SHOW_X_TICKS),
+            "start_at_midnight": self._get_option(CONF_START_AT_MIDNIGHT, START_AT_MIDNIGHT),
+            "x_axis_label_rotation_deg": self._get_option(CONF_X_AXIS_LABEL_ROTATION_DEG, X_AXIS_LABEL_ROTATION_DEG),
+            "x_axis_label_y_offset": X_AXIS_LABEL_Y_OFFSET,
+            "x_tick_step_hours": self._get_option(CONF_X_TICK_STEP_HOURS, X_TICK_STEP_HOURS),
+            # Y-axis settings
+            "show_y_axis": self._get_option(CONF_SHOW_Y_AXIS, SHOW_Y_AXIS),
+            "show_y_grid": self._get_option(CONF_SHOW_Y_GRID, SHOW_Y_GRID),
+            "y_axis_label_rotation_deg": self._get_option(CONF_Y_AXIS_LABEL_ROTATION_DEG, Y_AXIS_LABEL_ROTATION_DEG),
+            "y_axis_label_vertical_anchor": Y_AXIS_LABEL_VERTICAL_ANCHOR,
+            "y_axis_side": self._get_option(CONF_Y_AXIS_SIDE, Y_AXIS_SIDE),
+            "y_tick_count": self._get_option(CONF_Y_TICK_COUNT, Y_TICK_COUNT),
+            "y_tick_use_colors": self._get_option(CONF_Y_TICK_USE_COLORS, Y_TICK_USE_COLORS),
+            # Price label settings
+            "use_hourly_prices": self._get_option(CONF_USE_HOURLY_PRICES, USE_HOURLY_PRICES),
+            "use_cents": self._get_option(CONF_USE_CENTS, USE_CENTS),
+            "currency_override": self._get_option(CONF_CURRENCY_OVERRIDE, CURRENCY_OVERRIDE),
+            "label_current": self._get_option(CONF_LABEL_CURRENT, LABEL_CURRENT),
+            "label_current_at_top": self._get_option(CONF_LABEL_CURRENT_AT_TOP, LABEL_CURRENT_AT_TOP),
+            "label_current_at_top_font_weight": LABEL_CURRENT_AT_TOP_FONT_WEIGHT,
+            "label_current_at_top_padding": LABEL_CURRENT_AT_TOP_PADDING,
+            "label_font_size": self._get_option(CONF_LABEL_FONT_SIZE, LABEL_FONT_SIZE),
+            "label_font_weight": LABEL_FONT_WEIGHT,
+            "label_max": self._get_option(CONF_LABEL_MAX, LABEL_MAX),
+            "label_max_below_point": LABEL_MAX_BELOW_POINT,
+            "label_min": self._get_option(CONF_LABEL_MIN, LABEL_MIN),
+            "label_minmax_show_price": self._get_option(CONF_LABEL_MINMAX_SHOW_PRICE, LABEL_MINMAX_SHOW_PRICE),
+            "label_show_currency": self._get_option(CONF_LABEL_SHOW_CURRENCY, LABEL_SHOW_CURRENCY),
+            "label_use_colors": self._get_option(CONF_LABEL_USE_COLORS, LABEL_USE_COLORS),
+            "price_decimals": self._get_option(CONF_PRICE_DECIMALS, PRICE_DECIMALS),
+        }

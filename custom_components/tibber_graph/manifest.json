@@ -1,11 +1,13 @@
 {
   "domain": "tibber_graph",
   "name": "Tibber Graph",
-  "documentation": "https://github.com/stefanes/tibber-graph",
-  "requirements": ["matplotlib"],
   "after_dependencies": ["local_file", "tibber"],
   "codeowners": ["@stefanes"],
+  "config_flow": true,
+  "documentation": "https://github.com/stefanes/tibber-graph?tab=readme-ov-file#readme",
+  "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/stefanes/tibber-graph/issues",
-  "version": "0.1.1",
-  "config_flow": false
+  "requirements": ["matplotlib"],
+  "single_config_entry": true,
+  "version": "0.2.1"
 }

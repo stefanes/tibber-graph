@@ -1,9 +1,9 @@
 """Local rendering script for Tibber graph with sample data.
 
 Usage:
-    python local_render.py                    # Use defaults.py + tests/local_render/config.py (test configuration)
-    python local_render.py --component-config # Use defaults.py + component config.py (production configuration)
-    python local_render.py --defaults-only    # Use only defaults.py (pure defaults, no overrides)
+    python local_render.py                    # Use test configuration (light theme, colored labels)
+    python local_render.py --my               # Use my configuration (dark theme, hourly, öre)
+    python local_render.py --defaults         # Use only defaults.py (pure defaults, no overrides)
     python local_render.py --random           # Use random generated price data instead of real Tibber data
     python local_render.py --time 19:34       # Simulate a specific time (e.g., 19:34 today)
 
@@ -14,17 +14,17 @@ import sys
 from pathlib import Path
 
 # Check for command-line arguments
-config_mode = 'test'  # 'test', 'component', or 'defaults'
+config_mode = 'test'  # 'test', 'my', or 'defaults'
 use_random_data = False
 fixed_time = None
 
 i = 1
 while i < len(sys.argv):
     arg = sys.argv[i]
-    if arg in ('--component-config', '--component', '-c'):
-        config_mode = 'component'
-        print("Running with component configuration (defaults.py + config.py)")
-    elif arg in ('--defaults-only', '--defaults', '-d'):
+    if arg in ('--my', '-m'):
+        config_mode = 'my'
+        print("Running with my configuration (inline settings)")
+    elif arg in ('--defaults', '-d'):
         config_mode = 'defaults'
         print("Running with defaults only (no configuration overrides)")
     elif arg in ('--random', '-r'):
@@ -57,49 +57,22 @@ with open(defaults_file, 'r', encoding='utf-8') as f:
     defaults_code = f.read()
     exec(defaults_code, globals())
 
-# Load configuration based on mode
-if config_mode == 'test':
-    # Load test-specific configuration overrides (if it exists)
-    # Note: We skip the component's config.py and only use the test config.py
-    test_config_file = Path(__file__).parent / "config.py"
-    if test_config_file.exists():
-        with open(test_config_file, 'r', encoding='utf-8') as f:
-            test_config_code = f.read()
-            exec(test_config_code, globals())
-        print("Using test configuration from tests/local_render/config.py")
-    else:
-        print("Using only defaults.py (test config.py not found)")
-elif config_mode == 'component':
-    # Use the component's config.py (if it exists)
-    config_file = component_dir / "config.py"
-    if config_file.exists():
-        with open(config_file, 'r', encoding='utf-8') as f:
-            config_code = f.read()
-            # Replace relative import since we've already loaded defaults
-            config_code = config_code.replace('from .defaults import *', '')
-            exec(config_code, globals())
-        print("Using component configuration from config.py")
-    else:
-        print("Using only defaults.py (config.py not found)")
-elif config_mode == 'defaults':
-    # Use only defaults, no config overrides
-    print("Using only defaults.py (no configuration overrides)")
+# No additional loading needed - all modes use defaults.py as base
+# Test modes will apply render_options inline in main()
 
 # Read and execute renderer.py (replacing relative import)
 renderer_file = component_dir / "renderer.py"
 with open(renderer_file, 'r', encoding='utf-8') as f:
     renderer_code = f.read()
-    # Replace the try-except import block with nothing (constants already loaded)
+    # Replace the relative import with nothing (constants already loaded)
     import re
-    # Remove the entire try-except import block
+    # Remove the import line (now just "from .defaults import *")
     renderer_code = re.sub(
-        r'# Import configuration.*?\n(?:try:.*?except.*?:.*?\n(?:    .*?\n)*)',
+        r'^# Import all default configuration values from defaults\.py\nfrom \.defaults import \*\n',
         '',
         renderer_code,
-        flags=re.DOTALL
+        flags=re.MULTILINE
     )
-    # Also handle old-style import if present
-    renderer_code = renderer_code.replace('from .config import *', '')
     exec(renderer_code, globals())
 
 # Import just the _aggregate_to_hourly function from camera.py
@@ -157,15 +130,26 @@ def generate_price_data(use_random=False, fixed_time=None):
     if fixed_time:
         # Parse fixed_time as "HH:MM" and set it to today
         time_parts = fixed_time.split(':')
-        if len(time_parts) == 2:
+        if len(time_parts) != 2:
+            print(f"Error: Invalid time format '{fixed_time}'. Use HH:MM format (e.g., 19:34)")
+            sys.exit(1)
+
+        try:
             hour, minute = int(time_parts[0]), int(time_parts[1])
+            if not (0 <= hour <= 23):
+                print(f"Error: Hour must be 0-23, got {hour}")
+                sys.exit(1)
+            if not (0 <= minute <= 59):
+                print(f"Error: Minute must be 0-59, got {minute}")
+                sys.exit(1)
             now = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        except ValueError as e:
+            print(f"Error: Invalid time format '{fixed_time}': {e}")
+            sys.exit(1)
 
     # Get today's and tomorrow's dates for dynamic date generation
     today = now.date()
     tomorrow = today + datetime.timedelta(days=1)
-    today_str = today.strftime('%Y-%m-%d')
-    tomorrow_str = tomorrow.strftime('%Y-%m-%d')
 
     if use_random:
         # Generate random price data following real Tibber price patterns
@@ -189,9 +173,8 @@ def generate_price_data(use_random=False, fixed_time=None):
             interval_time = start_time + datetime.timedelta(minutes=i * 15)
             dates.append(interval_time)
 
-            # Determine which day we're in (first or second)
+            # Determine which day we're in for price adjustments
             hour = interval_time.hour
-            day_offset = 1 if interval_time.date() > today else 0
 
             # Base price patterns by hour (mimicking real Tibber data)
             if 0 <= hour < 4:
@@ -240,7 +223,7 @@ def generate_price_data(use_random=False, fixed_time=None):
                 variation = random.uniform(-0.10, 0.10)
 
             # Second day tends to have slightly different prices
-            if day_offset == 1:
+            if interval_time.date() > today:
                 # Adjust second day to be slightly lower on average
                 base_price *= random.uniform(0.85, 0.95)
 
@@ -250,8 +233,20 @@ def generate_price_data(use_random=False, fixed_time=None):
         return dates, prices, now
 
     # Load real price data from JSON file
-    with open(PRICE_DATA_FILE, 'r', encoding='utf-8') as f:
-        price_data_json = json.load(f)
+    try:
+        with open(PRICE_DATA_FILE, 'r', encoding='utf-8') as f:
+            price_data_json = json.load(f)
+    except FileNotFoundError:
+        print(f"Error: Price data file not found: {PRICE_DATA_FILE}")
+        print("Tip: Use --random flag to generate random data instead.")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON in {PRICE_DATA_FILE}: {e}")
+        sys.exit(1)
+
+    if not price_data_json:
+        print(f"Error: No price data found in {PRICE_DATA_FILE}")
+        sys.exit(1)
 
     dates = []
     prices = []
@@ -297,14 +292,55 @@ def generate_price_data(use_random=False, fixed_time=None):
 
 def main():
     """Generate test render."""
+    # Define render_options based on config_mode
+    if config_mode == 'defaults':
+        # Pure defaults - no overrides
+        render_options = None
+        print("Using defaults only (no render options)")
+    elif config_mode == 'test':
+        # Test configuration: light theme with colored labels (only overrides from defaults)
+        render_options = {
+            "theme": "light",  # Override: light instead of dark
+            # Y-axis overrides
+            "y_tick_count": 3,
+            "y_tick_use_colors": True,
+            # Price label overrides
+            "label_minmax_show_price": False,
+            "label_use_colors": True,
+        }
+        print("Using test configuration: light theme, colored labels")
+    else:  # my
+        # My configuration (only overrides from defaults)
+        render_options = {
+            # X-axis overrides
+            "show_x_ticks": True,
+            "start_at_midnight": False,
+            # Y-axis overrides
+            "y_axis_label_rotation_deg": 270,  # Vertical labels for right side (reads top-to-bottom)
+            "y_axis_side": "right",
+            "y_tick_count": 3,
+            "y_tick_use_colors": True,
+            # Price label overrides
+            "use_hourly_prices": True,
+            "use_cents": True,
+            "currency_override": "öre",
+            "label_current_at_top": True,
+            "label_font_size": 17,
+            "label_minmax_show_price": False,
+        }
+        print("Using my configuration: dark theme, hourly prices, öre currency")
+
     print("Generating sample price data...")
     dates_raw, prices_raw, now_local = generate_price_data(
         use_random=use_random_data,
         fixed_time=fixed_time
     )
 
+    # Determine if we should use hourly prices
+    use_hourly = render_options.get("use_hourly_prices", USE_HOURLY_PRICES) if render_options else USE_HOURLY_PRICES
+
     # Aggregate to hourly prices if configured (using camera.py's method)
-    if USE_HOURLY_PRICES:
+    if use_hourly:
         print("Aggregating 15-minute data to hourly averages...")
         dates_raw, prices_raw = aggregate_to_hourly(dates_raw, prices_raw)
 
@@ -318,9 +354,9 @@ def main():
 
     # Determine step size based on actual data interval
     if len(dates_raw) >= 2:
-        step_minutes = int((dates_raw[1] - dates_raw[0]).total_seconds() // 60) or (60 if USE_HOURLY_PRICES else 15)
+        step_minutes = int((dates_raw[1] - dates_raw[0]).total_seconds() // 60) or (60 if use_hourly else 15)
     else:
-        step_minutes = 60 if USE_HOURLY_PRICES else 15
+        step_minutes = 60 if use_hourly else 15
 
     interval_td = datetime.timedelta(minutes=step_minutes)
     dates_plot = dates_raw + [dates_raw[-1] + interval_td]
@@ -328,21 +364,43 @@ def main():
 
     print(f"Data range: {dates_raw[0].strftime('%Y-%m-%d %H:%M')} to {dates_raw[-1].strftime('%Y-%m-%d %H:%M')}")
     print(f"Current time: {now_local.strftime('%Y-%m-%d %H:%M')}")
-    print(f"Data points: {len(dates_raw)} ({'hourly' if USE_HOURLY_PRICES else '15-minute'} intervals)")
+    print(f"Data points: {len(dates_raw)} ({'hourly' if use_hourly else '15-minute'} intervals)")
     print(f"Current price index: {idx}")
     print(f"Price range: {min(prices_raw):.4f} - {max(prices_raw):.4f}")
     print(f"Current price: {prices_raw[idx]:.4f}")
 
-    # Use currency from configuration (CURRENCY_OVERRIDE or default to SEK)
-    currency = CURRENCY_OVERRIDE if CURRENCY_OVERRIDE else "SEK"
+    # Get currency: override if set, otherwise auto-select based on cents mode
+    use_cents_opt = render_options.get("use_cents", USE_CENTS) if render_options else USE_CENTS
+
+    if render_options and "currency_override" in render_options:
+        currency_override = render_options["currency_override"]
+    else:
+        currency_override = CURRENCY_OVERRIDE
+
+    if currency_override:
+        currency = currency_override
+    elif use_cents_opt:
+        currency = "¢"
+    else:
+        currency = "SEK"
+
+    # Get canvas size from render_options or globals
+    canvas_width = render_options.get("canvas_width", CANVAS_WIDTH) if render_options else CANVAS_WIDTH
+    canvas_height = render_options.get("canvas_height", CANVAS_HEIGHT) if render_options else CANVAS_HEIGHT
 
     print(f"\nRendering to {OUTPUT_FILE}...")
     print(f"Active configuration:")
-    print(f"  - Canvas size: {CANVAS_WIDTH}x{CANVAS_HEIGHT}")
+    print(f"  - Mode: {config_mode}")
+    print(f"  - Canvas size: {canvas_width}x{canvas_height}")
     print(f"  - Currency: {currency}")
+    if render_options:
+        print(f"  - Theme: {render_options.get('theme', 'default')}")
+        print(f"  - Colored labels: {render_options.get('label_use_colors', False)}")
+        print(f"  - Colored Y ticks: {render_options.get('y_tick_use_colors', False)}")
+
     render_plot_to_path(
-        width=CANVAS_WIDTH,
-        height=CANVAS_HEIGHT,
+        width=canvas_width,
+        height=canvas_height,
         dates_plot=dates_plot,
         prices_plot=prices_plot,
         dates_raw=dates_raw,
@@ -351,6 +409,7 @@ def main():
         idx=idx,
         currency=currency,
         out_path=OUTPUT_FILE,
+        render_options=render_options,
     )
 
     print(f"✓ Successfully rendered to {OUTPUT_FILE}")

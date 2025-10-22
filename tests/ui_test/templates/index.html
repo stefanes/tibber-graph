@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tibber Graph - Configuration Test</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <img src="https://brands.home-assistant.io/tibber_graph/dark_icon.png" alt="Tibber Graph" class="logo">
+            <h1>Tibber Graph Options</h1>
+        </header>
+
+        <div class="content">
+            <div class="sidebar">
+                <form id="config-form">
+                    <div class="section">
+                        <h2>General Settings</h2>
+
+                        <div class="form-group">
+                            <label for="theme">Theme</label>
+                            <select id="theme" name="theme">
+                                <option value="light" {% if defaults.theme == 'light' %}selected{% endif %}>Light</option>
+                                <option value="dark" {% if defaults.theme == 'dark' %}selected{% endif %}>Dark</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="canvas_width">Canvas Width</label>
+                            <input type="number" id="canvas_width" name="canvas_width" value="{{ defaults.canvas_width }}" min="100" max="2000">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="canvas_height">Canvas Height</label>
+                            <input type="number" id="canvas_height" name="canvas_height" value="{{ defaults.canvas_height }}" min="100" max="2000">
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="force_fixed_size" name="force_fixed_size" {% if defaults.force_fixed_size %}checked{% endif %}>
+                                <span>Force Fixed Size</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h2>X-Axis Settings</h2>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="show_x_ticks" name="show_x_ticks" {% if defaults.show_x_ticks %}checked{% endif %}>
+                                <span>Show X-axis Ticks</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="start_at_midnight" name="start_at_midnight" {% if defaults.start_at_midnight %}checked{% endif %}>
+                                <span>Start at Midnight</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="x_axis_label_rotation_deg">Label Rotation (degrees)</label>
+                            <input type="number" id="x_axis_label_rotation_deg" name="x_axis_label_rotation_deg" value="{{ defaults.x_axis_label_rotation_deg }}" min="0" max="90">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="x_tick_step_hours">Tick Step (hours)</label>
+                            <input type="number" id="x_tick_step_hours" name="x_tick_step_hours" value="{{ defaults.x_tick_step_hours }}" min="1" max="24">
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h2>Y-Axis Settings</h2>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="show_y_axis" name="show_y_axis" {% if defaults.show_y_axis %}checked{% endif %}>
+                                <span>Show Y-axis</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="show_y_grid" name="show_y_grid" {% if defaults.show_y_grid %}checked{% endif %}>
+                                <span>Show Y-axis Grid</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="y_axis_label_rotation_deg">Label Rotation (degrees)</label>
+                            <input type="number" id="y_axis_label_rotation_deg" name="y_axis_label_rotation_deg" value="{{ defaults.y_axis_label_rotation_deg }}" min="0" max="360">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="y_axis_side">Y-axis Side</label>
+                            <select id="y_axis_side" name="y_axis_side">
+                                <option value="left" {% if defaults.y_axis_side == 'left' %}selected{% endif %}>Left</option>
+                                <option value="right" {% if defaults.y_axis_side == 'right' %}selected{% endif %}>Right</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="y_tick_count">Tick Count (leave empty for auto)</label>
+                            <input type="number" id="y_tick_count" name="y_tick_count" value="{{ defaults.y_tick_count }}" min="1" max="20">
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="y_tick_use_colors" name="y_tick_use_colors" {% if defaults.y_tick_use_colors %}checked{% endif %}>
+                                <span>Use Colors for Y-axis Ticks</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h2>Price Label Settings</h2>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="use_hourly_prices" name="use_hourly_prices" {% if defaults.use_hourly_prices %}checked{% endif %}>
+                                <span>Use Hourly Prices</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="use_cents" name="use_cents" {% if defaults.use_cents %}checked{% endif %}>
+                                <span>Use Cents</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="currency_override">Currency Override</label>
+                            <input type="text" id="currency_override" name="currency_override" value="{{ defaults.currency_override }}" placeholder="e.g., SEK, öre">
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="label_current" name="label_current" {% if defaults.label_current %}checked{% endif %}>
+                                <span>Show Current Price Label</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="label_current_at_top" name="label_current_at_top" {% if defaults.label_current_at_top %}checked{% endif %}>
+                                <span>Current Label at Top</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="label_font_size">Label Font Size</label>
+                            <input type="number" id="label_font_size" name="label_font_size" value="{{ defaults.label_font_size }}" min="8" max="32">
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="label_max" name="label_max" {% if defaults.label_max %}checked{% endif %}>
+                                <span>Show Max Price Label</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="label_min" name="label_min" {% if defaults.label_min %}checked{% endif %}>
+                                <span>Show Min Price Label</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="label_minmax_show_price" name="label_minmax_show_price" {% if defaults.label_minmax_show_price %}checked{% endif %}>
+                                <span>Show Price on Min/Max Labels</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="label_show_currency" name="label_show_currency" {% if defaults.label_show_currency %}checked{% endif %}>
+                                <span>Show Currency Symbol</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="label_use_colors" name="label_use_colors" {% if defaults.label_use_colors %}checked{% endif %}>
+                                <span>Use Colors for Labels</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="price_decimals">Price Decimals</label>
+                            <input type="number" id="price_decimals" name="price_decimals" value="{{ defaults.price_decimals }}" min="0" max="4">
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h2>Auto-Refresh Settings</h2>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="auto_refresh_enabled" name="auto_refresh_enabled" {% if defaults.auto_refresh_enabled %}checked{% endif %}>
+                                <span>Auto-Refresh Enabled</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h2>Test Options</h2>
+
+                        <div class="form-group">
+                            <label for="fixed_time">Simulate Time (HH:MM)</label>
+                            <input type="text" id="fixed_time" name="fixed_time" placeholder="e.g., 19:34" class="auto-render">
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="button" class="btn btn-secondary" onclick="resetToDefaults()">
+                            🔄 Reset to Defaults
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="main-content">
+                <div class="preview-section">
+                    <div class="preview-header">
+                        <h2>Preview</h2>
+                        <div class="status" id="status">Ready</div>
+                    </div>
+
+                    <div class="preview-container" id="preview-container">
+                        <div class="placeholder">
+                            <div class="placeholder-icon">📊</div>
+                            <p>Click "Render Graph" to see the preview</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getFormData() {
+            const form = document.getElementById('config-form');
+            const formData = new FormData(form);
+            const data = {};
+
+            // Get all text/number inputs
+            for (let [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+
+            // Get all checkboxes (including unchecked ones)
+            const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                data[checkbox.name] = checkbox.checked ? 'true' : 'false';
+            });
+
+            return data;
+        }
+
+        async function renderGraph() {
+            const statusEl = document.getElementById('status');
+            const previewContainer = document.getElementById('preview-container');
+
+            statusEl.textContent = 'Rendering...';
+            statusEl.className = 'status loading';
+
+            try {
+                const data = getFormData();
+
+                const response = await fetch('/render', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to render graph');
+                }
+
+                const blob = await response.blob();
+                const imageUrl = URL.createObjectURL(blob);
+
+                previewContainer.innerHTML = `<img src="${imageUrl}" alt="Rendered Graph" class="preview-image">`;
+
+                statusEl.textContent = 'Rendered successfully';
+                statusEl.className = 'status success';
+
+                setTimeout(() => {
+                    statusEl.textContent = 'Ready';
+                    statusEl.className = 'status';
+                }, 3000);
+
+            } catch (error) {
+                previewContainer.innerHTML = `
+                    <div class="error-message">
+                        <div class="error-icon">⚠️</div>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+
+                statusEl.textContent = 'Error';
+                statusEl.className = 'status error';
+
+                console.error('Render error:', error);
+            }
+        }
+
+        async function resetToDefaults() {
+            try {
+                const response = await fetch('/defaults');
+                const defaults = await response.json();
+
+                // Reset all form fields
+                for (let [key, value] of Object.entries(defaults)) {
+                    const element = document.getElementById(key);
+                    if (!element) continue;
+
+                    if (element.type === 'checkbox') {
+                        element.checked = value;
+                    } else {
+                        element.value = value;
+                    }
+                }
+
+                // Clear test options
+                document.getElementById('fixed_time').value = '';
+
+                // Render immediately after reset
+                await renderGraph();
+
+            } catch (error) {
+                console.error('Reset error:', error);
+            }
+        }
+
+        // Setup auto-render on any input change
+        function setupAutoRender() {
+            const form = document.getElementById('config-form');
+
+            // Add change listeners to all inputs
+            const inputs = form.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                if (input.type === 'checkbox') {
+                    input.addEventListener('change', renderGraph);
+                } else if (input.type === 'number' || input.tagName === 'SELECT') {
+                    input.addEventListener('change', renderGraph);
+                } else if (input.type === 'text') {
+                    // For text inputs, use blur event to avoid rendering on every keystroke
+                    input.addEventListener('blur', renderGraph);
+                }
+            });
+        }
+
+        // Auto-render on page load with defaults
+        window.addEventListener('load', () => {
+            setupAutoRender();
+            renderGraph();
+        });
+    </script>
+</body>
+</html>

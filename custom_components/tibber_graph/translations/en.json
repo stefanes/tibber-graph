@@ -1,0 +1,83 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Tibber Graph",
+        "description": "Configure the Tibber Graph integration to display electricity prices as camera entities.",
+        "data": {
+          "theme": "Theme"
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Only a single instance is allowed.",
+      "tibber_not_setup": "The Tibber integration must be set up first."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "description": "Configure how the price graph is displayed.",
+        "data": {
+          "theme": "Theme",
+          "canvas_width": "Canvas width (pixels)",
+          "canvas_height": "Canvas height (pixels)",
+          "force_fixed_size": "Force fixed size",
+          "show_x_ticks": "Show X-axis ticks",
+          "start_at_midnight": "Start graph at midnight",
+          "x_axis_label_rotation_deg": "X-axis label rotation (degrees)",
+          "x_tick_step_hours": "X-axis tick interval (hours)",
+          "show_y_axis": "Show Y-axis",
+          "show_y_grid": "Show Y-axis grid",
+          "y_axis_label_rotation_deg": "Y-axis label rotation (degrees)",
+          "y_axis_side": "Y-axis position",
+          "y_tick_count": "Number of Y-axis ticks",
+          "y_tick_use_colors": "Use colored Y-axis ticks",
+          "use_hourly_prices": "Aggregate to hourly prices",
+          "use_cents": "Display in cents",
+          "currency_override": "Currency override (leave blank for auto)",
+          "label_current": "Show current price label",
+          "label_current_at_top": "Show current price at top",
+          "label_font_size": "Label font size",
+          "label_max": "Show maximum price label",
+          "label_min": "Show minimum price label",
+          "label_minmax_show_price": "Show price on min/max labels",
+          "label_show_currency": "Show currency on labels",
+          "label_use_colors": "Use colored labels (min/max)",
+          "price_decimals": "Number of price decimals",
+          "auto_refresh_enabled": "Enable auto-refresh"
+        },
+        "data_description": {
+          "theme": "Choose between light and dark theme.",
+          "canvas_width": "Width of the generated graph image.",
+          "canvas_height": "Height of the generated graph image.",
+          "force_fixed_size": "Always render at fixed size (ignores camera size requests).",
+          "show_x_ticks": "Show tick marks on the X-axis at label positions.",
+          "start_at_midnight": "Show full 24-hour period from midnight, or from current hour onwards.",
+          "x_axis_label_rotation_deg": "Rotation angle for X-axis time labels in degrees (e.g., 0 = horizontal, 45 = diagonal, 90 = vertical).",
+          "x_tick_step_hours": "Hours between each time label on the X-axis.",
+          "show_y_axis": "Show the Y-axis with ticks, labels, and spine.",
+          "show_y_grid": "Show horizontal gridlines across the graph.",
+          "y_axis_label_rotation_deg": "Rotation angle for Y-axis labels in degrees (0 = horizontal, 90 = vertical for left side, 270 = vertical for right side).",
+          "y_axis_side": "Display Y-axis on the left or right side of the graph.",
+          "y_tick_count": "Number of price ticks to show on Y-axis (leave empty for automatic).",
+          "y_tick_use_colors": "Color Y-axis tick labels based on price levels (min/avg/max).",
+          "use_hourly_prices": "Aggregate 15-minute intervals into hourly averages.",
+          "use_cents": "Display prices in cents instead of main currency unit (use 'Currency override' to override '¢' as currency).",
+          "currency_override": "Override currency display (e.g., 'EUR', 'SEK', 'öre'). Leave blank for auto: Tibber home currency (standard mode) or '¢' (cents mode).",
+          "label_current": "Show a label for the current price on the graph.",
+          "label_current_at_top": "Show current price label at top-left corner instead of on the graph.",
+          "label_font_size": "Font size for all labels (X-axis time, Y-axis price, and in-graph price labels).",
+          "label_max": "Show a label for the maximum price on the graph.",
+          "label_min": "Show a label for the minimum price on the graph.",
+          "label_minmax_show_price": "Show price value on min/max labels (if false, only time is shown).",
+          "label_show_currency": "Show currency symbol on price labels.",
+          "label_use_colors": "Color min/max labels green/red for easier identification.",
+          "price_decimals": "Number of decimal places to show for prices. Leave empty for auto (2 for standard, 0 for cents).",
+          "auto_refresh_enabled": "Automatically refresh the graph at regular intervals."
+        }
+      }
+    }
+  }
+}

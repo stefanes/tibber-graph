@@ -3,24 +3,38 @@
 This component provides a camera entity that generates dynamic price graphs
 from Tibber electricity pricing data.
 """
+from __future__ import annotations
+
 import logging
 
-from homeassistant.const import EVENT_HOMEASSISTANT_START
-from homeassistant.helpers import discovery
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant
 
-DOMAIN = "tibber_graph"
-DEPENDENCIES = ["tibber"]
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+PLATFORMS: list[Platform] = [Platform.CAMERA]
 
-def setup(hass, config):
-    """Set up the Tibber Graph component."""
 
-    def ha_started(_event):
-        """Load the camera platform when Home Assistant has started."""
-        discovery.load_platform(hass, "camera", DOMAIN, {}, config)
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Tibber Graph from a config entry."""
+    # Store config entry data in hass.data for access by platforms
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][entry.entry_id] = entry.data
 
-    hass.bus.listen_once(EVENT_HOMEASSISTANT_START, ha_started)
+    # Forward the setup to the camera platform
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+    if unload_ok:
+        hass.data[DOMAIN].pop(entry.entry_id)
+
+    return unload_ok
