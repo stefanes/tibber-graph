@@ -7,11 +7,23 @@
         "data": {
           "theme": "Theme"
         }
+      },
+      "reconfigure": {
+        "title": "Reset",
+        "description": "Select which values to reset to their defaults. Other settings will be preserved.",
+        "data": {
+          "reset_hours_to_show": "Hours to show",
+          "reset_y_tick_count": "Number of Y-axis ticks",
+          "reset_price_decimals": "Number of price decimals",
+          "reset_currency_override": "Currency override",
+          "reset_all": "All settings"
+        }
       }
     },
     "abort": {
       "single_instance_allowed": "Only a single instance is allowed.",
-      "tibber_not_setup": "The Tibber integration must be set up first."
+      "tibber_not_setup": "The Tibber integration must be set up first.",
+      "reconfigure_successful": "Selected values have been reset to their defaults."
     }
   },
   "options": {
@@ -28,6 +40,7 @@
           "start_at_midnight": "Start graph at midnight",
           "x_axis_label_rotation_deg": "X-axis label rotation (degrees)",
           "x_tick_step_hours": "X-axis tick interval (hours)",
+          "hours_to_show": "Hours to show (leave empty for all)",
           "show_y_axis": "Show Y-axis",
           "show_y_grid": "Show Y-axis grid",
           "y_axis_label_rotation_deg": "Y-axis label rotation (degrees)",

@@ -10,7 +10,7 @@ flow in the Home Assistant UI (Settings > Devices & Services > Tibber Graph).
 # =========================
 
 # General settings
-THEME = "dark"                              # Theme: "light" or "dark"
+THEME = "dark"                              # Theme: "dark" or "light"
 CANVAS_HEIGHT = 700
 CANVAS_WIDTH = 1200
 FORCE_FIXED_SIZE = True                     # Always render at a fixed size (ignores Home Assistant camera size requests)
@@ -23,6 +23,7 @@ START_AT_MIDNIGHT = True                    # True = show from midnight to midni
 X_AXIS_LABEL_ROTATION_DEG = 45              # Rotation angle for X-axis labels (in degrees)
 X_AXIS_LABEL_Y_OFFSET = 0.05                # Distance below axis (as fraction)
 X_TICK_STEP_HOURS = 3                       # Label every 3 hours
+HOURS_TO_SHOW = None                        # Limit display to specific number of hours (None = show all available data)
 
 # Y-axis settings
 SHOW_Y_AXIS = True                          # True = show Y axis (ticks, labels, spine). Set False to hide

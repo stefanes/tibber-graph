@@ -67,7 +67,7 @@ To customize the test mode render options, edit the `render_options` dictionary 
 
 ```python
 render_options = {
-    "theme": "light",              # "light" or "dark"
+    "theme": "light",              # "dark" or "light"
     "label_use_colors": True,      # Color min/max labels
     "y_tick_use_colors": True,     # Color Y-axis ticks
     # Add other options as needed

@@ -1,11 +1,9 @@
 name: Validate
 
 on:
+  workflow_dispatch:
   push:
   pull_request:
-  schedule:
-    - cron: "0 0 * * *"
-  workflow_dispatch:
 
 jobs:
   validate-hacs:
@@ -16,4 +14,3 @@ jobs:
         uses: "hacs/action@main"
         with:
           category: "integration"
-

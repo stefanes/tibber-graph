@@ -24,5 +24,6 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Local render output
+# Local test files
 tests/local_render/local_render.png
+tests/local_copy.json

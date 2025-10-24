@@ -23,6 +23,7 @@ from .const import (
     CONF_START_AT_MIDNIGHT,
     CONF_X_AXIS_LABEL_ROTATION_DEG,
     CONF_X_TICK_STEP_HOURS,
+    CONF_HOURS_TO_SHOW,
     # Y-axis
     CONF_SHOW_Y_AXIS,
     CONF_SHOW_Y_GRID,
@@ -55,6 +56,7 @@ from .const import (
     DEFAULT_START_AT_MIDNIGHT,
     DEFAULT_X_AXIS_LABEL_ROTATION_DEG,
     DEFAULT_X_TICK_STEP_HOURS,
+    DEFAULT_HOURS_TO_SHOW,
     # Defaults - Y-axis
     DEFAULT_SHOW_Y_AXIS,
     DEFAULT_SHOW_Y_GRID,
@@ -104,34 +106,98 @@ class TibberGraphConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Optional(
                         CONF_THEME, default=DEFAULT_THEME
-                    ): vol.In(["light", "dark"]),
+                    ): vol.In(["dark", "light"]),
                 }
             ),
+        )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle reconfiguration of nullable fields."""
+        entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        if user_input is not None:
+            # Check if "reset all" was selected
+            if user_input.get("reset_all", False):
+                # Reset all options to defaults (clear all options)
+                updated_options = {}
+            else:
+                # Merge user input with existing options, resetting checked fields to defaults
+                updated_options = dict(entry.options)
+
+                # Reset only the fields that were checked
+                if user_input.get(f"reset_{CONF_HOURS_TO_SHOW}", False):
+                    if CONF_HOURS_TO_SHOW in updated_options:
+                        del updated_options[CONF_HOURS_TO_SHOW]
+
+                if user_input.get(f"reset_{CONF_Y_TICK_COUNT}", False):
+                    if CONF_Y_TICK_COUNT in updated_options:
+                        del updated_options[CONF_Y_TICK_COUNT]
+
+                if user_input.get(f"reset_{CONF_PRICE_DECIMALS}", False):
+                    if CONF_PRICE_DECIMALS in updated_options:
+                        del updated_options[CONF_PRICE_DECIMALS]
+
+                if user_input.get(f"reset_{CONF_CURRENCY_OVERRIDE}", False):
+                    if CONF_CURRENCY_OVERRIDE in updated_options:
+                        del updated_options[CONF_CURRENCY_OVERRIDE]
+
+            return self.async_update_reload_and_abort(
+                entry,
+                data=entry.data,
+                options=updated_options,
+            )
+
+        # Show form with checkboxes for resetting fields
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=self._get_reconfigure_schema(),
+        )
+
+    def _get_reconfigure_schema(self) -> vol.Schema:
+        """Return schema for reconfiguring nullable fields only."""
+        return vol.Schema(
+            {
+                vol.Optional(
+                    f"reset_{CONF_HOURS_TO_SHOW}",
+                    default=False,
+                ): cv.boolean,
+                vol.Optional(
+                    f"reset_{CONF_Y_TICK_COUNT}",
+                    default=False,
+                ): cv.boolean,
+                vol.Optional(
+                    f"reset_{CONF_PRICE_DECIMALS}",
+                    default=False,
+                ): cv.boolean,
+                vol.Optional(
+                    f"reset_{CONF_CURRENCY_OVERRIDE}",
+                    default=False,
+                ): cv.boolean,
+                vol.Optional(
+                    "reset_all",
+                    default=False,
+                ): cv.boolean,
+            }
         )
 
     @staticmethod
     @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
-    ) -> TibberGraphOptionsFlowHandler:
+    ) -> config_entries.OptionsFlow:
         """Get the options flow for this handler."""
-        return TibberGraphOptionsFlowHandler(config_entry)
+        return TibberGraphOptionsFlowHandler()
 
 
 class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
     """Handle options flow for Tibber Graph."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Manage the options."""
         if user_input is not None:
-            # Validate and clean up user input
-            _LOGGER.debug("Saving options: %s", user_input)
             return self.async_create_entry(title="", data=user_input)
 
         return self.async_show_form(
@@ -149,7 +215,7 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                 vol.Optional(
                     CONF_THEME,
                     default=options.get(CONF_THEME, DEFAULT_THEME),
-                ): vol.In(["light", "dark"]),
+                ): vol.In(["dark", "light"]),
                 vol.Optional(
                     CONF_CANVAS_WIDTH,
                     default=options.get(CONF_CANVAS_WIDTH, DEFAULT_CANVAS_WIDTH),
@@ -179,6 +245,10 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                     CONF_X_TICK_STEP_HOURS,
                     default=options.get(CONF_X_TICK_STEP_HOURS, DEFAULT_X_TICK_STEP_HOURS),
                 ): cv.positive_int,
+                vol.Optional(
+                    CONF_HOURS_TO_SHOW,
+                    default=options.get(CONF_HOURS_TO_SHOW, DEFAULT_HOURS_TO_SHOW),
+                ): vol.Any(None, cv.positive_int),
                 # Y-axis settings
                 vol.Optional(
                     CONF_SHOW_Y_AXIS,

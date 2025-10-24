@@ -91,6 +91,8 @@ def get_default_value(option_key):
         return ''
     if option_key == 'currency_override' and value is None:
         return ''
+    if option_key == 'hours_to_show' and value is None:
+        return ''
 
     return value if value is not None else ''
 
@@ -123,17 +125,17 @@ def parse_option_value(option_key, form_value, default_fallback):
     # Integer options
     integer_options = [
         'canvas_width', 'canvas_height', 'x_axis_label_rotation_deg', 'x_tick_step_hours',
-        'y_axis_label_rotation_deg', 'y_tick_count', 'label_font_size', 'price_decimals'
+        'hours_to_show', 'y_axis_label_rotation_deg', 'y_tick_count', 'label_font_size', 'price_decimals'
     ]
 
     # String options that can be empty
-    nullable_string_options = ['currency_override', 'y_tick_count']
+    nullable_string_options = ['currency_override', 'y_tick_count', 'hours_to_show']
 
     if option_key in boolean_options:
         return form_value == 'true'
     elif option_key in integer_options:
         # Allow None for nullable integer options
-        if option_key in ('y_tick_count', 'price_decimals') and not form_value:
+        if option_key in ('y_tick_count', 'price_decimals', 'hours_to_show') and not form_value:
             return None
         try:
             return int(form_value) if form_value else default_fallback

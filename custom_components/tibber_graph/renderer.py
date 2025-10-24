@@ -74,6 +74,7 @@ def render_plot_to_path(
     START_AT_MIDNIGHT_OPT = get_opt("start_at_midnight", START_AT_MIDNIGHT)
     X_AXIS_LABEL_ROTATION_DEG_OPT = get_opt("x_axis_label_rotation_deg", X_AXIS_LABEL_ROTATION_DEG)
     X_TICK_STEP_HOURS_OPT = get_opt("x_tick_step_hours", X_TICK_STEP_HOURS)
+    HOURS_TO_SHOW_OPT = get_opt("hours_to_show", HOURS_TO_SHOW)
     # Y-axis settings
     SHOW_Y_AXIS_OPT = get_opt("show_y_axis", SHOW_Y_AXIS)
     SHOW_Y_GRID_OPT = get_opt("show_y_grid", SHOW_Y_GRID)
@@ -202,17 +203,37 @@ def render_plot_to_path(
 
     # Define X-range: can either show from midnight-to-midnight or from one hour before current to last data point
     if START_AT_MIDNIGHT_OPT:
-        # Start at local midnight and show 24 hours
+        # Start at local midnight and show 24 hours (or limited hours if configured)
         start_hour = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
         start_hour = start_hour if start_hour.tzinfo else start_hour.replace(tzinfo=LOCAL_TZ)
-        end_hour = start_hour + datetime.timedelta(days=1)
+
+        # Apply hours limit if configured
+        if HOURS_TO_SHOW_OPT is not None and HOURS_TO_SHOW_OPT > 0:
+            # Show from midnight up to the configured number of hours OR last data point, whichever comes first
+            hours_end = start_hour + datetime.timedelta(hours=HOURS_TO_SHOW_OPT)
+            last_data_point = dates_plot[-1] if dates_plot else hours_end
+            last_data_point = last_data_point if last_data_point.tzinfo else last_data_point.replace(tzinfo=LOCAL_TZ)
+            end_hour = min(hours_end, last_data_point)
+        else:
+            # Default: show full 24 hours from midnight
+            end_hour = start_hour + datetime.timedelta(days=1)
     else:
         # Start one hour before the current hour and show data up to the last available point
         start_hour = now_local.replace(minute=0, second=0, microsecond=0) - datetime.timedelta(hours=1)
         start_hour = start_hour if start_hour.tzinfo else start_hour.replace(tzinfo=LOCAL_TZ)
-        # End at the last available plotted data point instead of a fixed 24h span
-        end_hour = dates_plot[-1] if dates_plot else (start_hour + datetime.timedelta(hours=2))
-        end_hour = end_hour if end_hour.tzinfo else end_hour.replace(tzinfo=LOCAL_TZ)
+
+        # Apply hours limit if configured
+        if HOURS_TO_SHOW_OPT is not None and HOURS_TO_SHOW_OPT > 0:
+            # Show from one hour before current up to the configured number of hours OR last data point, whichever comes first
+            hours_end = start_hour + datetime.timedelta(hours=HOURS_TO_SHOW_OPT)
+            last_data_point = dates_plot[-1] if dates_plot else (start_hour + datetime.timedelta(hours=2))
+            last_data_point = last_data_point if last_data_point.tzinfo else last_data_point.replace(tzinfo=LOCAL_TZ)
+            end_hour = min(hours_end, last_data_point)
+        else:
+            # Default: end at the last available plotted data point instead of a fixed span
+            end_hour = dates_plot[-1] if dates_plot else (start_hour + datetime.timedelta(hours=2))
+            end_hour = end_hour if end_hour.tzinfo else end_hour.replace(tzinfo=LOCAL_TZ)
+
         # If the last data point is before the start_hour, ensure a minimal span
         if end_hour <= start_hour:
             end_hour = start_hour + datetime.timedelta(hours=2)

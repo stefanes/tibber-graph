@@ -26,6 +26,7 @@ from .const import (
     CONF_START_AT_MIDNIGHT,
     CONF_X_AXIS_LABEL_ROTATION_DEG,
     CONF_X_TICK_STEP_HOURS,
+    CONF_HOURS_TO_SHOW,
     # Y-axis config keys
     CONF_SHOW_Y_AXIS,
     CONF_SHOW_Y_GRID,
@@ -312,6 +313,7 @@ class TibberCam(LocalFile):
             "x_axis_label_rotation_deg": self._get_option(CONF_X_AXIS_LABEL_ROTATION_DEG, X_AXIS_LABEL_ROTATION_DEG),
             "x_axis_label_y_offset": X_AXIS_LABEL_Y_OFFSET,
             "x_tick_step_hours": self._get_option(CONF_X_TICK_STEP_HOURS, X_TICK_STEP_HOURS),
+            "hours_to_show": self._get_option(CONF_HOURS_TO_SHOW, HOURS_TO_SHOW),
             # Y-axis settings
             "show_y_axis": self._get_option(CONF_SHOW_Y_AXIS, SHOW_Y_AXIS),
             "show_y_grid": self._get_option(CONF_SHOW_Y_GRID, SHOW_Y_GRID),

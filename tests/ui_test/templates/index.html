@@ -22,8 +22,8 @@
                         <div class="form-group">
                             <label for="theme">Theme</label>
                             <select id="theme" name="theme">
-                                <option value="light" {% if defaults.theme == 'light' %}selected{% endif %}>Light</option>
                                 <option value="dark" {% if defaults.theme == 'dark' %}selected{% endif %}>Dark</option>
+                                <option value="light" {% if defaults.theme == 'light' %}selected{% endif %}>Light</option>
                             </select>
                         </div>
 
@@ -70,6 +70,11 @@
                         <div class="form-group">
                             <label for="x_tick_step_hours">Tick Step (hours)</label>
                             <input type="number" id="x_tick_step_hours" name="x_tick_step_hours" value="{{ defaults.x_tick_step_hours }}" min="1" max="24">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="hours_to_show">Hours to Show (leave empty for all)</label>
+                            <input type="number" id="hours_to_show" name="hours_to_show" value="{{ defaults.hours_to_show }}" min="1" max="48">
                         </div>
                     </div>
 

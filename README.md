@@ -2,7 +2,7 @@
 
 [![HACS Badge](https://img.shields.io/badge/HACS-Default-1ED0E7.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 ![Version](https://img.shields.io/github/v/release/stefanes/tibber-graph?style=for-the-badge)
-[![Downloads](https://img.shields.io/github/downloads/stefanes/tibber-graph/total?style=for-the-badge)](https://tooomm.github.io/github-release-stats/?username=stefanes&repository=tibber-graph)
+<!-- [![Downloads](https://img.shields.io/github/downloads/stefanes/tibber-graph/total?style=for-the-badge)](https://tooomm.github.io/github-release-stats/?username=stefanes&repository=tibber-graph) -->
 [![Open Issues](https://img.shields.io/github/issues/stefanes/tibber-graph?style=for-the-badge&label=Open%20Issues)](https://github.com/stefanes/tibber-graph/issues)
 
 Display future (and past) Tibber prices as a graph in Home Assistant, exposed as a camera entity.

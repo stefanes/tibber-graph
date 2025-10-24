@@ -9,6 +9,7 @@ This document provides a comprehensive reference for all configurable options av
 - [Y-axis Settings](#y-axis-settings)
 - [Price Label Settings](#price-label-settings)
 - [Auto-refresh Settings](#auto-refresh-settings)
+- [Resetting Options to Default](#resetting-options-to-default)
 
 ## General Settings
 
@@ -96,6 +97,32 @@ Interval between X-axis time labels. For example:
 - `1`: Label every hour
 - `3`: Label every 3 hours (default)
 - `6`: Label every 6 hours
+
+### Hours to Show
+
+**Option:** `hours_to_show`
+**Type:** Integer (positive) or empty
+**Default:** Empty (show all available data)
+**Unit:** hours
+
+Limits the graph to display only a specific number of hours from the start time. The start time is determined by the "Start at Midnight" setting:
+
+- When **"Start at Midnight"** is enabled: Shows from midnight (00:00) up to the specified number of hours or the last available data point, whichever comes first
+- When **"Start at Midnight"** is disabled: Shows from one hour before the current time up to the specified number of hours or the last available data point, whichever comes first
+
+When left empty (default), the graph shows all available data without a time limit:
+
+- **Midnight mode**: Full 24-hour period from midnight to midnight
+- **Current mode**: From one hour before current time to the last available data point
+
+This option works correctly with both 15-minute and hourly pricing data.
+
+**Examples:**
+
+- `6`: Shows the next 6 hours from the start time
+- `12`: Shows the next 12 hours from the start time
+- `24`: Shows the next 24 hours from the start time
+- Empty: Shows all available data (default behavior)
 
 ## Y-axis Settings
 
@@ -285,3 +312,27 @@ Examples:
 **Default:** `false`
 
 When enabled, the graph automatically refreshes at regular intervals to show updated price data. The refresh interval is fixed at 10 minutes and is not configurable through the UI.
+
+## Resetting Options to Default
+
+Some options support being reset to their default values when you need to restore automatic behavior. These options include:
+
+- **Hours to show**: Resets to showing all available data
+- **Y-axis tick count**: Resets to automatic tick calculation
+- **Price decimals**: Resets to automatic decimal places (2 for standard, 0 for cents)
+- **Currency override**: Resets to automatic currency (Tibber home currency or '¢')
+
+### How to Reset Options
+
+Due to a limitation in the Home Assistant UI, nullable number fields cannot be cleared back to empty/automatic once a value has been set using the regular Options dialog.
+
+To reset these options to their defaults:
+
+1. Go to **Settings** → **Devices & Services** → **Integrations**
+2. Find the **Tibber Graph** integration
+3. Click the three-dot menu (⋮) on the integration card
+4. Select **Reconfigure**
+5. Check the boxes for the options you want to reset to default
+6. Click **Submit**
+
+Only the options you check will be reset. All other settings will remain unchanged.
