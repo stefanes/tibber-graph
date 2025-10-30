@@ -76,6 +76,13 @@
                             <label for="hours_to_show">Hours to Show (leave empty for all)</label>
                             <input type="number" id="hours_to_show" name="hours_to_show" value="{{ defaults.hours_to_show }}" min="1" max="48">
                         </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="show_vertical_grid" name="show_vertical_grid" {% if defaults.show_vertical_grid %}checked{% endif %}>
+                                <span>Show Vertical Grid</span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="section">
@@ -90,9 +97,21 @@
 
                         <div class="form-group checkbox">
                             <label>
-                                <input type="checkbox" id="show_y_grid" name="show_y_grid" {% if defaults.show_y_grid %}checked{% endif %}>
-                                <span>Show Y-axis Grid</span>
+                                <input type="checkbox" id="show_horizontal_grid" name="show_horizontal_grid" {% if defaults.show_horizontal_grid %}checked{% endif %}>
+                                <span>Show Horizontal Grid</span>
                             </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="show_average_price_line" name="show_average_price_line" {% if defaults.show_average_price_line %}checked{% endif %}>
+                                <span>Show Average Price Line</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cheap_price_points">Cheap Price Points (0 = none)</label>
+                            <input type="number" id="cheap_price_points" name="cheap_price_points" value="{{ defaults.cheap_price_points }}" min="0" max="96">
                         </div>
 
                         <div class="form-group">
@@ -200,6 +219,13 @@
                         <div class="form-group">
                             <label for="price_decimals">Price Decimals</label>
                             <input type="number" id="price_decimals" name="price_decimals" value="{{ defaults.price_decimals }}" min="0" max="4">
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="color_price_line_by_average" name="color_price_line_by_average" {% if defaults.color_price_line_by_average %}checked{% endif %}>
+                                <span>Color Price Line by Average</span>
+                            </label>
                         </div>
                     </div>
 

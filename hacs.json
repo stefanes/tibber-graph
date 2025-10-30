@@ -1,3 +1,5 @@
 {
-  "name": "Tibber Graph"
+  "name": "Tibber Graph",
+  "zip_release": true,
+  "filename": "tibber_graph.zip"
 }

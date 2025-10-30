@@ -1,0 +1,5 @@
+{
+  "destination": "\\\\10.1.2.3\\homeassistant\\custom_components\\tibber_graph",
+  "host": "http://10.1.2.3:8123",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}

@@ -22,6 +22,9 @@ sys.path.insert(0, str(local_render_dir))
 # Load the component directory path
 component_dir = Path(__file__).parent.parent.parent / "custom_components" / "tibber_graph"
 
+# Price data file location (in tests/ folder)
+PRICE_DATA_FILE = Path(__file__).parent.parent / "local_render.json"
+
 # Load strings.json to get the list of available options
 strings_file = component_dir / "strings.json"
 with open(strings_file, 'r', encoding='utf-8') as f:
@@ -34,16 +37,39 @@ with open(defaults_file, 'r', encoding='utf-8') as f:
     defaults_code = f.read()
     exec(defaults_code, globals())
 
-# Read and execute renderer.py
+# Read and execute const.py to get DEFAULT_* constants (skipping imports)
+const_file = component_dir / "const.py"
+with open(const_file, 'r', encoding='utf-8') as f:
+    const_code = f.read()
+    # Remove the import section and domain definition
+    import re
+    # Remove everything up to "# Default values imported from defaults.py"
+    const_code = re.sub(
+        r'^.*?# Default values imported from defaults\.py',
+        '# Default values imported from defaults.py',
+        const_code,
+        flags=re.DOTALL | re.MULTILINE
+    )
+    # Remove the DOMAIN line and config entry keys section (everything before DEFAULT_*)
+    const_code = re.sub(
+        r'DOMAIN = .*?\n\n.*?(?=# Default values)',
+        '',
+        const_code,
+        flags=re.DOTALL
+    )
+    exec(const_code, globals())
+
+# Read and execute renderer.py (replacing relative imports)
 renderer_file = component_dir / "renderer.py"
 with open(renderer_file, 'r', encoding='utf-8') as f:
     renderer_code = f.read()
-    import re
+    # Replace the relative imports with nothing (constants already loaded)
+    # Remove the entire import section from const and defaults
     renderer_code = re.sub(
-        r'^# Import all default configuration values from defaults\.py\nfrom \.defaults import \*\n',
-        '',
+        r'^# Import default constants from const\.py.*?from \.defaults import \([^)]+\)',
+        '# Constants already loaded from defaults.py and const.py',
         renderer_code,
-        flags=re.MULTILINE
+        flags=re.DOTALL | re.MULTILINE
     )
     exec(renderer_code, globals())
 
@@ -73,8 +99,7 @@ from dateutil import tz
 
 app = Flask(__name__)
 
-# Price data file
-PRICE_DATA_FILE = local_render_dir / "local_render.json"
+# Local timezone
 LOCAL_TZ = tz.tzlocal()
 
 
@@ -115,7 +140,8 @@ def parse_option_value(option_key, form_value, default_fallback):
     # Boolean options (checkboxes)
     boolean_options = [
         'force_fixed_size', 'show_x_ticks', 'start_at_midnight',
-        'show_y_axis', 'show_y_grid', 'y_tick_use_colors',
+        'show_y_axis', 'show_horizontal_grid', 'show_average_price_line',
+        'show_vertical_grid', 'y_tick_use_colors',
         'use_hourly_prices', 'use_cents',
         'label_current', 'label_current_at_top', 'label_max', 'label_min',
         'label_minmax_show_price', 'label_show_currency', 'label_use_colors',
@@ -125,7 +151,8 @@ def parse_option_value(option_key, form_value, default_fallback):
     # Integer options
     integer_options = [
         'canvas_width', 'canvas_height', 'x_axis_label_rotation_deg', 'x_tick_step_hours',
-        'hours_to_show', 'y_axis_label_rotation_deg', 'y_tick_count', 'label_font_size', 'price_decimals'
+        'hours_to_show', 'cheap_price_points', 'y_axis_label_rotation_deg', 'y_tick_count',
+        'label_font_size', 'price_decimals'
     ]
 
     # String options that can be empty
@@ -243,7 +270,7 @@ def render_graph():
         dates_raw, prices_raw, now_local = load_price_data(fixed_time=fixed_time)
 
         if dates_raw is None or prices_raw is None:
-            return jsonify({'error': 'Failed to load price data. Please ensure local_render.json exists in tests/local_render/.'}), 400
+            return jsonify({'error': 'Failed to load price data. Please ensure local_render.json exists in tests/.'}), 400
 
         # Aggregate to hourly if configured
         if render_options['use_hourly_prices']:

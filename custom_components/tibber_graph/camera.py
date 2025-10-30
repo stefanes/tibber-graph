@@ -17,6 +17,7 @@ from homeassistant.util import dt as dt_util
 from .const import (
     DOMAIN,
     # General config keys
+    CONF_ENTITY_NAME,
     CONF_THEME,
     CONF_CANVAS_WIDTH,
     CONF_CANVAS_HEIGHT,
@@ -27,9 +28,12 @@ from .const import (
     CONF_X_AXIS_LABEL_ROTATION_DEG,
     CONF_X_TICK_STEP_HOURS,
     CONF_HOURS_TO_SHOW,
+    CONF_SHOW_VERTICAL_GRID,
     # Y-axis config keys
     CONF_SHOW_Y_AXIS,
-    CONF_SHOW_Y_GRID,
+    CONF_SHOW_HORIZONTAL_GRID,
+    CONF_SHOW_AVERAGE_PRICE_LINE,
+    CONF_CHEAP_PRICE_POINTS,
     CONF_Y_AXIS_LABEL_ROTATION_DEG,
     CONF_Y_AXIS_SIDE,
     CONF_Y_TICK_COUNT,
@@ -47,12 +51,54 @@ from .const import (
     CONF_LABEL_SHOW_CURRENCY,
     CONF_LABEL_USE_COLORS,
     CONF_PRICE_DECIMALS,
+    CONF_COLOR_PRICE_LINE_BY_AVERAGE,
     # Refresh config keys
     CONF_AUTO_REFRESH_ENABLED,
+    # Configurable defaults
+    DEFAULT_THEME,
+    DEFAULT_CANVAS_WIDTH,
+    DEFAULT_CANVAS_HEIGHT,
+    DEFAULT_FORCE_FIXED_SIZE,
+    DEFAULT_SHOW_X_TICKS,
+    DEFAULT_START_AT_MIDNIGHT,
+    DEFAULT_X_AXIS_LABEL_ROTATION_DEG,
+    DEFAULT_X_TICK_STEP_HOURS,
+    DEFAULT_HOURS_TO_SHOW,
+    DEFAULT_SHOW_VERTICAL_GRID,
+    DEFAULT_SHOW_Y_AXIS,
+    DEFAULT_SHOW_HORIZONTAL_GRID,
+    DEFAULT_SHOW_AVERAGE_PRICE_LINE,
+    DEFAULT_CHEAP_PRICE_POINTS,
+    DEFAULT_Y_AXIS_LABEL_ROTATION_DEG,
+    DEFAULT_Y_AXIS_SIDE,
+    DEFAULT_Y_TICK_COUNT,
+    DEFAULT_Y_TICK_USE_COLORS,
+    DEFAULT_USE_HOURLY_PRICES,
+    DEFAULT_USE_CENTS,
+    DEFAULT_CURRENCY_OVERRIDE,
+    DEFAULT_LABEL_CURRENT,
+    DEFAULT_LABEL_CURRENT_AT_TOP,
+    DEFAULT_LABEL_FONT_SIZE,
+    DEFAULT_LABEL_MAX,
+    DEFAULT_LABEL_MIN,
+    DEFAULT_LABEL_MINMAX_SHOW_PRICE,
+    DEFAULT_LABEL_SHOW_CURRENCY,
+    DEFAULT_LABEL_USE_COLORS,
+    DEFAULT_PRICE_DECIMALS,
+    DEFAULT_COLOR_PRICE_LINE_BY_AVERAGE,
+    DEFAULT_AUTO_REFRESH_ENABLED,
+    # Non-configurable defaults (not exposed in options flow)
+    DEFAULT_BOTTOM_MARGIN,
+    DEFAULT_LEFT_MARGIN,
+    DEFAULT_X_AXIS_LABEL_Y_OFFSET,
+    DEFAULT_Y_AXIS_LABEL_VERTICAL_ANCHOR,
+    DEFAULT_LABEL_CURRENT_AT_TOP_FONT_WEIGHT,
+    DEFAULT_LABEL_CURRENT_AT_TOP_PADDING,
+    DEFAULT_LABEL_FONT_WEIGHT,
+    DEFAULT_LABEL_MAX_BELOW_POINT,
+    DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES,
+    DEFAULT_MIN_REDRAW_INTERVAL_SECONDS,
 )
-
-# Import all configuration values from defaults.py (fallback values)
-from .defaults import *
 
 from .renderer import render_plot_to_path
 
@@ -71,10 +117,13 @@ async def async_setup_entry(
     # Get options with fallbacks to defaults
     options = entry.options if entry.options else {}
 
+    # Get entity name from config entry data
+    entity_name = entry.data.get(CONF_ENTITY_NAME, entry.title or "Tibber Graph")
+
     for home in hass.data["tibber"].get_homes(only_active=True):
         if not home.info:
             await home.update_info()
-        entities.append(TibberCam(home, hass, entry, options))
+        entities.append(TibberCam(home, hass, entry, options, entity_name))
 
     _LOGGER.info("Setting up %d Tibber Graph camera(s)", len(entities))
     async_add_entities(entities)
@@ -83,33 +132,44 @@ async def async_setup_entry(
 class TibberCam(LocalFile):
     """Camera entity that generates a dynamic Tibber price graph image."""
 
-    def __init__(self, home, hass, entry: ConfigEntry | None, options: dict[str, Any]):
+    def __init__(self, home, hass, entry: ConfigEntry | None, options: dict[str, Any], entity_name: str):
         """Initialize the Tibber Graph camera."""
-        self._name = f"Tibber Graph {home.info['viewer']['home']['appNickname'] or home.info['viewer']['home']['address'].get('address1', '')}"
-        name_sanitized = self._name.lower().replace(" ", "_")
-        self._path = hass.config.path(f"www/{name_sanitized}.png")
+        # Always prefix entity name with "Tibber Graph"
+        self._name = f"Tibber Graph {entity_name}"
+        # Create a sanitized version for file paths and unique IDs
+        name_sanitized = entity_name.lower().replace(" ", "_").replace("-", "_")
+        # Add entry_id to ensure uniqueness in Home Assistant's unique_id system
+        unique_suffix = entry.entry_id.split("-")[0] if entry else "default"
+        # Filename only uses entity_name since entity names are unique per instance
+        self._path = hass.config.path(f"www/tibber_graph_{name_sanitized}.png")
         self._home = home
         self.hass = hass
         self._entry = entry
         self._options = options
         self._last_update = dt_util.now() - datetime.timedelta(hours=1)
         self._render_lock = asyncio.Lock()
-        self._uniqueid = f"camera_{name_sanitized}"
+        self._uniqueid = f"camera_tibber_graph_{name_sanitized}_{unique_suffix}"
         self._refresh_task = None
         super().__init__(self._name, self._path, self._uniqueid)
 
         # Start auto-refresh task if enabled
-        auto_refresh = self._get_option(CONF_AUTO_REFRESH_ENABLED, AUTO_REFRESH_ENABLED)
+        auto_refresh = self._get_option(CONF_AUTO_REFRESH_ENABLED, DEFAULT_AUTO_REFRESH_ENABLED)
         if auto_refresh:
             self._refresh_task = self.hass.async_create_task(self._auto_refresh_loop())
-            _LOGGER.debug("Initialized %s with auto-refresh every %d minutes", self._name, AUTO_REFRESH_INTERVAL_MINUTES)
+            _LOGGER.debug("Initialized %s with auto-refresh every %d minutes", self._name, DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES)
 
     def _get_option(self, key: str, fallback: Any) -> Any:
         """Get an option value with fallback to defaults."""
-        # Priority: UI options > defaults.py
+        # Priority: UI options > initial data (from setup) > defaults.py
         if self._options and key in self._options:
             value = self._options[key]
             # Handle empty string for currency override
+            if key == CONF_CURRENCY_OVERRIDE and value == "":
+                return None
+            return value
+        # Check entry.data for initial configuration (e.g., theme during setup)
+        if self._entry and key in self._entry.data:
+            value = self._entry.data[key]
             if key == CONF_CURRENCY_OVERRIDE and value == "":
                 return None
             return value
@@ -129,7 +189,7 @@ class TibberCam(LocalFile):
         try:
             while True:
                 now = dt_util.now()
-                interval = max(1, int(AUTO_REFRESH_INTERVAL_MINUTES))
+                interval = max(1, int(DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES))
                 # Calculate time until next interval mark (e.g., every 10 minutes: 12:00, 12:10, 12:20, ...)
                 next_tick = (now + datetime.timedelta(minutes=interval - now.minute % interval)).replace(second=0, microsecond=0)
                 sleep_seconds = (next_tick - now).total_seconds()
@@ -144,9 +204,9 @@ class TibberCam(LocalFile):
 
     async def async_camera_image(self, width=None, height=None):
         """Render the chart image if needed and return its bytes."""
-        force_fixed = self._get_option(CONF_FORCE_FIXED_SIZE, FORCE_FIXED_SIZE)
-        canvas_width = self._get_option(CONF_CANVAS_WIDTH, CANVAS_WIDTH)
-        canvas_height = self._get_option(CONF_CANVAS_HEIGHT, CANVAS_HEIGHT)
+        force_fixed = self._get_option(CONF_FORCE_FIXED_SIZE, DEFAULT_FORCE_FIXED_SIZE)
+        canvas_width = self._get_option(CONF_CANVAS_WIDTH, DEFAULT_CANVAS_WIDTH)
+        canvas_height = self._get_option(CONF_CANVAS_HEIGHT, DEFAULT_CANVAS_HEIGHT)
 
         if force_fixed:
             w, h = canvas_width, canvas_height
@@ -199,7 +259,7 @@ class TibberCam(LocalFile):
         dates, prices = list(dates), list(prices)
 
         # Aggregate to hourly prices if configured
-        use_hourly = self._get_option(CONF_USE_HOURLY_PRICES, USE_HOURLY_PRICES)
+        use_hourly = self._get_option(CONF_USE_HOURLY_PRICES, DEFAULT_USE_HOURLY_PRICES)
         if use_hourly:
             dates, prices = self._aggregate_to_hourly(dates, prices)
 
@@ -226,16 +286,15 @@ class TibberCam(LocalFile):
 
         # Calculate averages and sort by time in one comprehension
         sorted_hours = sorted(hourly_data.keys())
-        hourly_dates = sorted_hours
         hourly_prices = [sum(hourly_data[h]) / len(hourly_data[h]) for h in sorted_hours]
 
-        return hourly_dates, hourly_prices
+        return sorted_hours, hourly_prices
 
     async def _generate_fig(self, width, height):
         """Throttle and trigger figure rendering in background."""
         async with self._render_lock:
             now = dt_util.now()
-            if (now - self._last_update).total_seconds() < MIN_REDRAW_INTERVAL_SECONDS:
+            if (now - self._last_update).total_seconds() < DEFAULT_MIN_REDRAW_INTERVAL_SECONDS:
                 return
 
             try:
@@ -253,7 +312,7 @@ class TibberCam(LocalFile):
                 return
 
             # Determine step size based on actual data interval
-            use_hourly = self._get_option(CONF_USE_HOURLY_PRICES, USE_HOURLY_PRICES)
+            use_hourly = self._get_option(CONF_USE_HOURLY_PRICES, DEFAULT_USE_HOURLY_PRICES)
             step_minutes = int((dates[1] - dates[0]).total_seconds() // 60) or (60 if use_hourly else 15)
             interval_td = datetime.timedelta(minutes=step_minutes)
             dates_plot = list(dates) + [dates[-1] + interval_td]
@@ -264,8 +323,8 @@ class TibberCam(LocalFile):
             idx = max(0, min(idx, len(prices) - 1))
 
             # Determine currency to display: override if configured, otherwise auto-select based on cents mode
-            currency_override = self._get_option(CONF_CURRENCY_OVERRIDE, CURRENCY_OVERRIDE)
-            use_cents = self._get_option(CONF_USE_CENTS, USE_CENTS)
+            currency_override = self._get_option(CONF_CURRENCY_OVERRIDE, DEFAULT_CURRENCY_OVERRIDE)
+            use_cents = self._get_option(CONF_USE_CENTS, DEFAULT_USE_CENTS)
 
             if currency_override:
                 currency = currency_override
@@ -301,42 +360,46 @@ class TibberCam(LocalFile):
         """Collect rendering options from config entry (UI) or defaults.py."""
         return {
             # General settings
-            "theme": self._get_option(CONF_THEME, THEME),
-            "canvas_width": self._get_option(CONF_CANVAS_WIDTH, CANVAS_WIDTH),
-            "canvas_height": self._get_option(CONF_CANVAS_HEIGHT, CANVAS_HEIGHT),
-            "force_fixed_size": self._get_option(CONF_FORCE_FIXED_SIZE, FORCE_FIXED_SIZE),
-            "bottom_margin": BOTTOM_MARGIN,
-            "left_margin": LEFT_MARGIN,
+            "theme": self._get_option(CONF_THEME, DEFAULT_THEME),
+            "canvas_width": self._get_option(CONF_CANVAS_WIDTH, DEFAULT_CANVAS_WIDTH),
+            "canvas_height": self._get_option(CONF_CANVAS_HEIGHT, DEFAULT_CANVAS_HEIGHT),
+            "force_fixed_size": self._get_option(CONF_FORCE_FIXED_SIZE, DEFAULT_FORCE_FIXED_SIZE),
+            "bottom_margin": DEFAULT_BOTTOM_MARGIN,
+            "left_margin": DEFAULT_LEFT_MARGIN,
             # X-axis settings
-            "show_x_ticks": self._get_option(CONF_SHOW_X_TICKS, SHOW_X_TICKS),
-            "start_at_midnight": self._get_option(CONF_START_AT_MIDNIGHT, START_AT_MIDNIGHT),
-            "x_axis_label_rotation_deg": self._get_option(CONF_X_AXIS_LABEL_ROTATION_DEG, X_AXIS_LABEL_ROTATION_DEG),
-            "x_axis_label_y_offset": X_AXIS_LABEL_Y_OFFSET,
-            "x_tick_step_hours": self._get_option(CONF_X_TICK_STEP_HOURS, X_TICK_STEP_HOURS),
-            "hours_to_show": self._get_option(CONF_HOURS_TO_SHOW, HOURS_TO_SHOW),
+            "show_x_ticks": self._get_option(CONF_SHOW_X_TICKS, DEFAULT_SHOW_X_TICKS),
+            "start_at_midnight": self._get_option(CONF_START_AT_MIDNIGHT, DEFAULT_START_AT_MIDNIGHT),
+            "x_axis_label_rotation_deg": self._get_option(CONF_X_AXIS_LABEL_ROTATION_DEG, DEFAULT_X_AXIS_LABEL_ROTATION_DEG),
+            "x_axis_label_y_offset": DEFAULT_X_AXIS_LABEL_Y_OFFSET,
+            "x_tick_step_hours": self._get_option(CONF_X_TICK_STEP_HOURS, DEFAULT_X_TICK_STEP_HOURS),
+            "hours_to_show": self._get_option(CONF_HOURS_TO_SHOW, DEFAULT_HOURS_TO_SHOW),
+            "show_vertical_grid": self._get_option(CONF_SHOW_VERTICAL_GRID, DEFAULT_SHOW_VERTICAL_GRID),
             # Y-axis settings
-            "show_y_axis": self._get_option(CONF_SHOW_Y_AXIS, SHOW_Y_AXIS),
-            "show_y_grid": self._get_option(CONF_SHOW_Y_GRID, SHOW_Y_GRID),
-            "y_axis_label_rotation_deg": self._get_option(CONF_Y_AXIS_LABEL_ROTATION_DEG, Y_AXIS_LABEL_ROTATION_DEG),
-            "y_axis_label_vertical_anchor": Y_AXIS_LABEL_VERTICAL_ANCHOR,
-            "y_axis_side": self._get_option(CONF_Y_AXIS_SIDE, Y_AXIS_SIDE),
-            "y_tick_count": self._get_option(CONF_Y_TICK_COUNT, Y_TICK_COUNT),
-            "y_tick_use_colors": self._get_option(CONF_Y_TICK_USE_COLORS, Y_TICK_USE_COLORS),
+            "show_y_axis": self._get_option(CONF_SHOW_Y_AXIS, DEFAULT_SHOW_Y_AXIS),
+            "show_horizontal_grid": self._get_option(CONF_SHOW_HORIZONTAL_GRID, DEFAULT_SHOW_HORIZONTAL_GRID),
+            "show_average_price_line": self._get_option(CONF_SHOW_AVERAGE_PRICE_LINE, DEFAULT_SHOW_AVERAGE_PRICE_LINE),
+            "cheap_price_points": self._get_option(CONF_CHEAP_PRICE_POINTS, DEFAULT_CHEAP_PRICE_POINTS),
+            "y_axis_label_rotation_deg": self._get_option(CONF_Y_AXIS_LABEL_ROTATION_DEG, DEFAULT_Y_AXIS_LABEL_ROTATION_DEG),
+            "y_axis_label_vertical_anchor": DEFAULT_Y_AXIS_LABEL_VERTICAL_ANCHOR,
+            "y_axis_side": self._get_option(CONF_Y_AXIS_SIDE, DEFAULT_Y_AXIS_SIDE),
+            "y_tick_count": self._get_option(CONF_Y_TICK_COUNT, DEFAULT_Y_TICK_COUNT),
+            "y_tick_use_colors": self._get_option(CONF_Y_TICK_USE_COLORS, DEFAULT_Y_TICK_USE_COLORS),
             # Price label settings
-            "use_hourly_prices": self._get_option(CONF_USE_HOURLY_PRICES, USE_HOURLY_PRICES),
-            "use_cents": self._get_option(CONF_USE_CENTS, USE_CENTS),
-            "currency_override": self._get_option(CONF_CURRENCY_OVERRIDE, CURRENCY_OVERRIDE),
-            "label_current": self._get_option(CONF_LABEL_CURRENT, LABEL_CURRENT),
-            "label_current_at_top": self._get_option(CONF_LABEL_CURRENT_AT_TOP, LABEL_CURRENT_AT_TOP),
-            "label_current_at_top_font_weight": LABEL_CURRENT_AT_TOP_FONT_WEIGHT,
-            "label_current_at_top_padding": LABEL_CURRENT_AT_TOP_PADDING,
-            "label_font_size": self._get_option(CONF_LABEL_FONT_SIZE, LABEL_FONT_SIZE),
-            "label_font_weight": LABEL_FONT_WEIGHT,
-            "label_max": self._get_option(CONF_LABEL_MAX, LABEL_MAX),
-            "label_max_below_point": LABEL_MAX_BELOW_POINT,
-            "label_min": self._get_option(CONF_LABEL_MIN, LABEL_MIN),
-            "label_minmax_show_price": self._get_option(CONF_LABEL_MINMAX_SHOW_PRICE, LABEL_MINMAX_SHOW_PRICE),
-            "label_show_currency": self._get_option(CONF_LABEL_SHOW_CURRENCY, LABEL_SHOW_CURRENCY),
-            "label_use_colors": self._get_option(CONF_LABEL_USE_COLORS, LABEL_USE_COLORS),
-            "price_decimals": self._get_option(CONF_PRICE_DECIMALS, PRICE_DECIMALS),
+            "use_hourly_prices": self._get_option(CONF_USE_HOURLY_PRICES, DEFAULT_USE_HOURLY_PRICES),
+            "use_cents": self._get_option(CONF_USE_CENTS, DEFAULT_USE_CENTS),
+            "currency_override": self._get_option(CONF_CURRENCY_OVERRIDE, DEFAULT_CURRENCY_OVERRIDE),
+            "label_current": self._get_option(CONF_LABEL_CURRENT, DEFAULT_LABEL_CURRENT),
+            "label_current_at_top": self._get_option(CONF_LABEL_CURRENT_AT_TOP, DEFAULT_LABEL_CURRENT_AT_TOP),
+            "label_current_at_top_font_weight": DEFAULT_LABEL_CURRENT_AT_TOP_FONT_WEIGHT,
+            "label_current_at_top_padding": DEFAULT_LABEL_CURRENT_AT_TOP_PADDING,
+            "label_font_size": self._get_option(CONF_LABEL_FONT_SIZE, DEFAULT_LABEL_FONT_SIZE),
+            "label_font_weight": DEFAULT_LABEL_FONT_WEIGHT,
+            "label_max": self._get_option(CONF_LABEL_MAX, DEFAULT_LABEL_MAX),
+            "label_max_below_point": DEFAULT_LABEL_MAX_BELOW_POINT,
+            "label_min": self._get_option(CONF_LABEL_MIN, DEFAULT_LABEL_MIN),
+            "label_minmax_show_price": self._get_option(CONF_LABEL_MINMAX_SHOW_PRICE, DEFAULT_LABEL_MINMAX_SHOW_PRICE),
+            "label_show_currency": self._get_option(CONF_LABEL_SHOW_CURRENCY, DEFAULT_LABEL_SHOW_CURRENCY),
+            "label_use_colors": self._get_option(CONF_LABEL_USE_COLORS, DEFAULT_LABEL_USE_COLORS),
+            "price_decimals": self._get_option(CONF_PRICE_DECIMALS, DEFAULT_PRICE_DECIMALS),
+            "color_price_line_by_average": self._get_option(CONF_COLOR_PRICE_LINE_BY_AVERAGE, DEFAULT_COLOR_PRICE_LINE_BY_AVERAGE),
         }

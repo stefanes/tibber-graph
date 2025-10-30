@@ -8,6 +8,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/stefanes/tibber-graph/issues",
   "requirements": ["matplotlib"],
-  "single_config_entry": true,
-  "version": "0.2.1"
+  "version": "0.3.0"
 }

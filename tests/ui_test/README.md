@@ -69,7 +69,7 @@ The UI is organized into sections matching the Home Assistant options flow:
 
 ## Data Source
 
-The UI uses the price data from `tests/local_render/local_render.json`. This file must exist for the UI to work. You can generate or update this file using the existing `local_render.py` script with real Tibber data.
+The UI uses the price data from `tests/local_render.json`. This file must exist for the UI to work. You can generate or update this file using the existing `local_render.py` script with real Tibber data.
 
 ## Requirements
 
@@ -93,7 +93,7 @@ The application dynamically loads the Tibber Graph component code (`defaults.py`
 ## Troubleshooting
 
 **Issue**: "Failed to load price data"
-- **Solution**: Ensure a valid `local_render.json` file exists in `tests/local_render/`. You can create it using the `local_render.py` script.
+- **Solution**: Ensure a valid `local_render.json` file exists in `tests/`. You can create it using the `local_render.py` script in `tests/local_render/`.
 
 **Issue**: Graph doesn't render
 - **Solution**: Check the browser console (F12) for JavaScript errors and the terminal for Python errors.

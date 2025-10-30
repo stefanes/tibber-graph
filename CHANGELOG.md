@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2025-10-30 🎃
+
+### Added
+
+- **Multiple entity support**: Create multiple independent Tibber Graph camera entities, each with its own configuration
+- New `entity_name` configuration option to customize the name of each entity
+
+### Changed
+
+- **BREAKING**: Camera entity names now based on configured `entity_name` instead of Tibber home address
+- PNG files now named as `tibber_graph_{entity_name}_{id}.png`
+- **Default behavior**: By default, the graph now displays a dotted horizontal line, the price line colors dynamically based on average price, and the current price label appears centered at the top. To restore the previous default behavior, disable **"Show average price line"**, **"Color price line by average"**, and **"Show current price at top"** in the options. To go back to the previous default canvas size, set **Canvas width** to 1200 and **Canvas height** to 700.
+
 ## [0.2.1] - 2025-10-23
 
 ### Added

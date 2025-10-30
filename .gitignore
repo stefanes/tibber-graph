@@ -24,6 +24,7 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Local test files
-tests/local_render/local_render.png
-tests/local_copy.json
+# Tibber Graph
+tests/local_render.png
+tests/local_deploy.json
+CONTRIBUTING.md

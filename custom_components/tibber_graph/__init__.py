@@ -24,20 +24,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = entry.data
 
-    # Update entry title with Tibber home name if available
-    if "tibber" in hass.data:
-        try:
-            homes = hass.data["tibber"].get_homes(only_active=True)
-            if homes:
-                home = homes[0]  # Use first active home
-                if not home.info:
-                    await home.update_info()
-                home_name = home.info['viewer']['home']['appNickname'] or home.info['viewer']['home']['address'].get('address1', '')
-                if home_name and entry.title != home_name:
-                    hass.config_entries.async_update_entry(entry, title=home_name)
-        except Exception as err:
-            _LOGGER.warning("Failed to update integration title: %s", err)
-
     # Forward the setup to the camera platform
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

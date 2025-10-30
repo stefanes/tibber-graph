@@ -2,28 +2,28 @@
 
 Usage:
     python local_render.py                    # Use test configuration (light theme, colored labels)
-    python local_render.py --my               # Use my configuration (dark theme, hourly, öre)
+    python local_render.py --wearos           # Use Wear OS configuration (dark theme, hourly, öre)
     python local_render.py --defaults         # Use only defaults.py (pure defaults, no overrides)
     python local_render.py --random           # Use random generated price data instead of real Tibber data
     python local_render.py --time 19:34       # Simulate a specific time (e.g., 19:34 today)
 
-This will generate a rendered graph image 'local_render.png' in the current directory.
+This will generate a rendered graph image at 'tests/local_render.png'.
 """
 import datetime
 import sys
 from pathlib import Path
 
 # Check for command-line arguments
-config_mode = 'test'  # 'test', 'my', or 'defaults'
+config_mode = 'test'  # 'test', 'wearos', or 'defaults'
 use_random_data = False
 fixed_time = None
 
 i = 1
 while i < len(sys.argv):
     arg = sys.argv[i]
-    if arg in ('--my', '-m'):
-        config_mode = 'my'
-        print("Running with my configuration (inline settings)")
+    if arg in ('--wearos', '-w'):
+        config_mode = 'wearos'
+        print("Running with Wear OS configuration (inline settings)")
     elif arg in ('--defaults', '-d'):
         config_mode = 'defaults'
         print("Running with defaults only (no configuration overrides)")
@@ -57,21 +57,42 @@ with open(defaults_file, 'r', encoding='utf-8') as f:
     defaults_code = f.read()
     exec(defaults_code, globals())
 
+# Read and execute const.py to get DEFAULT_* constants (skipping imports)
+const_file = component_dir / "const.py"
+with open(const_file, 'r', encoding='utf-8') as f:
+    const_code = f.read()
+    # Remove the import section and domain definition
+    import re
+    # Remove everything up to "# Default values imported from defaults.py"
+    const_code = re.sub(
+        r'^.*?# Default values imported from defaults\.py',
+        '# Default values imported from defaults.py',
+        const_code,
+        flags=re.DOTALL | re.MULTILINE
+    )
+    # Remove the DOMAIN line and config entry keys section (everything before DEFAULT_*)
+    const_code = re.sub(
+        r'DOMAIN = .*?\n\n.*?(?=# Default values)',
+        '',
+        const_code,
+        flags=re.DOTALL
+    )
+    exec(const_code, globals())
+
 # No additional loading needed - all modes use defaults.py as base
 # Test modes will apply render_options inline in main()
 
-# Read and execute renderer.py (replacing relative import)
+# Read and execute renderer.py (replacing relative imports)
 renderer_file = component_dir / "renderer.py"
 with open(renderer_file, 'r', encoding='utf-8') as f:
     renderer_code = f.read()
-    # Replace the relative import with nothing (constants already loaded)
-    import re
-    # Remove the import line (now just "from .defaults import *")
+    # Replace the relative imports with nothing (constants already loaded)
+    # Remove the entire import section from const and defaults
     renderer_code = re.sub(
-        r'^# Import all default configuration values from defaults\.py\nfrom \.defaults import \*\n',
-        '',
+        r'^# Import default constants from const\.py.*?from \.defaults import \([^)]+\)',
+        '# Constants already loaded from defaults.py and const.py',
         renderer_code,
-        flags=re.MULTILINE
+        flags=re.DOTALL | re.MULTILINE
     )
     exec(renderer_code, globals())
 
@@ -108,8 +129,8 @@ from dateutil import tz
 import json
 
 # Configuration
-OUTPUT_FILE = "local_render.png"
-PRICE_DATA_FILE = Path(__file__).parent / "local_render.json"
+OUTPUT_FILE = Path(__file__).parent.parent / "local_render.png"
+PRICE_DATA_FILE = Path(__file__).parent.parent / "local_render.json"
 # Width, height, and currency are loaded from const.py:
 # - CANVAS_WIDTH and CANVAS_HEIGHT
 # - CURRENCY_OVERRIDE
@@ -300,35 +321,42 @@ def main():
     elif config_mode == 'test':
         # Test configuration: light theme with colored labels (only overrides from defaults)
         render_options = {
-            "theme": "light",  # Override: light instead of dark
+            "theme": "light",  # Override: light instead of dark (default: dark)
+            # X-axis overrides
+            "show_x_ticks": True,  # Override: show X-axis ticks (default: False)
+            "show_vertical_grid": False,  # Override: hide vertical grid (default: True)
             # Y-axis overrides
-            "y_tick_count": 3,
-            "y_tick_use_colors": True,
+            "y_tick_count": 3,  # Override: 3 ticks instead of automatic (default: None)
+            "y_tick_use_colors": True,  # Override: colored ticks (default: False)
+            "cheap_price_points": 5,  # Override: highlight 20 cheapest periods per day (default: 0)
             # Price label overrides
-            "label_minmax_show_price": False,
-            "label_use_colors": True,
+            "use_hourly_prices": True,  # Override: aggregate to hourly (default: False)
+            "label_min": False,  # Override: hide min label (default: True)
+            "label_max": False,  # Override: hide max label (default: True)
+            "label_current_at_top": False,  # Override: show current label on graph instead of at top (default: True)
+            "color_price_line_by_average": False,  # Override: use single color price line (default: True)
         }
         print("Using test configuration: light theme, colored labels")
-    else:  # my
-        # My configuration (only overrides from defaults)
+    else:  # wearos
+        # Wear OS configuration (only overrides from defaults)
         render_options = {
             # X-axis overrides
-            "show_x_ticks": True,
-            "start_at_midnight": False,
+            "show_x_ticks": True,  # Override: show X-axis ticks (default: False)
+            "start_at_midnight": False,  # Override: start at current hour (default: True)
             # Y-axis overrides
-            "y_axis_label_rotation_deg": 270,  # Vertical labels for right side (reads top-to-bottom)
-            "y_axis_side": "right",
-            "y_tick_count": 3,
-            "y_tick_use_colors": True,
+            "y_axis_label_rotation_deg": 270,  # Override: vertical labels for right side (default: 0)
+            "y_axis_side": "right",  # Override: Y-axis on right (default: left)
+            "y_tick_count": 2,  # Override: 3 ticks instead of automatic (default: None)
+            "y_tick_use_colors": True,  # Override: colored ticks (default: False)
+            "cheap_price_points": 5,  # Override: highlight 5 cheapest periods per day (default: 0)
             # Price label overrides
-            "use_hourly_prices": True,
-            "use_cents": True,
-            "currency_override": "öre",
-            "label_current_at_top": True,
-            "label_font_size": 17,
-            "label_minmax_show_price": False,
+            "use_hourly_prices": True,  # Override: aggregate to hourly (default: False)
+            "use_cents": True,  # Override: display in cents (default: False)
+            "currency_override": "öre",  # Override: display "öre" instead of "¢" (default: None)
+            "label_font_size": 20,  # Override: larger font (default: 11)
+            "label_minmax_show_price": False,  # Override: show only time on min/max labels (default: True)
         }
-        print("Using my configuration: dark theme, hourly prices, öre currency")
+        print("Using Wear OS configuration: dark theme, hourly prices, öre currency")
 
     print("Generating sample price data...")
     dates_raw, prices_raw, now_local = generate_price_data(

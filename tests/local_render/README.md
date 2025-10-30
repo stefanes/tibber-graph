@@ -22,7 +22,7 @@ Run the local render script to generate a sample graph:
 
 ```bash
 python local_render.py                    # Test mode: light theme with colored labels (default)
-python local_render.py --my               # Use my settings (dark theme, hourly prices, öre currency)
+python local_render.py --wearos           # Use Wear OS settings (dark theme, hourly prices, öre currency)
 python local_render.py --defaults         # Use only defaults.py (pure defaults, no overrides)
 python local_render.py --random           # Use random generated price data instead of real Tibber data
 python local_render.py --time 19:34       # Simulate a specific time (e.g., 19:34 today)
@@ -32,7 +32,7 @@ This will:
 
 - Generate sample price data (48 hours in 15-minute intervals, from midnight today through tomorrow)
 - Render the graph using the selected configuration mode
-- Save the output as `local_render.png` in the current directory
+- Save the output as `local_render.png` in the `tests/` directory
 
 ## Configuration Modes
 
@@ -43,10 +43,11 @@ The script supports three configuration modes:
 - Uses `defaults.py` as base
 - Applies inline render options: light theme, colored labels, colored Y-axis ticks
 
-**My mode** (`--my`):
+**Wear OS mode** (`--wearos`):
 
 - Uses `defaults.py` as base
 - Dark theme, hourly prices, öre currency, colored Y-ticks
+- Optimized for Android watch display
 
 **Defaults only mode** (`--defaults`):
 
@@ -57,9 +58,14 @@ The script supports three configuration modes:
 ## Making changes
 
 1. Make changes to the component code in `../../custom_components/tibber_graph`
-2. Run `python local_render.py` (test mode) or `python local_render.py --my`
-3. Open `local_render.png` to see your changes in action
+2. Run `python local_render.py` (test mode) or `python local_render.py --wearos`
+3. Open `../local_render.png` in the `tests/` directory to see your changes in action
 4. Repeat until satisfied!
+
+## Data and Output Files
+
+- **Input**: `tests/local_render.json` - Price data (shared with ui_test)
+- **Output**: `tests/local_render.png` - Generated graph image
 
 ## Customizing Test Mode
 

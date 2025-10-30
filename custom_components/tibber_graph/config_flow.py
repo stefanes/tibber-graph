@@ -13,25 +13,29 @@ from homeassistant.helpers import config_validation as cv
 
 from .const import (
     DOMAIN,
-    # General
+    CONF_ENTITY_NAME,
+    # General config keys
     CONF_THEME,
     CONF_CANVAS_WIDTH,
     CONF_CANVAS_HEIGHT,
     CONF_FORCE_FIXED_SIZE,
-    # X-axis
+    # X-axis config keys
     CONF_SHOW_X_TICKS,
     CONF_START_AT_MIDNIGHT,
     CONF_X_AXIS_LABEL_ROTATION_DEG,
     CONF_X_TICK_STEP_HOURS,
     CONF_HOURS_TO_SHOW,
-    # Y-axis
+    CONF_SHOW_VERTICAL_GRID,
+    # Y-axis config keys
     CONF_SHOW_Y_AXIS,
-    CONF_SHOW_Y_GRID,
+    CONF_SHOW_HORIZONTAL_GRID,
+    CONF_SHOW_AVERAGE_PRICE_LINE,
+    CONF_CHEAP_PRICE_POINTS,
     CONF_Y_AXIS_LABEL_ROTATION_DEG,
     CONF_Y_AXIS_SIDE,
     CONF_Y_TICK_COUNT,
     CONF_Y_TICK_USE_COLORS,
-    # Price labels
+    # Price label config keys
     CONF_USE_HOURLY_PRICES,
     CONF_USE_CENTS,
     CONF_CURRENCY_OVERRIDE,
@@ -44,27 +48,32 @@ from .const import (
     CONF_LABEL_SHOW_CURRENCY,
     CONF_LABEL_USE_COLORS,
     CONF_PRICE_DECIMALS,
-    # Refresh
+    CONF_COLOR_PRICE_LINE_BY_AVERAGE,
+    # Refresh config keys
     CONF_AUTO_REFRESH_ENABLED,
-    # Defaults - General
+    DEFAULT_ENTITY_NAME,
+    # General defaults
     DEFAULT_THEME,
     DEFAULT_CANVAS_WIDTH,
     DEFAULT_CANVAS_HEIGHT,
     DEFAULT_FORCE_FIXED_SIZE,
-    # Defaults - X-axis
+    # X-axis defaults
     DEFAULT_SHOW_X_TICKS,
     DEFAULT_START_AT_MIDNIGHT,
     DEFAULT_X_AXIS_LABEL_ROTATION_DEG,
     DEFAULT_X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW,
-    # Defaults - Y-axis
+    DEFAULT_SHOW_VERTICAL_GRID,
+    # Y-axis defaults
     DEFAULT_SHOW_Y_AXIS,
-    DEFAULT_SHOW_Y_GRID,
+    DEFAULT_SHOW_HORIZONTAL_GRID,
+    DEFAULT_SHOW_AVERAGE_PRICE_LINE,
+    DEFAULT_CHEAP_PRICE_POINTS,
     DEFAULT_Y_AXIS_LABEL_ROTATION_DEG,
     DEFAULT_Y_AXIS_SIDE,
     DEFAULT_Y_TICK_COUNT,
     DEFAULT_Y_TICK_USE_COLORS,
-    # Defaults - Price labels
+    # Price label defaults
     DEFAULT_USE_HOURLY_PRICES,
     DEFAULT_USE_CENTS,
     DEFAULT_CURRENCY_OVERRIDE,
@@ -77,7 +86,8 @@ from .const import (
     DEFAULT_LABEL_SHOW_CURRENCY,
     DEFAULT_LABEL_USE_COLORS,
     DEFAULT_PRICE_DECIMALS,
-    # Defaults - Refresh
+    DEFAULT_COLOR_PRICE_LINE_BY_AVERAGE,
+    # Refresh defaults
     DEFAULT_AUTO_REFRESH_ENABLED,
 )
 
@@ -97,18 +107,48 @@ class TibberGraphConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if "tibber" not in self.hass.config.components:
             return self.async_abort(reason="tibber_not_setup")
 
+        errors = {}
+
         if user_input is not None:
-            return self.async_create_entry(title="Tibber Graph", data=user_input)
+            # Generate a unique entity name if not provided
+            entity_name = user_input.get(CONF_ENTITY_NAME, "").strip()
+            if not entity_name:
+                # Auto-generate entity name based on Tibber home
+                try:
+                    homes = self.hass.data["tibber"].get_homes(only_active=True)
+                    if homes:
+                        home = homes[0]
+                        if not home.info:
+                            await home.update_info()
+                        entity_name = home.info['viewer']['home']['appNickname'] or home.info['viewer']['home']['address'].get('address1', 'Tibber Graph')
+                except Exception:
+                    entity_name = "Tibber Graph"
+
+            user_input[CONF_ENTITY_NAME] = entity_name
+
+            # Check for duplicate entity names
+            existing_entries = self._async_current_entries()
+            for entry in existing_entries:
+                if entry.data.get(CONF_ENTITY_NAME) == entity_name:
+                    errors["entity_name"] = "entity_name_exists"
+                    break
+
+            if not errors:
+                # Use entity name as title (without prefix - prefix is added to camera entity name)
+                title = entity_name
+                return self.async_create_entry(title=title, data=user_input)
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
                 {
+                    vol.Optional(CONF_ENTITY_NAME, default=""): cv.string,
                     vol.Optional(
                         CONF_THEME, default=DEFAULT_THEME
                     ): vol.In(["dark", "light"]),
                 }
             ),
+            errors=errors,
         )
 
     async def async_step_reconfigure(
@@ -208,13 +248,15 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
     def _get_options_schema(self) -> vol.Schema:
         """Return the options schema."""
         options = self.config_entry.options
+        # Fallback to entry.data for initial values (e.g., theme set during setup)
+        data = self.config_entry.data
 
         return vol.Schema(
             {
                 # General settings
                 vol.Optional(
                     CONF_THEME,
-                    default=options.get(CONF_THEME, DEFAULT_THEME),
+                    default=options.get(CONF_THEME, data.get(CONF_THEME, DEFAULT_THEME)),
                 ): vol.In(["dark", "light"]),
                 vol.Optional(
                     CONF_CANVAS_WIDTH,
@@ -249,15 +291,27 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                     CONF_HOURS_TO_SHOW,
                     default=options.get(CONF_HOURS_TO_SHOW, DEFAULT_HOURS_TO_SHOW),
                 ): vol.Any(None, cv.positive_int),
+                vol.Optional(
+                    CONF_SHOW_VERTICAL_GRID,
+                    default=options.get(CONF_SHOW_VERTICAL_GRID, DEFAULT_SHOW_VERTICAL_GRID),
+                ): cv.boolean,
                 # Y-axis settings
                 vol.Optional(
                     CONF_SHOW_Y_AXIS,
                     default=options.get(CONF_SHOW_Y_AXIS, DEFAULT_SHOW_Y_AXIS),
                 ): cv.boolean,
                 vol.Optional(
-                    CONF_SHOW_Y_GRID,
-                    default=options.get(CONF_SHOW_Y_GRID, DEFAULT_SHOW_Y_GRID),
+                    CONF_SHOW_HORIZONTAL_GRID,
+                    default=options.get(CONF_SHOW_HORIZONTAL_GRID, DEFAULT_SHOW_HORIZONTAL_GRID),
                 ): cv.boolean,
+                vol.Optional(
+                    CONF_SHOW_AVERAGE_PRICE_LINE,
+                    default=options.get(CONF_SHOW_AVERAGE_PRICE_LINE, DEFAULT_SHOW_AVERAGE_PRICE_LINE),
+                ): cv.boolean,
+                vol.Optional(
+                    CONF_CHEAP_PRICE_POINTS,
+                    default=options.get(CONF_CHEAP_PRICE_POINTS, DEFAULT_CHEAP_PRICE_POINTS),
+                ): cv.positive_int,
                 vol.Optional(
                     CONF_Y_AXIS_LABEL_ROTATION_DEG,
                     default=options.get(CONF_Y_AXIS_LABEL_ROTATION_DEG, DEFAULT_Y_AXIS_LABEL_ROTATION_DEG),
@@ -323,6 +377,10 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                     CONF_PRICE_DECIMALS,
                     default=options.get(CONF_PRICE_DECIMALS, DEFAULT_PRICE_DECIMALS),
                 ): vol.Any(None, cv.positive_int),
+                vol.Optional(
+                    CONF_COLOR_PRICE_LINE_BY_AVERAGE,
+                    default=options.get(CONF_COLOR_PRICE_LINE_BY_AVERAGE, DEFAULT_COLOR_PRICE_LINE_BY_AVERAGE),
+                ): cv.boolean,
                 # Refresh settings
                 vol.Optional(
                     CONF_AUTO_REFRESH_ENABLED,

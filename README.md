@@ -2,7 +2,7 @@
 
 [![HACS Badge](https://img.shields.io/badge/HACS-Default-1ED0E7.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 ![Version](https://img.shields.io/github/v/release/stefanes/tibber-graph?style=for-the-badge)
-<!-- [![Downloads](https://img.shields.io/github/downloads/stefanes/tibber-graph/total?style=for-the-badge)](https://tooomm.github.io/github-release-stats/?username=stefanes&repository=tibber-graph) -->
+[![Downloads](https://img.shields.io/github/downloads/stefanes/tibber-graph/total?style=for-the-badge)](https://tooomm.github.io/github-release-stats/?username=stefanes&repository=tibber-graph)
 [![Open Issues](https://img.shields.io/github/issues/stefanes/tibber-graph?style=for-the-badge&label=Open%20Issues)](https://github.com/stefanes/tibber-graph/issues)
 
 Display future (and past) Tibber prices as a graph in Home Assistant, exposed as a camera entity.
@@ -37,11 +37,22 @@ Or:
 2. Click **Add Integration**
 3. Search for "**Tibber Graph**"
 
-You will now have a `camera.tibber_graph_[your_address]` entity that displays the Tibber prices as a graph (and an image available at `http://homeassistant.local:8123/local/tibber_graph_[your_address].png`).
+You will now have a `camera.tibber_graph_{entity_name}` entity that displays the Tibber prices as a graph (and an image available at `http://homeassistant.local:8123/local/tibber_graph_{entity_name}.png`).
+
+The integration will appear in Settings → Devices & Services with the entity name you provided during setup (or your Tibber home name if no entity name was specified).
 
 ### Advanced Customization
 
-All configurable options are available through the Home Assistant UI (**Settings → Devices & Services → Tibber Graph → Configure**).
+All configurable options are available through the Home Assistant UI (**Settings → Devices & Services → [Your Entity Name] → Configure**).
+
+Key features include:
+
+- **Multiple graph views**: Create separate camera entities with different configurations
+- **Flexible time ranges**: Show all available data or specify a custom hour range
+- **Theme customization**: Light and dark themes with full color control
+- **Price highlighting**: Highlight the cheapest price periods with colored backgrounds
+- **Grid and axis control**: Customize gridlines, axis position, and tick formatting
+- **Label options**: Configure min/max/current price labels with colors and positioning
 
 For a complete list of available options, their descriptions, and default values, see **[OPTIONS.md](OPTIONS.md)**.
 
@@ -51,11 +62,11 @@ Graph rendered with only defaults (pure [`defaults.py`](custom_components/tibber
 
 ![Tibber Graph with only defaults](docs/resources/defaults-only.png)
 
-Graph rendered with my configuration (dark theme, hourly prices, colored Y-ticks):
+Graph rendered with Wear OS configuration (dark theme, hourly prices, colored Y-ticks):
 
-![Tibber Graph with the default my configuration](docs/resources/my-config.png)
+![Tibber Graph with Wear OS configuration](docs/resources/wearos-config.png)
 
-Graph rendered with test configuration (light theme, colored labels and Y-ticks):
+Graph rendered with test configuration (light theme, hourly prices, colored Y-ticks):
 
 ![Tibber Graph with random price data and light mode](docs/resources/random-light.png)
 

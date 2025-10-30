@@ -5,6 +5,7 @@
         "title": "Set up Tibber Graph",
         "description": "Configure the Tibber Graph integration to display electricity prices.",
         "data": {
+          "entity_name": "Entity name (leave blank for auto)",
           "theme": "Theme"
         }
       },
@@ -24,6 +25,9 @@
       "single_instance_allowed": "Only a single instance is allowed.",
       "tibber_not_setup": "The Tibber integration must be set up first.",
       "reconfigure_successful": "Selected values have been reset to their defaults."
+    },
+    "error": {
+      "entity_name_exists": "An entity with this name already exists. Please choose a different name."
     }
   },
   "options": {
@@ -40,9 +44,12 @@
           "start_at_midnight": "Start graph at midnight",
           "x_axis_label_rotation_deg": "X-axis label rotation (degrees)",
           "x_tick_step_hours": "X-axis tick interval (hours)",
-          "hours_to_show": "Hours to show (leave empty for all)",
+          "hours_to_show": "Hours to show (leave empty for all available data)",
           "show_y_axis": "Show Y-axis",
-          "show_y_grid": "Show Y-axis grid",
+          "show_horizontal_grid": "Show horizontal grid",
+          "show_average_price_line": "Show average price line",
+          "cheap_price_points": "Cheap price points to highlight",
+          "show_vertical_grid": "Show vertical grid",
           "y_axis_label_rotation_deg": "Y-axis label rotation (degrees)",
           "y_axis_side": "Y-axis position",
           "y_tick_count": "Number of Y-axis ticks",
@@ -59,6 +66,7 @@
           "label_show_currency": "Show currency on labels",
           "label_use_colors": "Use colored labels (min/max)",
           "price_decimals": "Number of price decimals",
+          "color_price_line_by_average": "Color price line by average",
           "auto_refresh_enabled": "Enable auto-refresh"
         }
       }
