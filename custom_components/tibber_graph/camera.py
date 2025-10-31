@@ -18,13 +18,14 @@ from .const import (
     DOMAIN,
     # General config keys
     CONF_ENTITY_NAME,
+    CONF_PRICE_ENTITY_ID,
     CONF_THEME,
     CONF_CANVAS_WIDTH,
     CONF_CANVAS_HEIGHT,
     CONF_FORCE_FIXED_SIZE,
     # X-axis config keys
     CONF_SHOW_X_TICKS,
-    CONF_START_AT_MIDNIGHT,
+    CONF_START_GRAPH_AT,
     CONF_X_AXIS_LABEL_ROTATION_DEG,
     CONF_X_TICK_STEP_HOURS,
     CONF_HOURS_TO_SHOW,
@@ -54,13 +55,17 @@ from .const import (
     CONF_COLOR_PRICE_LINE_BY_AVERAGE,
     # Refresh config keys
     CONF_AUTO_REFRESH_ENABLED,
+    # Start graph at options
+    START_GRAPH_AT_MIDNIGHT,
+    START_GRAPH_AT_CURRENT_HOUR,
+    START_GRAPH_AT_SHOW_ALL,
     # Configurable defaults
     DEFAULT_THEME,
     DEFAULT_CANVAS_WIDTH,
     DEFAULT_CANVAS_HEIGHT,
     DEFAULT_FORCE_FIXED_SIZE,
     DEFAULT_SHOW_X_TICKS,
-    DEFAULT_START_AT_MIDNIGHT,
+    DEFAULT_START_GRAPH_AT,
     DEFAULT_X_AXIS_LABEL_ROTATION_DEG,
     DEFAULT_X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW,
@@ -120,10 +125,23 @@ async def async_setup_entry(
     # Get entity name from config entry data
     entity_name = entry.data.get(CONF_ENTITY_NAME, entry.title or "Tibber Graph")
 
-    for home in hass.data["tibber"].get_homes(only_active=True):
-        if not home.info:
-            await home.update_info()
-        entities.append(TibberCam(home, hass, entry, options, entity_name))
+    # Get price entity ID from config entry data
+    price_entity_id = entry.data.get(CONF_PRICE_ENTITY_ID)
+
+    if price_entity_id:
+        # Use entity as price source
+        _LOGGER.info("Setting up Tibber Graph camera using entity: %s", price_entity_id)
+        entities.append(TibberCam(None, hass, entry, options, entity_name, price_entity_id))
+    else:
+        # Use Tibber integration as price source
+        if "tibber" not in hass.config.components or "tibber" not in hass.data:
+            _LOGGER.error("Tibber integration not configured and no price entity provided")
+            return
+
+        for home in hass.data["tibber"].get_homes(only_active=True):
+            if not home.info:
+                await home.update_info()
+            entities.append(TibberCam(home, hass, entry, options, entity_name, None))
 
     _LOGGER.info("Setting up %d Tibber Graph camera(s)", len(entities))
     async_add_entities(entities)
@@ -132,7 +150,7 @@ async def async_setup_entry(
 class TibberCam(LocalFile):
     """Camera entity that generates a dynamic Tibber price graph image."""
 
-    def __init__(self, home, hass, entry: ConfigEntry | None, options: dict[str, Any], entity_name: str):
+    def __init__(self, home, hass, entry: ConfigEntry | None, options: dict[str, Any], entity_name: str, price_entity_id: str | None = None):
         """Initialize the Tibber Graph camera."""
         # Always prefix entity name with "Tibber Graph"
         self._name = f"Tibber Graph {entity_name}"
@@ -143,6 +161,7 @@ class TibberCam(LocalFile):
         # Filename only uses entity_name since entity names are unique per instance
         self._path = hass.config.path(f"www/tibber_graph_{name_sanitized}.png")
         self._home = home
+        self._price_entity_id = price_entity_id
         self.hass = hass
         self._entry = entry
         self._options = options
@@ -151,6 +170,9 @@ class TibberCam(LocalFile):
         self._uniqueid = f"camera_tibber_graph_{name_sanitized}_{unique_suffix}"
         self._refresh_task = None
         super().__init__(self._name, self._path, self._uniqueid)
+
+        # Migrate old "start_at_midnight" boolean option to new "start_graph_at" dropdown
+        self._migrate_start_graph_at_option()
 
         # Start auto-refresh task if enabled
         auto_refresh = self._get_option(CONF_AUTO_REFRESH_ENABLED, DEFAULT_AUTO_REFRESH_ENABLED)
@@ -175,14 +197,78 @@ class TibberCam(LocalFile):
             return value
         return fallback
 
+    def _migrate_start_graph_at_option(self):
+        """Migrate old 'start_at_midnight' boolean option to new 'start_graph_at' dropdown.
+
+        This method converts the deprecated boolean option to the new dropdown format:
+        - start_at_midnight=True → start_graph_at="midnight"
+        - start_at_midnight=False → start_graph_at="current_hour"
+
+        The migration is performed only once when the old option exists.
+        After migration, the old option is removed from the config entry.
+        """
+        if not self._entry:
+            return
+
+        # Check if old option exists in either options or data
+        old_key = "start_at_midnight"
+        has_old_option = False
+        old_value = None
+
+        # Check options first (priority)
+        if self._options and old_key in self._options:
+            has_old_option = True
+            old_value = self._options[old_key]
+            location = "options"
+        # Then check entry.data
+        elif old_key in self._entry.data:
+            has_old_option = True
+            old_value = self._entry.data[old_key]
+            location = "data"
+
+        # Only migrate if old option exists and new option doesn't
+        if has_old_option and CONF_START_GRAPH_AT not in (self._options or {}):
+            # Convert boolean to new dropdown value
+            new_value = START_GRAPH_AT_MIDNIGHT if old_value else START_GRAPH_AT_CURRENT_HOUR
+
+            _LOGGER.info(
+                "Migrating %s option for %s: start_at_midnight=%s → start_graph_at=%s",
+                location, self._name, old_value, new_value
+            )
+
+            # Update the config entry with new option and remove old one
+            new_options = dict(self._options) if self._options else {}
+            new_options[CONF_START_GRAPH_AT] = new_value
+
+            # Remove old option from the dict we're updating
+            if old_key in new_options:
+                del new_options[old_key]
+
+            # Update the config entry
+            self.hass.config_entries.async_update_entry(
+                self._entry,
+                options=new_options
+            )
+
+            # Update local reference
+            self._options = new_options
+
     async def async_will_remove_from_hass(self):
-        """Cancel the auto-refresh task when entity is removed."""
+        """Cancel the auto-refresh task and clean up PNG file when entity is removed."""
         if self._refresh_task:
             self._refresh_task.cancel()
             try:
                 await self._refresh_task
             except asyncio.CancelledError:
                 pass
+
+        # Delete the PNG file from www directory
+        try:
+            if Path(self._path).exists():
+                await self.hass.async_add_executor_job(Path(self._path).unlink)
+                _LOGGER.info("Deleted PNG file for %s: %s", self._name, self._path)
+        except Exception as err:
+            _LOGGER.warning("Failed to delete PNG file for %s: %s", self._name, err)
 
     async def _auto_refresh_loop(self):
         """Background task that automatically refreshes the chart at a configurable interval."""
@@ -218,6 +304,82 @@ class TibberCam(LocalFile):
 
     def _parse_price_data(self):
         """Extract and filter price data for the configured range."""
+        # Check if using entity or Tibber integration
+        if self._price_entity_id:
+            return self._parse_price_data_from_entity()
+        else:
+            return self._parse_price_data_from_tibber()
+
+    def _parse_price_data_from_entity(self):
+        """Extract and filter price data from a Home Assistant entity."""
+        state = self.hass.states.get(self._price_entity_id)
+        if not state:
+            _LOGGER.warning("Price entity %s not found for %s", self._price_entity_id, self._name)
+            return [], []
+
+        # Try to get prices from 'prices' attribute first, then 'data' attribute
+        data = state.attributes.get("prices") or state.attributes.get("data")
+        if not data:
+            _LOGGER.warning("No price data in entity %s for %s", self._price_entity_id, self._name)
+            return [], []
+
+        if not isinstance(data, list):
+            _LOGGER.warning("Invalid price data format in entity %s for %s: expected list, got %s",
+                          self._price_entity_id, self._name, type(data))
+            return [], []
+
+        # Pre-calculate date range once
+        now_local = dt_util.as_local(dt_util.now())
+        start_date = now_local.date()
+        end_date = start_date + datetime.timedelta(days=1)
+
+        # Parse price data from entity (same format as local_render.json)
+        paired = []
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+
+            # Support `start_time`|`start`|`startsAt` keys (prioritize in that order)
+            time_key = item.get("start_time") or item.get("start") or item.get("startsAt")
+            # Support `price`|`price_per_kwh`|`total` keys (prioritize in that order)
+            price_val = item.get("price") or item.get("price_per_kwh") or item.get("total")
+
+            if not time_key or price_val is None:
+                continue
+
+            dt_loc = dt_util.as_local(dt_util.parse_datetime(time_key))
+            if not dt_loc or not (start_date <= dt_loc.date() <= end_date):
+                continue
+            try:
+                price = float(price_val)
+                paired.append((dt_loc, price))
+            except (TypeError, ValueError):
+                continue
+
+        if not paired:
+            _LOGGER.warning("No valid price data in date range from entity %s for %s",
+                          self._price_entity_id, self._name)
+            return [], []
+
+        # Sort once
+        paired.sort(key=lambda x: x[0])
+        dates, prices = zip(*paired)
+        dates, prices = list(dates), list(prices)
+
+        # Aggregate to hourly prices if configured
+        use_hourly = self._get_option(CONF_USE_HOURLY_PRICES, DEFAULT_USE_HOURLY_PRICES)
+        if use_hourly:
+            dates, prices = self._aggregate_to_hourly(dates, prices)
+
+        _LOGGER.debug("Parsed %d price data points from entity for %s", len(prices), self._name)
+        return dates, prices
+
+    def _parse_price_data_from_tibber(self):
+        """Extract and filter price data from Tibber integration."""
+        if not self._home:
+            _LOGGER.error("Tibber home not configured for %s", self._name)
+            return [], []
+
         data = getattr(self._home, "price_total", None)
         if not data:
             _LOGGER.warning("No price data available for %s", self._name)
@@ -297,12 +459,14 @@ class TibberCam(LocalFile):
             if (now - self._last_update).total_seconds() < DEFAULT_MIN_REDRAW_INTERVAL_SECONDS:
                 return
 
-            try:
-                if self._home.last_data_timestamp is None or (self._home.last_data_timestamp - now).total_seconds() > 11 * 3600:
-                    _LOGGER.debug("Fetching updated price data for %s", self._name)
-                    await self._home.update_info_and_price_info()
-            except Exception as err:
-                _LOGGER.warning("Failed to update Tibber data for %s: %s", self._name, err)
+            # Only update Tibber data if using Tibber integration
+            if self._home:
+                try:
+                    if self._home.last_data_timestamp is None or (self._home.last_data_timestamp - now).total_seconds() > 11 * 3600:
+                        _LOGGER.debug("Fetching updated price data for %s", self._name)
+                        await self._home.update_info_and_price_info()
+                except Exception as err:
+                    _LOGGER.warning("Failed to update Tibber data for %s: %s", self._name, err)
 
             self._last_update = now
 
@@ -331,7 +495,8 @@ class TibberCam(LocalFile):
             elif use_cents:
                 currency = "¢"
             else:
-                currency = self._home.currency or ""
+                # Get currency from Tibber home if available, otherwise empty string
+                currency = self._home.currency if self._home else ""
 
             # Collect rendering options to pass to renderer
             render_options = self._get_render_options()
@@ -368,7 +533,7 @@ class TibberCam(LocalFile):
             "left_margin": DEFAULT_LEFT_MARGIN,
             # X-axis settings
             "show_x_ticks": self._get_option(CONF_SHOW_X_TICKS, DEFAULT_SHOW_X_TICKS),
-            "start_at_midnight": self._get_option(CONF_START_AT_MIDNIGHT, DEFAULT_START_AT_MIDNIGHT),
+            "start_graph_at": self._get_option(CONF_START_GRAPH_AT, DEFAULT_START_GRAPH_AT),
             "x_axis_label_rotation_deg": self._get_option(CONF_X_AXIS_LABEL_ROTATION_DEG, DEFAULT_X_AXIS_LABEL_ROTATION_DEG),
             "x_axis_label_y_offset": DEFAULT_X_AXIS_LABEL_Y_OFFSET,
             "x_tick_step_hours": self._get_option(CONF_X_TICK_STEP_HOURS, DEFAULT_X_TICK_STEP_HOURS),

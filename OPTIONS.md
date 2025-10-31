@@ -16,29 +16,35 @@ This document provides a comprehensive reference for all configurable options av
 
 Create multiple independent camera entities with different configurations for different dashboards or purposes.
 
+### Price Entity
+
+**Option:** `price_entity_id` | **Type:** String | **Default:** Empty (use Tibber) | **Location:** Setup dialog
+
+Optional sensor entity containing price data in its `prices` or `data` attribute. Must contain a list of prices with `start_time`|`start`|`startsAt` and `price`|`price_per_kwh`|`total` fields. Leave blank to use the Tibber integration. **Cannot be changed after creation.**
+
 ### Entity Name
 
 **Option:** `entity_name` | **Type:** String | **Default:** Auto-generated | **Location:** Setup dialog
 
-Identifies each Tibber Graph instance. Leave blank to auto-generate from Tibber home name. Must be unique.
+Identifies each Tibber Graph instance. Leave blank to auto-generate from price entity friendly name or Tibber home name. Must be unique.
 
 ## General Settings
 
 ### Theme
 
-**Option:** `theme` | **Type:** `light` or `dark` | **Default:** `dark`
+**Option:** `theme` | **Type:** Select | **Options:** Dark, Light, Dark (black background) | **Default:** Dark
 
-Visual theme affecting colors for background, grid, labels, and price lines.
+Visual theme affecting colors for background, grid, labels, and price lines. Dark (black background) provides a OLED-friendly pure black background.
 
 ### Canvas Width
 
-**Option:** `canvas_width` | **Type:** Integer | **Default:** `1280` | **Unit:** pixels
+**Option:** `canvas_width` | **Type:** Integer | **Default:** `1180` | **Unit:** pixels
 
 Width of the rendered graph image.
 
 ### Canvas Height
 
-**Option:** `canvas_height` | **Type:** Integer | **Default:** `720` | **Unit:** pixels
+**Option:** `canvas_height` | **Type:** Integer | **Default:** `820` | **Unit:** pixels
 
 Height of the rendered graph image.
 
@@ -56,11 +62,17 @@ Always render at configured canvas size.
 
 Show tick marks on the X-axis at label positions.
 
-### Start at Midnight
+### Start Graph At
 
-**Option:** `start_at_midnight` | **Type:** Boolean | **Default:** `true`
+**Option:** `start_graph_at` | **Type:** Select | **Options:** Midnight, Current hour, Show all | **Default:** Midnight
 
-Start time range at midnight (true) or current hour (false).
+Choose where to start the graph:
+
+- **Midnight**: Start at midnight
+- **Current hour**: Start at current hour
+- **Show all**: Show all available data from first to last price point
+
+The hours shown also depend on the 'Hours to show' setting.
 
 ### X-axis Label Rotation
 

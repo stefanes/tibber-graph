@@ -4,6 +4,7 @@ Usage:
     python local_render.py                    # Use test configuration (light theme, colored labels)
     python local_render.py --wearos           # Use Wear OS configuration (dark theme, hourly, öre)
     python local_render.py --defaults         # Use only defaults.py (pure defaults, no overrides)
+    python local_render.py --old-defaults     # Use old default values (before recent changes)
     python local_render.py --random           # Use random generated price data instead of real Tibber data
     python local_render.py --time 19:34       # Simulate a specific time (e.g., 19:34 today)
 
@@ -14,7 +15,7 @@ import sys
 from pathlib import Path
 
 # Check for command-line arguments
-config_mode = 'test'  # 'test', 'wearos', or 'defaults'
+config_mode = 'test'  # 'test', 'wearos', 'defaults', or 'old_defaults'
 use_random_data = False
 fixed_time = None
 
@@ -27,6 +28,9 @@ while i < len(sys.argv):
     elif arg in ('--defaults', '-d'):
         config_mode = 'defaults'
         print("Running with defaults only (no configuration overrides)")
+    elif arg in ('--old-defaults', '-o'):
+        config_mode = 'old_defaults'
+        print("Running with old default values (before recent changes)")
     elif arg in ('--random', '-r'):
         use_random_data = True
         print("Using randomly generated price data")
@@ -254,6 +258,9 @@ def generate_price_data(use_random=False, fixed_time=None):
         return dates, prices, now
 
     # Load real price data from JSON file
+    # Note: This file format matches the expected format for entity-based price data
+    # (same format as entity attributes 'prices' or 'data')
+    # Supported field names: `start_time`|`start`|`startsAt` for timestamp, `price`|`price_per_kwh`|`total` for value
     try:
         with open(PRICE_DATA_FILE, 'r', encoding='utf-8') as f:
             price_data_json = json.load(f)
@@ -318,6 +325,16 @@ def main():
         # Pure defaults - no overrides
         render_options = None
         print("Using defaults only (no render options)")
+    elif config_mode == 'old_defaults':
+        # Old default values (before recent changes to defaults.py)
+        render_options = {
+            "canvas_width": 1200,  # Override: increased width for watch (default: 1180)
+            "canvas_height": 700,  # Override: square for watch (default: 820)
+            # Price label overrides
+            "label_current_at_top": False,  # Old default: show current label on graph (new default: True)
+            "color_price_line_by_average": False,  # Old default: single color price line (new default: True)
+        }
+        print("Using old default values (current label on graph, single color price line)")
     elif config_mode == 'test':
         # Test configuration: light theme with colored labels (only overrides from defaults)
         render_options = {
@@ -340,9 +357,13 @@ def main():
     else:  # wearos
         # Wear OS configuration (only overrides from defaults)
         render_options = {
+            # General overrides
+            "theme": "dark_black",  # Override: dark with black background (default: dark)
+            "canvas_width": 1280,  # Override: increased width for watch (default: 1180)
+            "canvas_height": 720,  # Override: square for watch (default: 820)
             # X-axis overrides
             "show_x_ticks": True,  # Override: show X-axis ticks (default: False)
-            "start_at_midnight": False,  # Override: start at current hour (default: True)
+            "start_graph_at": "current_hour",  # Override: start at current hour (default: midnight)
             # Y-axis overrides
             "y_axis_label_rotation_deg": 270,  # Override: vertical labels for right side (default: 0)
             "y_axis_side": "right",  # Override: Y-axis on right (default: left)

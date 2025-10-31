@@ -10,20 +10,20 @@ flow in the Home Assistant UI (Settings > Devices & Services > Tibber Graph).
 # =========================
 
 # General settings
-THEME = "dark"                              # Theme: "dark" or "light"
-CANVAS_HEIGHT = 720
-CANVAS_WIDTH = 1280
+THEME = "dark"                              # Theme: "dark", "dark_black", or "light"
+CANVAS_HEIGHT = 820
+CANVAS_WIDTH = 1180
 FORCE_FIXED_SIZE = True                     # Always render at a fixed size (ignores Home Assistant camera size requests)
 BOTTOM_MARGIN = 0.23                        # Space reserved for bottom labels (0.22–0.28)
 LEFT_MARGIN = 0.12                          # Left margin for the plot area
 
 # X-axis settings
 SHOW_X_TICKS = False                        # If True, show x-axis ticks at manual label positions
-START_AT_MIDNIGHT = True                    # True = anchor at midnight, False = anchor at current hour. See HOURS_TO_SHOW for range behavior.
-X_AXIS_LABEL_ROTATION_DEG = 45              # Rotation angle for X-axis labels (in degrees)
+START_GRAPH_AT = "midnight"                 # Graph start point: "midnight" = start at midnight, "current_hour" = start at current hour, "show_all" = show all available data. See HOURS_TO_SHOW for range behavior.
+X_AXIS_LABEL_ROTATION_DEG = 0               # Rotation angle for X-axis labels (in degrees)
 X_AXIS_LABEL_Y_OFFSET = 0.05                # Distance below axis (as fraction)
 X_TICK_STEP_HOURS = 3                       # Label every 3 hours
-HOURS_TO_SHOW = None                        # Number of hours from anchor point (None = all available data). For 24h midnight-to-midnight: set START_AT_MIDNIGHT=True and HOURS_TO_SHOW=24
+HOURS_TO_SHOW = None                        # Number of hours from anchor point (None = all available data). For 24h midnight-to-midnight: set START_GRAPH_AT="midnight" and HOURS_TO_SHOW=24
 SHOW_VERTICAL_GRID = True                   # True = show vertical gridlines, False = hide
 
 # Y-axis settings
@@ -79,9 +79,9 @@ LIGHT_NOWLINE_ALPHA = 0.35
 LIGHT_NOWLINE_COLOR = "r"
 LIGHT_PLOT_LINEWIDTH = 1.0
 LIGHT_PRICE_LINE_COLOR = "#039be5"
-LIGHT_PRICE_LINE_COLOR_ABOVE_AVG = "#ef4444"  # Red for prices far above average (same as max label)
-LIGHT_PRICE_LINE_COLOR_BELOW_AVG = "#039be5"  # Blue for prices below average (same as default)
-LIGHT_PRICE_LINE_COLOR_NEAR_AVG = "#f59e0b"   # Amber for prices near average
+LIGHT_PRICE_LINE_COLOR_ABOVE_AVG = "#ef4444"
+LIGHT_PRICE_LINE_COLOR_BELOW_AVG = "#039be5"
+LIGHT_PRICE_LINE_COLOR_NEAR_AVG = "#f59e0b"
 LIGHT_SPINE_COLOR = "#cccccc"
 LIGHT_STYLE_NAME = "ggplot"
 LIGHT_TICK_COLOR = "#000000"
@@ -104,13 +104,17 @@ DARK_NOWLINE_ALPHA = 0.5
 DARK_NOWLINE_COLOR = "#ff6b6b"
 DARK_PLOT_LINEWIDTH = 1.0
 DARK_PRICE_LINE_COLOR = "#7dc3ff"
-DARK_PRICE_LINE_COLOR_ABOVE_AVG = "#fb7185"   # Red for prices far above average (same as max label)
-DARK_PRICE_LINE_COLOR_BELOW_AVG = "#7dc3ff"   # Blue for prices below average (same as default)
-DARK_PRICE_LINE_COLOR_NEAR_AVG = "#eab308"    # Amber for prices near average
+DARK_PRICE_LINE_COLOR_ABOVE_AVG = "#fb7185"
+DARK_PRICE_LINE_COLOR_BELOW_AVG = "#7dc3ff"
+DARK_PRICE_LINE_COLOR_NEAR_AVG = "#eab308"
 DARK_SPINE_COLOR = "#3a4250"
 DARK_STYLE_NAME = "default"
 DARK_TICK_COLOR = "#cfd6e6"
 DARK_TICKLINE_COLOR = "#1f2530"
+
+# Theme - Dark (Black Background)
+# Reuses all DARK_ theme constants except background color
+DARK_BLACK_BACKGROUND_COLOR = "#000000"
 
 # =========================
 # END DEFAULT CONFIGURATION

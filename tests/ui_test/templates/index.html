@@ -23,6 +23,7 @@
                             <label for="theme">Theme</label>
                             <select id="theme" name="theme">
                                 <option value="dark" {% if defaults.theme == 'dark' %}selected{% endif %}>Dark</option>
+                                <option value="dark_black" {% if defaults.theme == 'dark_black' %}selected{% endif %}>Dark (black background)</option>
                                 <option value="light" {% if defaults.theme == 'light' %}selected{% endif %}>Light</option>
                             </select>
                         </div>
@@ -55,11 +56,13 @@
                             </label>
                         </div>
 
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="start_at_midnight" name="start_at_midnight" {% if defaults.start_at_midnight %}checked{% endif %}>
-                                <span>Start at Midnight</span>
-                            </label>
+                        <div class="form-group">
+                            <label for="start_graph_at">Start Graph At</label>
+                            <select id="start_graph_at" name="start_graph_at">
+                                <option value="midnight" {% if defaults.start_graph_at == 'midnight' %}selected{% endif %}>Midnight</option>
+                                <option value="current_hour" {% if defaults.start_graph_at == 'current_hour' %}selected{% endif %}>Current hour</option>
+                                <option value="show_all" {% if defaults.start_graph_at == 'show_all' %}selected{% endif %}>Show all</option>
+                            </select>
                         </div>
 
                         <div class="form-group">

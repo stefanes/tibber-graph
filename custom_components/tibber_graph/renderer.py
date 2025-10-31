@@ -17,7 +17,7 @@ from .const import (
     DEFAULT_LEFT_MARGIN as LEFT_MARGIN,
     DEFAULT_X_AXIS_LABEL_Y_OFFSET as X_AXIS_LABEL_Y_OFFSET,
     DEFAULT_SHOW_X_TICKS as SHOW_X_TICKS,
-    DEFAULT_START_AT_MIDNIGHT as START_AT_MIDNIGHT,
+    DEFAULT_START_GRAPH_AT as START_GRAPH_AT,
     DEFAULT_X_AXIS_LABEL_ROTATION_DEG as X_AXIS_LABEL_ROTATION_DEG,
     DEFAULT_X_TICK_STEP_HOURS as X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW as HOURS_TO_SHOW,
@@ -48,6 +48,9 @@ from .const import (
     DEFAULT_PRICE_DECIMALS as PRICE_DECIMALS,
     DEFAULT_COLOR_PRICE_LINE_BY_AVERAGE as COLOR_PRICE_LINE_BY_AVERAGE,
     DEFAULT_NEAR_AVERAGE_THRESHOLD as NEAR_AVERAGE_THRESHOLD,
+    START_GRAPH_AT_MIDNIGHT,
+    START_GRAPH_AT_CURRENT_HOUR,
+    START_GRAPH_AT_SHOW_ALL,
 )
 
 # Import theme color constants from defaults.py for dynamic theme selection
@@ -98,6 +101,7 @@ from .defaults import (
     DARK_PRICE_LINE_COLOR_ABOVE_AVG,
     DARK_PRICE_LINE_COLOR_BELOW_AVG,
     DARK_PRICE_LINE_COLOR_NEAR_AVG,
+    DARK_BLACK_BACKGROUND_COLOR,
 )
 
 # Matplotlib heavy imports: import once at module load to reduce per-render overhead
@@ -203,7 +207,7 @@ def render_plot_to_path(
     LEFT_MARGIN_OPT = get_opt("left_margin", LEFT_MARGIN)
     # X-axis settings
     SHOW_X_TICKS_OPT = get_opt("show_x_ticks", SHOW_X_TICKS)
-    START_AT_MIDNIGHT_OPT = get_opt("start_at_midnight", START_AT_MIDNIGHT)
+    START_GRAPH_AT_OPT = get_opt("start_graph_at", START_GRAPH_AT)
     X_AXIS_LABEL_ROTATION_DEG_OPT = get_opt("x_axis_label_rotation_deg", X_AXIS_LABEL_ROTATION_DEG)
     X_TICK_STEP_HOURS_OPT = get_opt("x_tick_step_hours", X_TICK_STEP_HOURS)
     HOURS_TO_SHOW_OPT = get_opt("hours_to_show", HOURS_TO_SHOW)
@@ -241,8 +245,10 @@ def render_plot_to_path(
         PRICE_DECIMALS_OPT = 0 if USE_CENTS_OPT else 2
 
     # Select theme-specific constants based on THEME setting
-    theme_prefix = "DARK_" if THEME_OPT == "dark" else "LIGHT_"
-    BACKGROUND_COLOR = globals()[f"{theme_prefix}BACKGROUND_COLOR"]
+    # dark_black reuses all DARK_ constants except background color
+    theme_prefix = "DARK_" if THEME_OPT in ("dark", "dark_black") else "LIGHT_"
+
+    # Load all theme constants with the selected prefix
     CHEAP_PRICE_COLOR = globals()[f"{theme_prefix}CHEAP_PRICE_COLOR"]
     FILL_ALPHA = globals()[f"{theme_prefix}FILL_ALPHA"]
     FILL_COLOR = globals()[f"{theme_prefix}FILL_COLOR"]
@@ -263,6 +269,12 @@ def render_plot_to_path(
     LABEL_COLOR_MAX = globals()[f"{theme_prefix}LABEL_COLOR_MAX"]
     LABEL_COLOR_AVG = globals()[f"{theme_prefix}LABEL_COLOR_AVG"]
     PRICE_LINE_COLOR_ABOVE_AVG = globals()[f"{theme_prefix}PRICE_LINE_COLOR_ABOVE_AVG"]
+
+    # Override background color for dark_black theme
+    if THEME_OPT == "dark_black":
+        BACKGROUND_COLOR = globals()["DARK_BLACK_BACKGROUND_COLOR"]
+    else:
+        BACKGROUND_COLOR = globals()[f"{theme_prefix}BACKGROUND_COLOR"]
     PRICE_LINE_COLOR_BELOW_AVG = globals()[f"{theme_prefix}PRICE_LINE_COLOR_BELOW_AVG"]
     PRICE_LINE_COLOR_NEAR_AVG = globals()[f"{theme_prefix}PRICE_LINE_COLOR_NEAR_AVG"]
 
@@ -349,8 +361,8 @@ def render_plot_to_path(
     # Price line and fill will be drawn after determining time range and "now" visibility
     # Cheap price point highlights will be drawn after determining visible data (at z-order 0.5, between background and fill)
 
-    # Define X-range: show from start point (midnight or current hour) to end point (configured hours or all available data)
-    if START_AT_MIDNIGHT_OPT:
+    # Define X-range: show from start point to end point based on configuration
+    if START_GRAPH_AT_OPT == START_GRAPH_AT_MIDNIGHT:
         # Start at local midnight
         start_hour = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
         start_hour = start_hour if start_hour.tzinfo else start_hour.replace(tzinfo=LOCAL_TZ)
@@ -366,7 +378,7 @@ def render_plot_to_path(
             # Default: show all available data from midnight to last data point
             end_hour = dates_plot[-1] if dates_plot else (start_hour + datetime.timedelta(days=1))
             end_hour = end_hour if end_hour.tzinfo else end_hour.replace(tzinfo=LOCAL_TZ)
-    else:
+    elif START_GRAPH_AT_OPT == START_GRAPH_AT_CURRENT_HOUR:
         # Start one hour before the current hour and show data up to the last available point
         start_hour = now_local.replace(minute=0, second=0, microsecond=0) - datetime.timedelta(hours=1)
         start_hour = start_hour if start_hour.tzinfo else start_hour.replace(tzinfo=LOCAL_TZ)
@@ -386,6 +398,23 @@ def render_plot_to_path(
         # If the last data point is before the start_hour, ensure a minimal span
         if end_hour <= start_hour:
             end_hour = start_hour + datetime.timedelta(hours=2)
+    else:  # START_GRAPH_AT_SHOW_ALL
+        # Show all available data from first to last data point
+        if dates_plot:
+            start_hour = dates_plot[0]
+            start_hour = start_hour if start_hour.tzinfo else start_hour.replace(tzinfo=LOCAL_TZ)
+            end_hour = dates_plot[-1]
+            end_hour = end_hour if end_hour.tzinfo else end_hour.replace(tzinfo=LOCAL_TZ)
+        else:
+            # Fallback if no data
+            start_hour = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+            start_hour = start_hour if start_hour.tzinfo else start_hour.replace(tzinfo=LOCAL_TZ)
+            end_hour = start_hour + datetime.timedelta(days=1)
+
+        # Apply hours limit if configured (even in show_all mode)
+        if HOURS_TO_SHOW_OPT is not None and HOURS_TO_SHOW_OPT > 0:
+            hours_end = start_hour + datetime.timedelta(hours=HOURS_TO_SHOW_OPT)
+            end_hour = min(hours_end, end_hour)
 
     # Check if "now" marker is visible within the time range
     now_is_visible = start_hour <= now_local <= end_hour
@@ -644,11 +673,11 @@ def render_plot_to_path(
 
     if prices_raw:
         # Determine which indices to consider for min/max labels
-        # If START_AT_MIDNIGHT: consider entire visible range (past and future)
-        # Otherwise: only consider future prices (from current time onwards)
-        if START_AT_MIDNIGHT_OPT:
+        # If START_GRAPH_AT is "midnight" or "show_all": consider entire visible range (past and future)
+        # If "current_hour": only consider future prices (from current time onwards)
+        if START_GRAPH_AT_OPT in (START_GRAPH_AT_MIDNIGHT, START_GRAPH_AT_SHOW_ALL):
             candidate_indices = visible_indices
-        else:
+        else:  # START_GRAPH_AT_CURRENT_HOUR
             # Only future prices: at or after the current time
             # Note: For labels on the plot, we use strict > comparison
             candidate_indices = [i for i in visible_indices if dates_raw[i] > now_local]
@@ -693,7 +722,7 @@ def render_plot_to_path(
         show_price = not ((is_min or is_max) and not LABEL_MINMAX_SHOW_PRICE_OPT)
 
         # Build label text: price + time or just time
-        time_str = now_local.strftime('%H:%M') if is_current else dates_raw[i].strftime('%H:%M')
+        time_str = now_local.strftime('%H') if is_current else dates_raw[i].strftime('%H')
         if show_price:
             price_display = prices_raw[i] * price_multiplier
             label_text = f"{price_display:.{decimals}f}{currency_label}\nat {time_str}"
@@ -819,8 +848,8 @@ def render_plot_to_path(
 
     # Calculate Y-axis tick min/max values
     # Key difference: For labels we use strict future (>), but for ticks we use current hour onwards (>=)
-    # When not starting at midnight, ticks should only consider future prices (from current hour onwards)
-    if START_AT_MIDNIGHT_OPT:
+    # When starting at current hour, ticks should only consider future prices (from current hour onwards)
+    if START_GRAPH_AT_OPT in (START_GRAPH_AT_MIDNIGHT, START_GRAPH_AT_SHOW_ALL):
         # Use all visible prices for ticks (past and future)
         y_min_tick = y_min
         y_max_tick = y_max
@@ -864,7 +893,7 @@ def render_plot_to_path(
                             tick_label.set_color(LABEL_COLOR_AVG)
 
                 elif Y_TICK_COUNT_OPT == 2:
-                    # Show min and max (future only if not START_AT_MIDNIGHT)
+                    # Show min and max (future only if starting at current hour)
                     ax.yaxis.set_major_locator(mticker.FixedLocator([y_min_tick, y_max_tick]))
                     if Y_TICK_USE_COLORS_OPT:
                         tick_labels = ax.yaxis.get_ticklabels()
@@ -918,10 +947,10 @@ def render_plot_to_path(
         ax.text(
             tt,
             -X_AXIS_LABEL_Y_OFFSET,
-            tt.strftime("%H:%M"),
+            tt.strftime("%H"),
             transform=ax.get_xaxis_transform(),
             rotation=X_AXIS_LABEL_ROTATION_DEG_OPT,
-            ha="right",
+            ha="center",
             va="top",
             fontsize=LABEL_FONT_SIZE_OPT,
             color=AXIS_LABEL_COLOR,

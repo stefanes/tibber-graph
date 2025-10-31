@@ -15,11 +15,19 @@
 .PARAMETER Destination
     None. Required information is read from local_deploy.json.
 
+.PARAMETER y
+    Skip restart confirmation prompt and automatically restart Home Assistant.
+
 .EXAMPLE
     .\local_deploy.ps1
+
+.EXAMPLE
+    .\local_deploy.ps1 -y
 #>
 
-param()
+param(
+    [switch]$y
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -101,9 +109,17 @@ Write-Host ""
 
 # Restart Home Assistant if URL and token are provided
 if ($HomeAssistantUrl -and $AccessToken) {
-    Write-Host "Restart Home Assistant?" -ForegroundColor Yellow
-    Write-Host "  Host: $HomeAssistantUrl" -ForegroundColor Gray
-    $confirmation = Read-Host "Proceed with restart? (y/N)"
+    # Skip confirmation if -y switch is provided
+    if ($y) {
+        $confirmation = 'y'
+        Write-Host "Restarting Home Assistant (auto-confirmed with -y)..." -ForegroundColor Yellow
+        Write-Host "  Host: $HomeAssistantUrl" -ForegroundColor Gray
+    }
+    else {
+        Write-Host "Restart Home Assistant?" -ForegroundColor Yellow
+        Write-Host "  Host: $HomeAssistantUrl" -ForegroundColor Gray
+        $confirmation = Read-Host "Proceed with restart? (y/N)"
+    }
 
     if ($confirmation -eq 'y' -or $confirmation -eq 'Y') {
         Write-Host ""

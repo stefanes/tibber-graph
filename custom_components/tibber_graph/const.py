@@ -12,7 +12,7 @@ from .defaults import (
     LEFT_MARGIN,
     # X-axis settings
     SHOW_X_TICKS,
-    START_AT_MIDNIGHT,
+    START_GRAPH_AT,
     X_AXIS_LABEL_ROTATION_DEG,
     X_AXIS_LABEL_Y_OFFSET,
     X_TICK_STEP_HOURS,
@@ -57,6 +57,7 @@ DOMAIN = "tibber_graph"
 
 # Config entry keys
 CONF_ENTITY_NAME = "entity_name"
+CONF_PRICE_ENTITY_ID = "price_entity_id"
 # General config keys
 CONF_THEME = "theme"
 CONF_CANVAS_WIDTH = "canvas_width"
@@ -64,7 +65,7 @@ CONF_CANVAS_HEIGHT = "canvas_height"
 CONF_FORCE_FIXED_SIZE = "force_fixed_size"
 # X-axis config keys
 CONF_SHOW_X_TICKS = "show_x_ticks"
-CONF_START_AT_MIDNIGHT = "start_at_midnight"
+CONF_START_GRAPH_AT = "start_graph_at"
 CONF_X_AXIS_LABEL_ROTATION_DEG = "x_axis_label_rotation_deg"
 CONF_X_TICK_STEP_HOURS = "x_tick_step_hours"
 CONF_HOURS_TO_SHOW = "hours_to_show"
@@ -97,6 +98,7 @@ CONF_AUTO_REFRESH_ENABLED = "auto_refresh_enabled"
 
 # Default values imported from defaults.py
 DEFAULT_ENTITY_NAME = None  # Will be auto-generated if not provided
+DEFAULT_PRICE_ENTITY_ID = None  # Optional - if not provided, use Tibber integration
 # General defaults
 DEFAULT_THEME = THEME
 DEFAULT_CANVAS_WIDTH = CANVAS_WIDTH
@@ -106,7 +108,7 @@ DEFAULT_BOTTOM_MARGIN = BOTTOM_MARGIN
 DEFAULT_LEFT_MARGIN = LEFT_MARGIN
 # X-axis defaults
 DEFAULT_SHOW_X_TICKS = SHOW_X_TICKS
-DEFAULT_START_AT_MIDNIGHT = START_AT_MIDNIGHT
+DEFAULT_START_GRAPH_AT = START_GRAPH_AT
 DEFAULT_X_AXIS_LABEL_ROTATION_DEG = X_AXIS_LABEL_ROTATION_DEG
 DEFAULT_X_AXIS_LABEL_Y_OFFSET = X_AXIS_LABEL_Y_OFFSET
 DEFAULT_X_TICK_STEP_HOURS = X_TICK_STEP_HOURS
@@ -145,3 +147,8 @@ DEFAULT_NEAR_AVERAGE_THRESHOLD = NEAR_AVERAGE_THRESHOLD
 DEFAULT_AUTO_REFRESH_ENABLED = AUTO_REFRESH_ENABLED
 DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES = AUTO_REFRESH_INTERVAL_MINUTES
 DEFAULT_MIN_REDRAW_INTERVAL_SECONDS = MIN_REDRAW_INTERVAL_SECONDS
+
+# Start graph at options
+START_GRAPH_AT_MIDNIGHT = "midnight"
+START_GRAPH_AT_CURRENT_HOUR = "current_hour"
+START_GRAPH_AT_SHOW_ALL = "show_all"

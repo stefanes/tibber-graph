@@ -2,15 +2,19 @@
   "config": {
     "step": {
       "user": {
-        "title": "Set up Tibber Graph",
-        "description": "Configure the Tibber Graph integration to display electricity prices as camera entities.",
+        "title": "Add Tibber Graph entry",
+        "description": "Configure the Tibber Graph integration to display electricity prices as camera entities. You can either provide a price entity or use the Tibber integration.",
         "data": {
+          "price_entity_id": "Price entity (leave blank to use Tibber integration)",
           "entity_name": "Entity name (leave blank for auto)",
-          "theme": "Theme"
+          "theme": "Theme",
+          "start_graph_at": "Start graph at"
         },
         "data_description": {
-          "entity_name": "Custom name for this Tibber Graph entity (will be prefixed with 'Tibber Graph'). Leave blank to auto-generate from your Tibber home name. Must be unique across all Tibber Graph entities.",
-          "theme": "Choose between light and dark theme.\nDefault: dark"
+          "price_entity_id": "Optional: Select a sensor entity containing price data (see [README.md](https://github.com/stefanes/tibber-graph?tab=readme-ov-file#custom-data-source) for details). If left blank, the Tibber integration will be used. This choice cannot be changed after creation.",
+          "entity_name": "Custom name for this Tibber Graph entity (will be prefixed with 'Tibber Graph'). Leave blank to auto-generate from the price entity's friendly name (if using entity) or your Tibber home name. Must be unique across all Tibber Graph entities.",
+          "theme": "Visual theme for the graph. Choose 'Dark' for standard dark theme, 'Light' for light theme, or 'Dark (black background)' for OLED-friendly pure black background.\nDefault: Dark",
+          "start_graph_at": "Choose where to start the graph: 'Midnight' starts at midnight, 'Current hour' starts at current hour, 'Show all' shows all available data from first to last price point.\nDefault: Midnight"
         }
       },
       "reconfigure": {
@@ -38,7 +42,10 @@
       "reconfigure_successful": "Selected values have been reset to their defaults."
     },
     "error": {
-      "entity_name_exists": "An entity with this name already exists. Please choose a different name."
+      "entity_name_exists": "An entity with this name already exists. Please choose a different name.",
+      "entity_not_found": "The specified entity was not found.",
+      "not_sensor_entity": "The entity must be a sensor.",
+      "no_price_source": "Either a price entity must be provided or the Tibber integration must be configured."
     }
   },
   "options": {
@@ -52,7 +59,7 @@
           "canvas_height": "Canvas height (pixels)",
           "force_fixed_size": "Force fixed size",
           "show_x_ticks": "Show X-axis ticks",
-          "start_at_midnight": "Start graph at midnight",
+          "start_graph_at": "Start graph at",
           "x_axis_label_rotation_deg": "X-axis label rotation (degrees)",
           "x_tick_step_hours": "X-axis tick interval (hours)",
           "hours_to_show": "Hours to show (leave empty for all available data)",
@@ -81,12 +88,12 @@
           "auto_refresh_enabled": "Enable auto-refresh"
         },
         "data_description": {
-          "theme": "Choose between light and dark theme.\nDefault: dark",
-          "canvas_width": "Width of the generated graph image in pixels.\nDefault: 1280",
-          "canvas_height": "Height of the generated graph image in pixels.\nDefault: 720",
+          "theme": "Visual theme for the graph. Choose 'Dark' for standard dark theme, 'Light' for light theme, or 'Dark (black background)' for OLED-friendly pure black background.\nDefault: Dark",
+          "canvas_width": "Width of the generated graph image in pixels.\nDefault: 1180",
+          "canvas_height": "Height of the generated graph image in pixels.\nDefault: 820",
           "force_fixed_size": "Always render at fixed size (ignores camera size requests).\nDefault: on",
           "show_x_ticks": "Show tick marks on the X-axis at label positions.\nDefault: off",
-          "start_at_midnight": "When enabled: start at midnight. When disabled: start at current hour. The hours shown depend on 'Hours from start' setting.\nDefault: on",
+          "start_graph_at": "Choose where to start the graph: 'Midnight' starts at midnight, 'Current hour' starts at current hour, 'Show all' shows all available data from first to last price point. The hours shown also depend on 'Hours to show' setting.\nDefault: Midnight",
           "x_axis_label_rotation_deg": "Rotation angle for X-axis time labels in degrees (e.g., 0 = horizontal, 45 = diagonal, 90 = vertical).\nDefault: 45",
           "x_tick_step_hours": "Hours between each time label on the X-axis.\nDefault: 3",
           "hours_to_show": "Number of hours to show from the start point. Leave empty to show all available data (default). To show a 24-hour period from midnight, enable 'Start at midnight' and set this to 24.\nDefault: all available data (reconfigure to reset)",

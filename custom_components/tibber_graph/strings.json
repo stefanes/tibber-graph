@@ -2,11 +2,17 @@
   "config": {
     "step": {
       "user": {
-        "title": "Set up Tibber Graph",
-        "description": "Configure the Tibber Graph integration to display electricity prices.",
+        "title": "Add Tibber Graph entry",
+        "description": "Configure the Tibber Graph integration to display electricity prices. You can either provide a price entity or use the Tibber integration.",
         "data": {
+          "price_entity_id": "Price entity (leave blank to use Tibber integration)",
           "entity_name": "Entity name (leave blank for auto)",
-          "theme": "Theme"
+          "theme": "Theme",
+          "start_graph_at": "Start graph at"
+        },
+        "data_description": {
+          "theme": "Visual theme for the graph",
+          "start_graph_at": "Choose where to start the graph"
         }
       },
       "reconfigure": {
@@ -27,7 +33,10 @@
       "reconfigure_successful": "Selected values have been reset to their defaults."
     },
     "error": {
-      "entity_name_exists": "An entity with this name already exists. Please choose a different name."
+      "entity_name_exists": "An entity with this name already exists. Please choose a different name.",
+      "entity_not_found": "The specified entity was not found.",
+      "not_sensor_entity": "The entity must be a sensor.",
+      "no_price_source": "Either a price entity must be provided or the Tibber integration must be configured."
     }
   },
   "options": {
@@ -41,7 +50,7 @@
           "canvas_height": "Canvas height (pixels)",
           "force_fixed_size": "Force fixed size",
           "show_x_ticks": "Show X-axis ticks",
-          "start_at_midnight": "Start graph at midnight",
+          "start_graph_at": "Start graph at",
           "x_axis_label_rotation_deg": "X-axis label rotation (degrees)",
           "x_tick_step_hours": "X-axis tick interval (hours)",
           "hours_to_show": "Hours to show (leave empty for all available data)",

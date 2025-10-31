@@ -9,11 +9,16 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, entity_registry as er, selector
 
 from .const import (
     DOMAIN,
     CONF_ENTITY_NAME,
+    CONF_PRICE_ENTITY_ID,
+    # Start graph at options
+    START_GRAPH_AT_MIDNIGHT,
+    START_GRAPH_AT_CURRENT_HOUR,
+    START_GRAPH_AT_SHOW_ALL,
     # General config keys
     CONF_THEME,
     CONF_CANVAS_WIDTH,
@@ -21,7 +26,7 @@ from .const import (
     CONF_FORCE_FIXED_SIZE,
     # X-axis config keys
     CONF_SHOW_X_TICKS,
-    CONF_START_AT_MIDNIGHT,
+    CONF_START_GRAPH_AT,
     CONF_X_AXIS_LABEL_ROTATION_DEG,
     CONF_X_TICK_STEP_HOURS,
     CONF_HOURS_TO_SHOW,
@@ -59,7 +64,7 @@ from .const import (
     DEFAULT_FORCE_FIXED_SIZE,
     # X-axis defaults
     DEFAULT_SHOW_X_TICKS,
-    DEFAULT_START_AT_MIDNIGHT,
+    DEFAULT_START_GRAPH_AT,
     DEFAULT_X_AXIS_LABEL_ROTATION_DEG,
     DEFAULT_X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW,
@@ -93,6 +98,30 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Shared theme selector configuration
+THEME_SELECTOR = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[
+            selector.SelectOptionDict(value="dark", label="Dark"),
+            selector.SelectOptionDict(value="dark_black", label="Dark (black background)"),
+            selector.SelectOptionDict(value="light", label="Light"),
+        ],
+        mode=selector.SelectSelectorMode.DROPDOWN,
+    )
+)
+
+# Start graph at selector configuration
+START_GRAPH_AT_SELECTOR = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[
+            selector.SelectOptionDict(value=START_GRAPH_AT_MIDNIGHT, label="Midnight"),
+            selector.SelectOptionDict(value=START_GRAPH_AT_CURRENT_HOUR, label="Current hour"),
+            selector.SelectOptionDict(value=START_GRAPH_AT_SHOW_ALL, label="Show all"),
+        ],
+        mode=selector.SelectSelectorMode.DROPDOWN,
+    )
+)
+
 
 class TibberGraphConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Tibber Graph."""
@@ -103,35 +132,71 @@ class TibberGraphConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the initial step."""
-        # Check if Tibber integration is set up
-        if "tibber" not in self.hass.config.components:
-            return self.async_abort(reason="tibber_not_setup")
-
         errors = {}
 
         if user_input is not None:
-            # Generate a unique entity name if not provided
-            entity_name = user_input.get(CONF_ENTITY_NAME, "").strip()
-            if not entity_name:
-                # Auto-generate entity name based on Tibber home
-                try:
-                    homes = self.hass.data["tibber"].get_homes(only_active=True)
-                    if homes:
-                        home = homes[0]
-                        if not home.info:
-                            await home.update_info()
-                        entity_name = home.info['viewer']['home']['appNickname'] or home.info['viewer']['home']['address'].get('address1', 'Tibber Graph')
-                except Exception:
-                    entity_name = "Tibber Graph"
+            price_entity_id = user_input.get(CONF_PRICE_ENTITY_ID)
+            # Strip if it's a string, otherwise keep as None
+            if isinstance(price_entity_id, str):
+                price_entity_id = price_entity_id.strip() or None
 
-            user_input[CONF_ENTITY_NAME] = entity_name
+            # Validate that either a price entity is provided or Tibber integration is configured
+            if price_entity_id:
+                # Validate the entity exists and is a sensor
+                entity_registry = er.async_get(self.hass)
+                entity_entry = entity_registry.async_get(price_entity_id)
 
-            # Check for duplicate entity names
-            existing_entries = self._async_current_entries()
-            for entry in existing_entries:
-                if entry.data.get(CONF_ENTITY_NAME) == entity_name:
-                    errors["entity_name"] = "entity_name_exists"
-                    break
+                if not entity_entry:
+                    # Try to get the state to check if entity exists (even if not in registry)
+                    state = self.hass.states.get(price_entity_id)
+                    if not state:
+                        errors["price_entity_id"] = "entity_not_found"
+                    elif not price_entity_id.startswith("sensor."):
+                        errors["price_entity_id"] = "not_sensor_entity"
+                elif entity_entry.domain != "sensor":
+                    errors["price_entity_id"] = "not_sensor_entity"
+
+                # Store the entity_id for later use
+                user_input[CONF_PRICE_ENTITY_ID] = price_entity_id
+            else:
+                # No entity provided, check if Tibber integration is available
+                if "tibber" not in self.hass.config.components:
+                    errors["base"] = "no_price_source"
+
+                # Clear entity_id if it was empty
+                user_input[CONF_PRICE_ENTITY_ID] = None
+
+            if not errors:
+                # Generate a unique entity name if not provided
+                entity_name = user_input.get(CONF_ENTITY_NAME, "").strip()
+                if not entity_name:
+                    if price_entity_id:
+                        # Use the friendly name of the price entity
+                        state = self.hass.states.get(price_entity_id)
+                        if state and state.attributes.get("friendly_name"):
+                            entity_name = state.attributes["friendly_name"]
+                        else:
+                            entity_name = price_entity_id.split(".")[-1].replace("_", " ").title()
+                    else:
+                        # Auto-generate entity name based on Tibber home
+                        try:
+                            homes = self.hass.data["tibber"].get_homes(only_active=True)
+                            if homes:
+                                home = homes[0]
+                                if not home.info:
+                                    await home.update_info()
+                                entity_name = home.info['viewer']['home']['appNickname'] or home.info['viewer']['home']['address'].get('address1', 'Tibber Graph')
+                        except Exception:
+                            entity_name = "Tibber Graph"
+
+                user_input[CONF_ENTITY_NAME] = entity_name
+
+                # Check for duplicate entity names
+                existing_entries = self._async_current_entries()
+                for entry in existing_entries:
+                    if entry.data.get(CONF_ENTITY_NAME) == entity_name:
+                        errors["entity_name"] = "entity_name_exists"
+                        break
 
             if not errors:
                 # Use entity name as title (without prefix - prefix is added to camera entity name)
@@ -142,10 +207,12 @@ class TibberGraphConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema(
                 {
+                    vol.Optional(CONF_PRICE_ENTITY_ID): selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="sensor")
+                    ),
                     vol.Optional(CONF_ENTITY_NAME, default=""): cv.string,
-                    vol.Optional(
-                        CONF_THEME, default=DEFAULT_THEME
-                    ): vol.In(["dark", "light"]),
+                    vol.Optional(CONF_THEME, default=DEFAULT_THEME): THEME_SELECTOR,
+                    vol.Optional(CONF_START_GRAPH_AT, default=DEFAULT_START_GRAPH_AT): START_GRAPH_AT_SELECTOR,
                 }
             ),
             errors=errors,
@@ -257,7 +324,7 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                 vol.Optional(
                     CONF_THEME,
                     default=options.get(CONF_THEME, data.get(CONF_THEME, DEFAULT_THEME)),
-                ): vol.In(["dark", "light"]),
+                ): THEME_SELECTOR,
                 vol.Optional(
                     CONF_CANVAS_WIDTH,
                     default=options.get(CONF_CANVAS_WIDTH, DEFAULT_CANVAS_WIDTH),
@@ -276,9 +343,9 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                     default=options.get(CONF_SHOW_X_TICKS, DEFAULT_SHOW_X_TICKS),
                 ): cv.boolean,
                 vol.Optional(
-                    CONF_START_AT_MIDNIGHT,
-                    default=options.get(CONF_START_AT_MIDNIGHT, DEFAULT_START_AT_MIDNIGHT),
-                ): cv.boolean,
+                    CONF_START_GRAPH_AT,
+                    default=options.get(CONF_START_GRAPH_AT, data.get(CONF_START_GRAPH_AT, DEFAULT_START_GRAPH_AT)),
+                ): START_GRAPH_AT_SELECTOR,
                 vol.Optional(
                     CONF_X_AXIS_LABEL_ROTATION_DEG,
                     default=options.get(CONF_X_AXIS_LABEL_ROTATION_DEG, DEFAULT_X_AXIS_LABEL_ROTATION_DEG),
