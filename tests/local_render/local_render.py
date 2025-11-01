@@ -7,6 +7,7 @@ Usage:
     python local_render.py --old-defaults     # Use old default values (before recent changes)
     python local_render.py --random           # Use random generated price data instead of real Tibber data
     python local_render.py --time 19:34       # Simulate a specific time (e.g., 19:34 today)
+    python local_render.py --black-background # Force black background instead of transparent
 
 This will generate a rendered graph image at 'tests/local_render.png'.
 """
@@ -18,6 +19,7 @@ from pathlib import Path
 config_mode = 'test'  # 'test', 'wearos', 'defaults', or 'old_defaults'
 use_random_data = False
 fixed_time = None
+force_black_background = False
 
 i = 1
 while i < len(sys.argv):
@@ -42,6 +44,9 @@ while i < len(sys.argv):
         else:
             print("Error: --time requires a time argument (e.g., --time 19:34)")
             sys.exit(1)
+    elif arg in ('--black-background', '-b'):
+        force_black_background = True
+        print("Forcing black background (overriding transparent background)")
     elif arg in ('--help', '-h'):
         print(__doc__)
         sys.exit(0)
@@ -382,6 +387,16 @@ def main():
             "label_minmax_show_price": False,  # Override: show only time on min/max labels (default: True)
         }
         print("Using Wear OS configuration: dark theme, hourly prices, öre currency")
+
+    # Apply black background override if requested
+    if force_black_background:
+        if render_options is None:
+            render_options = {}
+        render_options["transparent_background"] = False
+        # Ensure we're using dark theme colors for background
+        if "theme" not in render_options or render_options["theme"] != "light":
+            render_options["theme"] = "dark"
+        print("Overriding transparent background with black background")
 
     print("Generating sample price data...")
     dates_raw, prices_raw, now_local = generate_price_data(

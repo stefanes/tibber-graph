@@ -219,7 +219,7 @@ template:
         #                                                              |      |      |
         #                                     convert to SEK per kWh --┘      |      |
         #                                     add 25% VAT --------------------┘      |
-        #                                     add 0.086 SEK/kWh grid fee ------------┘
+        #                                     add 0.086 SEK/kWh markup --------------┘
         unit_of_measurement: SEK/kWh
         state_class: total
         device_class: monetary
@@ -247,9 +247,9 @@ Install and configure the [EPEX Spot integration](https://github.com/mampfes/ha_
 
 ```yaml
 attributes:
-  [prices|data]:
-    - "start_time"|"start"|"startAt": datetime # ISO 8601 datetime string
-      "price"|"price_per_kwh"|"total": float     # Price per kWh
+  {prices|data}:
+    - {"start_time"|"start"|"startAt"}: datetime # datetime string in ISO 8601 format
+      {"price"|"price_per_kwh"|"total"}: float   # price per kWh
     - ...
 ```
 
