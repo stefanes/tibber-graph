@@ -23,9 +23,15 @@
                             <label for="theme">Theme</label>
                             <select id="theme" name="theme">
                                 <option value="dark" {% if defaults.theme == 'dark' %}selected{% endif %}>Dark</option>
-                                <option value="dark_black" {% if defaults.theme == 'dark_black' %}selected{% endif %}>Dark (black background)</option>
                                 <option value="light" {% if defaults.theme == 'light' %}selected{% endif %}>Light</option>
                             </select>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="transparent_background" name="transparent_background" {% if defaults.transparent_background %}checked{% endif %}>
+                                <span>Transparent Background</span>
+                            </label>
                         </div>
 
                         <div class="form-group">
@@ -66,11 +72,6 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="x_axis_label_rotation_deg">Label Rotation (degrees)</label>
-                            <input type="number" id="x_axis_label_rotation_deg" name="x_axis_label_rotation_deg" value="{{ defaults.x_axis_label_rotation_deg }}" min="0" max="90">
-                        </div>
-
-                        <div class="form-group">
                             <label for="x_tick_step_hours">Tick Step (hours)</label>
                             <input type="number" id="x_tick_step_hours" name="x_tick_step_hours" value="{{ defaults.x_tick_step_hours }}" min="1" max="24">
                         </div>
@@ -95,6 +96,13 @@
                             <label>
                                 <input type="checkbox" id="show_y_axis" name="show_y_axis" {% if defaults.show_y_axis %}checked{% endif %}>
                                 <span>Show Y-axis</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="show_y_axis_ticks" name="show_y_axis_ticks" {% if defaults.show_y_axis_ticks %}checked{% endif %}>
+                                <span>Show Y-axis Ticks</span>
                             </label>
                         </div>
 

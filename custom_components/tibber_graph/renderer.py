@@ -10,6 +10,7 @@ import matplotlib.ticker as mticker
 # Import default constants from const.py for fallback values
 from .const import (
     DEFAULT_THEME as THEME,
+    DEFAULT_TRANSPARENT_BACKGROUND as TRANSPARENT_BACKGROUND,
     DEFAULT_CANVAS_WIDTH as CANVAS_WIDTH,
     DEFAULT_CANVAS_HEIGHT as CANVAS_HEIGHT,
     DEFAULT_FORCE_FIXED_SIZE as FORCE_FIXED_SIZE,
@@ -18,11 +19,11 @@ from .const import (
     DEFAULT_X_AXIS_LABEL_Y_OFFSET as X_AXIS_LABEL_Y_OFFSET,
     DEFAULT_SHOW_X_TICKS as SHOW_X_TICKS,
     DEFAULT_START_GRAPH_AT as START_GRAPH_AT,
-    DEFAULT_X_AXIS_LABEL_ROTATION_DEG as X_AXIS_LABEL_ROTATION_DEG,
     DEFAULT_X_TICK_STEP_HOURS as X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW as HOURS_TO_SHOW,
     DEFAULT_SHOW_VERTICAL_GRID as SHOW_VERTICAL_GRID,
     DEFAULT_SHOW_Y_AXIS as SHOW_Y_AXIS,
+    DEFAULT_SHOW_Y_AXIS_TICKS as SHOW_Y_AXIS_TICKS,
     DEFAULT_SHOW_HORIZONTAL_GRID as SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE as SHOW_AVERAGE_PRICE_LINE,
     DEFAULT_CHEAP_PRICE_POINTS as CHEAP_PRICE_POINTS,
@@ -101,7 +102,6 @@ from .defaults import (
     DARK_PRICE_LINE_COLOR_ABOVE_AVG,
     DARK_PRICE_LINE_COLOR_BELOW_AVG,
     DARK_PRICE_LINE_COLOR_NEAR_AVG,
-    DARK_BLACK_BACKGROUND_COLOR,
 )
 
 # Matplotlib heavy imports: import once at module load to reduce per-render overhead
@@ -208,12 +208,12 @@ def render_plot_to_path(
     # X-axis settings
     SHOW_X_TICKS_OPT = get_opt("show_x_ticks", SHOW_X_TICKS)
     START_GRAPH_AT_OPT = get_opt("start_graph_at", START_GRAPH_AT)
-    X_AXIS_LABEL_ROTATION_DEG_OPT = get_opt("x_axis_label_rotation_deg", X_AXIS_LABEL_ROTATION_DEG)
     X_TICK_STEP_HOURS_OPT = get_opt("x_tick_step_hours", X_TICK_STEP_HOURS)
     HOURS_TO_SHOW_OPT = get_opt("hours_to_show", HOURS_TO_SHOW)
     SHOW_VERTICAL_GRID_OPT = get_opt("show_vertical_grid", SHOW_VERTICAL_GRID)
     # Y-axis settings
     SHOW_Y_AXIS_OPT = get_opt("show_y_axis", SHOW_Y_AXIS)
+    SHOW_Y_AXIS_TICKS_OPT = get_opt("show_y_axis_ticks", SHOW_Y_AXIS_TICKS)
     SHOW_HORIZONTAL_GRID_OPT = get_opt("show_horizontal_grid", SHOW_HORIZONTAL_GRID)
     SHOW_AVERAGE_PRICE_LINE_OPT = get_opt("show_average_price_line", SHOW_AVERAGE_PRICE_LINE)
     CHEAP_PRICE_POINTS_OPT = get_opt("cheap_price_points", CHEAP_PRICE_POINTS)
@@ -244,9 +244,11 @@ def render_plot_to_path(
     if PRICE_DECIMALS_OPT is None:
         PRICE_DECIMALS_OPT = 0 if USE_CENTS_OPT else 2
 
+    # Get transparent background option
+    TRANSPARENT_BACKGROUND_OPT = get_opt("transparent_background", TRANSPARENT_BACKGROUND)
+
     # Select theme-specific constants based on THEME setting
-    # dark_black reuses all DARK_ constants except background color
-    theme_prefix = "DARK_" if THEME_OPT in ("dark", "dark_black") else "LIGHT_"
+    theme_prefix = "DARK_" if THEME_OPT == "dark" else "LIGHT_"
 
     # Load all theme constants with the selected prefix
     CHEAP_PRICE_COLOR = globals()[f"{theme_prefix}CHEAP_PRICE_COLOR"]
@@ -269,14 +271,14 @@ def render_plot_to_path(
     LABEL_COLOR_MAX = globals()[f"{theme_prefix}LABEL_COLOR_MAX"]
     LABEL_COLOR_AVG = globals()[f"{theme_prefix}LABEL_COLOR_AVG"]
     PRICE_LINE_COLOR_ABOVE_AVG = globals()[f"{theme_prefix}PRICE_LINE_COLOR_ABOVE_AVG"]
-
-    # Override background color for dark_black theme
-    if THEME_OPT == "dark_black":
-        BACKGROUND_COLOR = globals()["DARK_BLACK_BACKGROUND_COLOR"]
-    else:
-        BACKGROUND_COLOR = globals()[f"{theme_prefix}BACKGROUND_COLOR"]
     PRICE_LINE_COLOR_BELOW_AVG = globals()[f"{theme_prefix}PRICE_LINE_COLOR_BELOW_AVG"]
     PRICE_LINE_COLOR_NEAR_AVG = globals()[f"{theme_prefix}PRICE_LINE_COLOR_NEAR_AVG"]
+
+    # Handle transparent background
+    if TRANSPARENT_BACKGROUND_OPT:
+        BACKGROUND_COLOR = "none"
+    else:
+        BACKGROUND_COLOR = globals()[f"{theme_prefix}BACKGROUND_COLOR"]
 
     fig_w = (CANVAS_WIDTH_OPT if FORCE_FIXED_SIZE_OPT else width) / 200
     fig_h = (CANVAS_HEIGHT_OPT if FORCE_FIXED_SIZE_OPT else height) / 200
@@ -325,6 +327,8 @@ def render_plot_to_path(
         colors=TICK_COLOR,
         labelleft=SHOW_Y_AXIS_OPT and Y_AXIS_SIDE_OPT == "left",
         labelright=SHOW_Y_AXIS_OPT and Y_AXIS_SIDE_OPT == "right",
+        left=SHOW_Y_AXIS_TICKS_OPT and Y_AXIS_SIDE_OPT == "left",
+        right=SHOW_Y_AXIS_TICKS_OPT and Y_AXIS_SIDE_OPT == "right",
         labelsize=(LABEL_FONT_SIZE_OPT),
         rotation=y_rotation,
         pad=y_padding,
@@ -626,9 +630,10 @@ def render_plot_to_path(
             # Still draw the now line (it will be outside visible range but matplotlib handles this)
             ax.axvline(now_local, color=NOWLINE_COLOR, alpha=NOWLINE_ALPHA, linestyle="-", zorder=5)
 
-    # Draw glowing point at intersection of now line and price line when label is at top
-    # This applies to both colored and single-color rendering modes
-    if LABEL_CURRENT_AT_TOP_OPT and LABEL_CURRENT_OPT and now_is_visible and idx < len(prices_raw):
+    # Draw glowing point at intersection of now line and price line
+    # This applies regardless of where the current price label is shown
+    # The glow effect is always rendered to highlight the current price on the graph
+    if LABEL_CURRENT_OPT and now_is_visible and idx < len(prices_raw):
         current_price = prices_raw[idx]
         # Draw multiple overlapping circles with decreasing alpha for glow effect
         for size_factor, alpha_factor in [(3.0, 0.15), (2.0, 0.3), (1.0, 0.8)]:
@@ -722,7 +727,8 @@ def render_plot_to_path(
         show_price = not ((is_min or is_max) and not LABEL_MINMAX_SHOW_PRICE_OPT)
 
         # Build label text: price + time or just time
-        time_str = now_local.strftime('%H') if is_current else dates_raw[i].strftime('%H')
+        # For current price, show minutes; for min/max, show only hour
+        time_str = now_local.strftime('%H:%M') if is_current else dates_raw[i].strftime('%H')
         if show_price:
             price_display = prices_raw[i] * price_multiplier
             label_text = f"{price_display:.{decimals}f}{currency_label}\nat {time_str}"
@@ -759,8 +765,11 @@ def render_plot_to_path(
         # Apply offset based on vertical alignment
         label_y_pos = prices_raw[i] + label_offset_up if vertical_align == "bottom" else prices_raw[i] - label_offset_down
 
+        # For current price, use exact current time position; for min/max, use data point time
+        label_x_pos = now_local if is_current else dates_raw[i]
+
         ax.text(
-            dates_raw[i],
+            label_x_pos,
             label_y_pos,
             label_text,
             fontsize=LABEL_FONT_SIZE_OPT,
@@ -773,13 +782,11 @@ def render_plot_to_path(
         )
 
         # Draw point at the data point for in-graph labels
-        # Determine if this point is in the past for dimming
-        is_past = dates_raw[i] <= now_local
+        # Skip drawing solid point for current price since glowing point is drawn separately
+        if not is_current:
+            # Determine if this point is in the past for dimming
+            is_past = dates_raw[i] <= now_local
 
-        # Use now line color for current price, price line color for min/max
-        if is_current:
-            point_color = NOWLINE_COLOR
-        else:
             # For min/max, determine color based on whether COLOR_PRICE_LINE_BY_AVERAGE is enabled
             # Only use colored price line logic for future points
             if COLOR_PRICE_LINE_BY_AVERAGE_OPT and prices_raw and not is_past:
@@ -796,18 +803,18 @@ def render_plot_to_path(
                 # Use default price line color when color-by-average is disabled or point is in past
                 point_color = PRICE_LINE_COLOR
 
-        # Draw the point at the data point (same size and transparency as inner ring of glowing point)
-        # Z-order 5 ensures labels (z-order 7) appear above the points
-        # Dim the point if it's in the past (apply additional 0.3 alpha factor, matching price line dimming)
-        point_alpha = NOWLINE_ALPHA * 0.8
-        if is_past and not is_current:
-            point_alpha *= 0.3
+            # Draw the point at the data point (same size and transparency as inner ring of glowing point)
+            # Z-order 5 ensures labels (z-order 7) appear above the points
+            # Dim the point if it's in the past (apply additional 0.3 alpha factor, matching price line dimming)
+            point_alpha = NOWLINE_ALPHA * 0.8
+            if is_past:
+                point_alpha *= 0.3
 
-        ax.plot(dates_raw[i], prices_raw[i], 'o',
-               color=point_color,
-               markersize=8,
-               alpha=point_alpha,
-               zorder=5)
+            ax.plot(dates_raw[i], prices_raw[i], 'o',
+                   color=point_color,
+                   markersize=8,
+                   alpha=point_alpha,
+                   zorder=5)
 
     # Draw current price label at fixed position (centered at top above graph) if enabled
     if LABEL_CURRENT_OPT and current_idx is not None and LABEL_CURRENT_AT_TOP_OPT:
@@ -949,7 +956,7 @@ def render_plot_to_path(
             -X_AXIS_LABEL_Y_OFFSET,
             tt.strftime("%H"),
             transform=ax.get_xaxis_transform(),
-            rotation=X_AXIS_LABEL_ROTATION_DEG_OPT,
+            rotation=0,
             ha="center",
             va="top",
             fontsize=LABEL_FONT_SIZE_OPT,

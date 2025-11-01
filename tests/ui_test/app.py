@@ -139,8 +139,8 @@ def parse_option_value(option_key, form_value, default_fallback):
     """Parse a form value based on the option type."""
     # Boolean options (checkboxes)
     boolean_options = [
-        'force_fixed_size', 'show_x_ticks',
-        'show_y_axis', 'show_horizontal_grid', 'show_average_price_line',
+        'transparent_background', 'force_fixed_size', 'show_x_ticks',
+        'show_y_axis', 'show_y_axis_ticks', 'show_horizontal_grid', 'show_average_price_line',
         'show_vertical_grid', 'y_tick_use_colors',
         'use_hourly_prices', 'use_cents',
         'label_current', 'label_current_at_top', 'label_max', 'label_min',
@@ -151,7 +151,7 @@ def parse_option_value(option_key, form_value, default_fallback):
 
     # Integer options
     integer_options = [
-        'canvas_width', 'canvas_height', 'x_axis_label_rotation_deg', 'x_tick_step_hours',
+        'canvas_width', 'canvas_height', 'x_tick_step_hours',
         'hours_to_show', 'cheap_price_points', 'y_axis_label_rotation_deg', 'y_tick_count',
         'label_font_size', 'price_decimals'
     ]

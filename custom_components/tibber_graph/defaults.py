@@ -10,17 +10,17 @@ flow in the Home Assistant UI (Settings > Devices & Services > Tibber Graph).
 # =========================
 
 # General settings
-THEME = "dark"                              # Theme: "dark", "dark_black", or "light"
+THEME = "dark"                              # Theme: "dark" or "light"
+TRANSPARENT_BACKGROUND = False              # Use transparent background with selected theme
 CANVAS_HEIGHT = 820
 CANVAS_WIDTH = 1180
 FORCE_FIXED_SIZE = True                     # Always render at a fixed size (ignores Home Assistant camera size requests)
-BOTTOM_MARGIN = 0.23                        # Space reserved for bottom labels (0.22–0.28)
+BOTTOM_MARGIN = 0.14                        # Space reserved for bottom labels
 LEFT_MARGIN = 0.12                          # Left margin for the plot area
 
 # X-axis settings
 SHOW_X_TICKS = False                        # If True, show x-axis ticks at manual label positions
 START_GRAPH_AT = "midnight"                 # Graph start point: "midnight" = start at midnight, "current_hour" = start at current hour, "show_all" = show all available data. See HOURS_TO_SHOW for range behavior.
-X_AXIS_LABEL_ROTATION_DEG = 0               # Rotation angle for X-axis labels (in degrees)
 X_AXIS_LABEL_Y_OFFSET = 0.05                # Distance below axis (as fraction)
 X_TICK_STEP_HOURS = 3                       # Label every 3 hours
 HOURS_TO_SHOW = None                        # Number of hours from anchor point (None = all available data). For 24h midnight-to-midnight: set START_GRAPH_AT="midnight" and HOURS_TO_SHOW=24
@@ -28,6 +28,7 @@ SHOW_VERTICAL_GRID = True                   # True = show vertical gridlines, Fa
 
 # Y-axis settings
 SHOW_Y_AXIS = True                          # True = show Y axis (ticks, labels, spine). Set False to hide
+SHOW_Y_AXIS_TICKS = False                   # True = show Y axis tick marks, False = hide
 SHOW_HORIZONTAL_GRID = False                # True = show horizontal gridlines, False = hide
 SHOW_AVERAGE_PRICE_LINE = True              # True = show dotted line at average of all available price data (past and future), False = hide
 CHEAP_PRICE_POINTS = 0                      # Number of lowest-price periods to highlight (0 = none, highlights cheapest hours/quarters)
@@ -64,12 +65,12 @@ MIN_REDRAW_INTERVAL_SECONDS = 60            # Minimum interval between re-render
 
 # Theme - Light
 LIGHT_AXIS_LABEL_COLOR = "#000000"
-LIGHT_BACKGROUND_COLOR = "white"
+LIGHT_BACKGROUND_COLOR = "#ffffff"
 LIGHT_CHEAP_PRICE_COLOR = "#6ee7b7"
 LIGHT_FILL_ALPHA = 0.25
 LIGHT_FILL_COLOR = "#039be5"
 LIGHT_GRID_ALPHA = 0.25
-LIGHT_GRID_COLOR = "gray"
+LIGHT_GRID_COLOR = "#808080"
 LIGHT_LABEL_COLOR = "#000000"
 LIGHT_LABEL_COLOR_AVG = "#f59e0b"
 LIGHT_LABEL_COLOR_MAX = "#ef4444"
@@ -89,7 +90,7 @@ LIGHT_TICKLINE_COLOR = "#e0e0e0"
 
 # Theme - Dark
 DARK_AXIS_LABEL_COLOR = "#cfd6e6"
-DARK_BACKGROUND_COLOR = "#1e1e1e"
+DARK_BACKGROUND_COLOR = "#1c1c1c"
 DARK_CHEAP_PRICE_COLOR = "#2d5a3d"
 DARK_FILL_ALPHA = 0.18
 DARK_FILL_COLOR = "#7dc3ff"
@@ -111,10 +112,6 @@ DARK_SPINE_COLOR = "#3a4250"
 DARK_STYLE_NAME = "default"
 DARK_TICK_COLOR = "#cfd6e6"
 DARK_TICKLINE_COLOR = "#1f2530"
-
-# Theme - Dark (Black Background)
-# Reuses all DARK_ theme constants except background color
-DARK_BLACK_BACKGROUND_COLOR = "#000000"
 
 # =========================
 # END DEFAULT CONFIGURATION

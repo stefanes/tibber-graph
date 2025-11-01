@@ -32,9 +32,15 @@ Identifies each Tibber Graph instance. Leave blank to auto-generate from price e
 
 ### Theme
 
-**Option:** `theme` | **Type:** Select | **Options:** Dark, Light, Dark (black background) | **Default:** Dark
+**Option:** `theme` | **Type:** Select | **Options:** Dark, Light | **Default:** Dark
 
-Visual theme affecting colors for background, grid, labels, and price lines. Dark (black background) provides a OLED-friendly pure black background.
+Visual theme affecting colors for background, grid, labels, and price lines.
+
+### Transparent Background
+
+**Option:** `transparent_background` | **Type:** Boolean | **Default:** `false`
+
+Use transparent background with the selected theme. When enabled, the background color is transparent for both dark and light themes, useful for OLED displays or custom dashboards.
 
 ### Canvas Width
 
@@ -74,12 +80,6 @@ Choose where to start the graph:
 
 The hours shown also depend on the 'Hours to show' setting.
 
-### X-axis Label Rotation
-
-**Option:** `x_axis_label_rotation_deg` | **Type:** Integer | **Default:** `45` | **Unit:** degrees
-
-Rotation angle for X-axis time labels (0 = horizontal, 45 = diagonal, 90 = vertical).
-
 ### X-axis Tick Step
 
 **Option:** `x_tick_step_hours` | **Type:** Integer | **Default:** `3` | **Unit:** hours
@@ -105,6 +105,12 @@ Show vertical gridlines at X-axis tick positions.
 **Option:** `show_y_axis` | **Type:** Boolean | **Default:** `true`
 
 Show Y-axis with ticks, labels, and spine.
+
+### Show Y-axis Ticks
+
+**Option:** `show_y_axis_ticks` | **Type:** Boolean | **Default:** `false`
+
+Show tick marks on the Y-axis at price levels.
 
 ### Show Horizontal Grid
 

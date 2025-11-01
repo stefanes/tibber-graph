@@ -20,18 +20,19 @@ from .const import (
     CONF_ENTITY_NAME,
     CONF_PRICE_ENTITY_ID,
     CONF_THEME,
+    CONF_TRANSPARENT_BACKGROUND,
     CONF_CANVAS_WIDTH,
     CONF_CANVAS_HEIGHT,
     CONF_FORCE_FIXED_SIZE,
     # X-axis config keys
     CONF_SHOW_X_TICKS,
     CONF_START_GRAPH_AT,
-    CONF_X_AXIS_LABEL_ROTATION_DEG,
     CONF_X_TICK_STEP_HOURS,
     CONF_HOURS_TO_SHOW,
     CONF_SHOW_VERTICAL_GRID,
     # Y-axis config keys
     CONF_SHOW_Y_AXIS,
+    CONF_SHOW_Y_AXIS_TICKS,
     CONF_SHOW_HORIZONTAL_GRID,
     CONF_SHOW_AVERAGE_PRICE_LINE,
     CONF_CHEAP_PRICE_POINTS,
@@ -61,16 +62,17 @@ from .const import (
     START_GRAPH_AT_SHOW_ALL,
     # Configurable defaults
     DEFAULT_THEME,
+    DEFAULT_TRANSPARENT_BACKGROUND,
     DEFAULT_CANVAS_WIDTH,
     DEFAULT_CANVAS_HEIGHT,
     DEFAULT_FORCE_FIXED_SIZE,
     DEFAULT_SHOW_X_TICKS,
     DEFAULT_START_GRAPH_AT,
-    DEFAULT_X_AXIS_LABEL_ROTATION_DEG,
     DEFAULT_X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW,
     DEFAULT_SHOW_VERTICAL_GRID,
     DEFAULT_SHOW_Y_AXIS,
+    DEFAULT_SHOW_Y_AXIS_TICKS,
     DEFAULT_SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE,
     DEFAULT_CHEAP_PRICE_POINTS,
@@ -174,6 +176,9 @@ class TibberCam(LocalFile):
         # Migrate old "start_at_midnight" boolean option to new "start_graph_at" dropdown
         self._migrate_start_graph_at_option()
 
+        # Migrate old "dark_black" theme to "dark" with transparent background
+        self._migrate_dark_black_theme()
+
         # Start auto-refresh task if enabled
         auto_refresh = self._get_option(CONF_AUTO_REFRESH_ENABLED, DEFAULT_AUTO_REFRESH_ENABLED)
         if auto_refresh:
@@ -251,6 +256,62 @@ class TibberCam(LocalFile):
             )
 
             # Update local reference
+            self._options = new_options
+
+    def _migrate_dark_black_theme(self):
+        """Migrate old 'dark_black' theme to 'dark' with transparent background.
+
+        This method converts the deprecated dark_black theme to the new format:
+        - theme="dark_black" → theme="dark" + transparent_background=True
+
+        The migration is performed only once when the old theme value exists.
+        After migration, the theme is updated and transparent_background is set.
+        """
+        if not self._entry:
+            return
+
+        # Check if theme is set to dark_black in either options or data
+        has_dark_black = False
+        location = None
+
+        # Check options first (priority)
+        if self._options and self._options.get(CONF_THEME) == "dark_black":
+            has_dark_black = True
+            location = "options"
+        # Then check entry.data
+        elif self._entry.data.get(CONF_THEME) == "dark_black":
+            has_dark_black = True
+            location = "data"
+
+        # Only migrate if dark_black theme is found
+        if has_dark_black:
+            _LOGGER.info(
+                "Migrating %s for %s: theme='dark_black' → theme='dark' + transparent_background=True",
+                location, self._name
+            )
+
+            # Update the config entry
+            new_options = dict(self._options) if self._options else {}
+            new_data = dict(self._entry.data)
+
+            # Set theme to dark and enable transparent background
+            if location == "options":
+                new_options[CONF_THEME] = "dark"
+                new_options[CONF_TRANSPARENT_BACKGROUND] = True
+            else:  # location == "data"
+                new_data[CONF_THEME] = "dark"
+                # Add transparent background to options if not already there
+                if CONF_TRANSPARENT_BACKGROUND not in new_options:
+                    new_options[CONF_TRANSPARENT_BACKGROUND] = True
+
+            # Update the config entry
+            self.hass.config_entries.async_update_entry(
+                self._entry,
+                data=new_data,
+                options=new_options
+            )
+
+            # Update local references
             self._options = new_options
 
     async def async_will_remove_from_hass(self):
@@ -526,6 +587,7 @@ class TibberCam(LocalFile):
         return {
             # General settings
             "theme": self._get_option(CONF_THEME, DEFAULT_THEME),
+            "transparent_background": self._get_option(CONF_TRANSPARENT_BACKGROUND, DEFAULT_TRANSPARENT_BACKGROUND),
             "canvas_width": self._get_option(CONF_CANVAS_WIDTH, DEFAULT_CANVAS_WIDTH),
             "canvas_height": self._get_option(CONF_CANVAS_HEIGHT, DEFAULT_CANVAS_HEIGHT),
             "force_fixed_size": self._get_option(CONF_FORCE_FIXED_SIZE, DEFAULT_FORCE_FIXED_SIZE),
@@ -534,13 +596,13 @@ class TibberCam(LocalFile):
             # X-axis settings
             "show_x_ticks": self._get_option(CONF_SHOW_X_TICKS, DEFAULT_SHOW_X_TICKS),
             "start_graph_at": self._get_option(CONF_START_GRAPH_AT, DEFAULT_START_GRAPH_AT),
-            "x_axis_label_rotation_deg": self._get_option(CONF_X_AXIS_LABEL_ROTATION_DEG, DEFAULT_X_AXIS_LABEL_ROTATION_DEG),
             "x_axis_label_y_offset": DEFAULT_X_AXIS_LABEL_Y_OFFSET,
             "x_tick_step_hours": self._get_option(CONF_X_TICK_STEP_HOURS, DEFAULT_X_TICK_STEP_HOURS),
             "hours_to_show": self._get_option(CONF_HOURS_TO_SHOW, DEFAULT_HOURS_TO_SHOW),
             "show_vertical_grid": self._get_option(CONF_SHOW_VERTICAL_GRID, DEFAULT_SHOW_VERTICAL_GRID),
             # Y-axis settings
             "show_y_axis": self._get_option(CONF_SHOW_Y_AXIS, DEFAULT_SHOW_Y_AXIS),
+            "show_y_axis_ticks": self._get_option(CONF_SHOW_Y_AXIS_TICKS, DEFAULT_SHOW_Y_AXIS_TICKS),
             "show_horizontal_grid": self._get_option(CONF_SHOW_HORIZONTAL_GRID, DEFAULT_SHOW_HORIZONTAL_GRID),
             "show_average_price_line": self._get_option(CONF_SHOW_AVERAGE_PRICE_LINE, DEFAULT_SHOW_AVERAGE_PRICE_LINE),
             "cheap_price_points": self._get_option(CONF_CHEAP_PRICE_POINTS, DEFAULT_CHEAP_PRICE_POINTS),

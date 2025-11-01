@@ -21,18 +21,19 @@ from .const import (
     START_GRAPH_AT_SHOW_ALL,
     # General config keys
     CONF_THEME,
+    CONF_TRANSPARENT_BACKGROUND,
     CONF_CANVAS_WIDTH,
     CONF_CANVAS_HEIGHT,
     CONF_FORCE_FIXED_SIZE,
     # X-axis config keys
     CONF_SHOW_X_TICKS,
     CONF_START_GRAPH_AT,
-    CONF_X_AXIS_LABEL_ROTATION_DEG,
     CONF_X_TICK_STEP_HOURS,
     CONF_HOURS_TO_SHOW,
     CONF_SHOW_VERTICAL_GRID,
     # Y-axis config keys
     CONF_SHOW_Y_AXIS,
+    CONF_SHOW_Y_AXIS_TICKS,
     CONF_SHOW_HORIZONTAL_GRID,
     CONF_SHOW_AVERAGE_PRICE_LINE,
     CONF_CHEAP_PRICE_POINTS,
@@ -59,18 +60,19 @@ from .const import (
     DEFAULT_ENTITY_NAME,
     # General defaults
     DEFAULT_THEME,
+    DEFAULT_TRANSPARENT_BACKGROUND,
     DEFAULT_CANVAS_WIDTH,
     DEFAULT_CANVAS_HEIGHT,
     DEFAULT_FORCE_FIXED_SIZE,
     # X-axis defaults
     DEFAULT_SHOW_X_TICKS,
     DEFAULT_START_GRAPH_AT,
-    DEFAULT_X_AXIS_LABEL_ROTATION_DEG,
     DEFAULT_X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW,
     DEFAULT_SHOW_VERTICAL_GRID,
     # Y-axis defaults
     DEFAULT_SHOW_Y_AXIS,
+    DEFAULT_SHOW_Y_AXIS_TICKS,
     DEFAULT_SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE,
     DEFAULT_CHEAP_PRICE_POINTS,
@@ -103,7 +105,6 @@ THEME_SELECTOR = selector.SelectSelector(
     selector.SelectSelectorConfig(
         options=[
             selector.SelectOptionDict(value="dark", label="Dark"),
-            selector.SelectOptionDict(value="dark_black", label="Dark (black background)"),
             selector.SelectOptionDict(value="light", label="Light"),
         ],
         mode=selector.SelectSelectorMode.DROPDOWN,
@@ -326,6 +327,10 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                     default=options.get(CONF_THEME, data.get(CONF_THEME, DEFAULT_THEME)),
                 ): THEME_SELECTOR,
                 vol.Optional(
+                    CONF_TRANSPARENT_BACKGROUND,
+                    default=options.get(CONF_TRANSPARENT_BACKGROUND, DEFAULT_TRANSPARENT_BACKGROUND),
+                ): cv.boolean,
+                vol.Optional(
                     CONF_CANVAS_WIDTH,
                     default=options.get(CONF_CANVAS_WIDTH, DEFAULT_CANVAS_WIDTH),
                 ): cv.positive_int,
@@ -347,10 +352,6 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                     default=options.get(CONF_START_GRAPH_AT, data.get(CONF_START_GRAPH_AT, DEFAULT_START_GRAPH_AT)),
                 ): START_GRAPH_AT_SELECTOR,
                 vol.Optional(
-                    CONF_X_AXIS_LABEL_ROTATION_DEG,
-                    default=options.get(CONF_X_AXIS_LABEL_ROTATION_DEG, DEFAULT_X_AXIS_LABEL_ROTATION_DEG),
-                ): cv.positive_int,
-                vol.Optional(
                     CONF_X_TICK_STEP_HOURS,
                     default=options.get(CONF_X_TICK_STEP_HOURS, DEFAULT_X_TICK_STEP_HOURS),
                 ): cv.positive_int,
@@ -366,6 +367,10 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                 vol.Optional(
                     CONF_SHOW_Y_AXIS,
                     default=options.get(CONF_SHOW_Y_AXIS, DEFAULT_SHOW_Y_AXIS),
+                ): cv.boolean,
+                vol.Optional(
+                    CONF_SHOW_Y_AXIS_TICKS,
+                    default=options.get(CONF_SHOW_Y_AXIS_TICKS, DEFAULT_SHOW_Y_AXIS_TICKS),
                 ): cv.boolean,
                 vol.Optional(
                     CONF_SHOW_HORIZONTAL_GRID,

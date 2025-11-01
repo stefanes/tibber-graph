@@ -1,4 +1,4 @@
-# ![icon](docs/resources/icon.png) Tibber Graph
+# ![icon](docs/assets/icon.png) Tibber Graph
 
 [![HACS Badge](https://img.shields.io/badge/HACS-Default-1ED0E7.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 ![Version](https://img.shields.io/github/v/release/stefanes/tibber-graph?style=for-the-badge)
@@ -7,7 +7,7 @@
 
 Display future (and past) electricity prices as a graph in Home Assistant, exposed as a camera entity. **Tibber Graph** was built for the official [Tibber integration](https://www.home-assistant.io/integrations/tibber/), but supports any compatible price sensor as a data source such as [Nord Pool](https://www.home-assistant.io/integrations/nordpool) (see example [below](#nord-pool-official-integration)) or [EPEX Spot](https://github.com/mampfes/ha_epex_spot).
 
-![Tibber Graph with only defaults](docs/resources/defaults-only.png)
+![Tibber Graph with only defaults](docs/assets/defaults-only.png)
 
 ## Installation
 
@@ -53,7 +53,7 @@ You will now have a `camera.tibber_graph_{entity_name}` entity that displays the
 
 The integration will appear in **Settings → Devices & Services** with the entity name you provided during setup (or your Tibber home name if no entity name was specified).
 
-![Add Tibber Graph entry](docs/resources/add-entry.png)
+![Add Tibber Graph entry](docs/assets/add-entry.png)
 
 ### Advanced customization
 
@@ -63,28 +63,81 @@ Key features include:
 
 - **Multiple graph views**: Create separate camera entities with different configurations
 - **Flexible time ranges**: Show all available data or specify a custom hour range
-- **Theme customization**: Light and dark themes with full color control
+- **Theme customization**: Light and dark themes with optional transparent background
 - **Price highlighting**: Highlight the cheapest price periods with colored backgrounds
 - **Grid and axis control**: Customize gridlines, axis position, and tick formatting
 - **Label options**: Configure min/max/current price labels with colors and positioning
 
 For a complete list of available options, their descriptions, and default values, see **[OPTIONS.md](OPTIONS.md)**.
 
-![Configure Tibber Graph entry](docs/resources/options.png)
+![Configure Tibber Graph entry](docs/assets/options.png)
 
 ## Examples
 
-Graph rendered with old defaults (canvas size 1200×700, label current at top disabled, color price line by average disabled):
+Graph rendered with old defaults:
 
-![Tibber Graph with old defaults](docs/resources/old-defaults.png)
+<details>
+<summary>Click to view options</summary>
 
-Graph rendered with custom options (theme: dark (black background), canvas size 1280×720, start graph at: current hour, Y-axis side: right, Y-axis label rotation: 270°, Y-axis tick count: 2, Y-axis tick use colors enabled, cheap price points: 5, use hourly prices enabled, use cents enabled, currency override: öre, label font size: 20, label min/max show price disabled):
+```yaml
+canvas_size: 1200x700
+show_y_axis_ticks: true
+label_current_at_top: false
+color_price_line_by_average: false
+```
 
-![Tibber Graph with Wear OS configuration](docs/resources/wearos-config.png)
+</details>
 
-Graph rendered with custom options (theme: light, show X-axis ticks enabled, show vertical grid disabled, Y-axis tick count: 3, Y-axis tick use colors enabled, cheap price points: 5, use hourly prices enabled, label minimum price disabled, label maximum price disabled, label current at top disabled, color price line by average disabled):
+![Tibber Graph with old defaults](docs/assets/old-defaults.png)
 
-![Tibber Graph with random price data and light mode](docs/resources/random-light.png)
+Graph rendered with Wear OS configuration:
+
+<details>
+<summary>Click to view options</summary>
+
+```yaml
+canvas_size: 1280x720
+start_graph_at: current_hour
+y_axis_side: right
+y_axis_label_rotation: 270
+y_tick_count: 2
+y_tick_use_colors: true
+cheap_price_points: 5
+use_hourly_prices: true
+use_cents: true
+currency_override: öre
+label_font_size: 20
+label_minmax_show_price: false
+theme: dark
+transparent_background: true
+```
+
+</details>
+
+![Tibber Graph with Wear OS configuration](docs/assets/wearos-config.png)
+
+Graph rendered with random price data and light mode:
+
+<details>
+<summary>Click to view options</summary>
+
+```yaml
+theme: light
+show_x_ticks: true
+show_vertical_grid: false
+y_tick_count: 3
+y_tick_use_colors: true
+cheap_price_points: 5
+use_hourly_prices: true
+label_min: false
+label_max: false
+label_current_at_top: false
+color_price_line_by_average: false
+```
+
+</details>
+
+![Tibber Graph with random price data and light mode](docs/assets/random-light.png)
 
 ## Custom data source
 
@@ -120,7 +173,9 @@ template:
         state: >
           {% set prices = today_prices.prices.values() | first + tomorrow_prices.prices.values() | first %}
           {{ (prices | map(attribute='price') | sum / prices | count)  | round(3, default=0) }}
-        device_class: timestamp
+        unit_of_measurement: SEK/kWh
+        state_class: total
+        device_class: monetary
         unique_id: tibber_price
         icon: mdi:cash-multiple
         availability: >
@@ -133,6 +188,9 @@ template:
 ### Nord Pool (official integration)
 
 Install and configure the official [Nord Pool integration](https://www.home-assistant.io/integrations/nordpool) and create a template sensor:
+
+> [!IMPORTANT]
+> Replace `{nord_pool_config_entry_id}` and `{nord_pool_area}` area below with your Nord Pool config entry ID and area. You can get the `config_entry_id` by navigating to **Settings → Devices & Services → Entities**, selecting one of the entities belonging to the integration, selecting **⋮ → Related → Integration** and copying the last part of the URL (`.../config/integrations/integration/nordpool#config_entry={nord_pool_config_entry_id}`).
 
 ```yaml
 template:
@@ -155,28 +213,30 @@ template:
     sensor:
       - name: Nord Pool price
         state: >
-          {% set prices = today_prices.SE4 + tomorrow_prices.SE4 %}
+          {% set prices = today_prices.{nord_pool_area} + tomorrow_prices.{nord_pool_area} %}
           {{ (prices | map(attribute='price') | sum / prices | count / 1000 * 1.25 + 0.086) | round(3, default=0) }}
         #                                                              ^      ^      ^
         #                                                              |      |      |
         #                                     convert to SEK per kWh --┘      |      |
         #                                     add 25% VAT --------------------┘      |
         #                                     add 0.086 SEK/kWh grid fee ------------┘
-        device_class: timestamp
+        unit_of_measurement: SEK/kWh
+        state_class: total
+        device_class: monetary
         unique_id: nord_pool_price
         icon: mdi:cash-multiple
         availability: >
-          {{ today_prices is mapping and today_prices.SE4 | length > 0 }}
+          {{ today_prices is mapping and today_prices.{nord_pool_area} | length > 0 }}
         attributes:
-        data: >
-          {% set prices = today_prices.SE4 + tomorrow_prices.SE4 %}
-          {% set ns = namespace(prices=[]) %}
-          {% for i in prices %}
-              {% set time = i.start | as_datetime | as_local %}
-              {% set price = i.price / 1000 * 1.25 + 0.086 %}
-              {% set ns.prices = ns.prices + [{'start': time.isoformat(), 'price_per_kwh': price | round(3, default=0)}] %}
-          {% endfor %}
-          {{ ns.prices }}
+          data: >
+            {% set prices = today_prices.{nord_pool_area} + tomorrow_prices.{nord_pool_area} %}
+            {% set ns = namespace(prices=[]) %}
+            {% for i in prices %}
+                {% set time = i.start | as_datetime | as_local %}
+                {% set price = i.price / 1000 * 1.25 + 0.086 %}
+                {% set ns.prices = ns.prices + [{'start': time.isoformat(), 'price_per_kwh': price | round(3, default=0)}] %}
+            {% endfor %}
+            {{ ns.prices }}
 ```
 
 ### EPEX Spot

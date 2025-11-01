@@ -48,7 +48,7 @@ The UI will automatically render a preview with default settings when you first 
 The UI is organized into sections matching the Home Assistant options flow:
 
 - **General Settings**: Theme, canvas size, fixed size mode
-- **X-Axis Settings**: Tick display, midnight start, label rotation, step hours
+- **X-Axis Settings**: Tick display, midnight start, step hours
 - **Y-Axis Settings**: Axis display, grid, label rotation, side, tick count, colors
 - **Price Label Settings**: Hourly mode, cents, currency, label options, colors, decimals
 - **Auto-Refresh Settings**: Enable/disable auto-refresh

@@ -46,7 +46,7 @@ The script supports three configuration modes:
 **Wear OS mode** (`--wearos`):
 
 - Uses `defaults.py` as base
-- Dark theme, hourly prices, öre currency, colored Y-ticks
+- Dark theme with transparent background, hourly prices, öre currency, colored Y-ticks
 - Optimized for Android watch display
 
 **Defaults only mode** (`--defaults`):

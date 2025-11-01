@@ -330,11 +330,13 @@ def main():
         render_options = {
             "canvas_width": 1200,  # Override: increased width for watch (default: 1180)
             "canvas_height": 700,  # Override: square for watch (default: 820)
+            # Y-axis overrides
+            "show_y_axis_ticks": True,  # Old default: show Y-axis ticks (new default: False)
             # Price label overrides
             "label_current_at_top": False,  # Old default: show current label on graph (new default: True)
             "color_price_line_by_average": False,  # Old default: single color price line (new default: True)
         }
-        print("Using old default values (current label on graph, single color price line)")
+        print("Using old default values (Y-axis ticks visible, current label on graph, single color price line)")
     elif config_mode == 'test':
         # Test configuration: light theme with colored labels (only overrides from defaults)
         render_options = {
@@ -358,13 +360,15 @@ def main():
         # Wear OS configuration (only overrides from defaults)
         render_options = {
             # General overrides
-            "theme": "dark_black",  # Override: dark with black background (default: dark)
+            "theme": "dark",  # Override: dark theme (default: dark)
+            "transparent_background": True,  # Override: transparent background (default: False)
             "canvas_width": 1280,  # Override: increased width for watch (default: 1180)
             "canvas_height": 720,  # Override: square for watch (default: 820)
             # X-axis overrides
             "show_x_ticks": True,  # Override: show X-axis ticks (default: False)
             "start_graph_at": "current_hour",  # Override: start at current hour (default: midnight)
             # Y-axis overrides
+            "show_y_axis_ticks": True, # Override: show Y-axis ticks (default: False)
             "y_axis_label_rotation_deg": 270,  # Override: vertical labels for right side (default: 0)
             "y_axis_side": "right",  # Override: Y-axis on right (default: left)
             "y_tick_count": 2,  # Override: 3 ticks instead of automatic (default: None)

@@ -13,7 +13,7 @@
         "data_description": {
           "price_entity_id": "Optional: Select a sensor entity containing price data (see [README.md](https://github.com/stefanes/tibber-graph?tab=readme-ov-file#custom-data-source) for details). If left blank, the Tibber integration will be used. This choice cannot be changed after creation.",
           "entity_name": "Custom name for this Tibber Graph entity (will be prefixed with 'Tibber Graph'). Leave blank to auto-generate from the price entity's friendly name (if using entity) or your Tibber home name. Must be unique across all Tibber Graph entities.",
-          "theme": "Visual theme for the graph. Choose 'Dark' for standard dark theme, 'Light' for light theme, or 'Dark (black background)' for OLED-friendly pure black background.\nDefault: Dark",
+          "theme": "Visual theme for the graph. Choose 'Dark' for standard dark theme or 'Light' for light theme.\nDefault: Dark",
           "start_graph_at": "Choose where to start the graph: 'Midnight' starts at midnight, 'Current hour' starts at current hour, 'Show all' shows all available data from first to last price point.\nDefault: Midnight"
         }
       },
@@ -55,15 +55,16 @@
         "description": "Configure how the price graph is displayed.",
         "data": {
           "theme": "Theme",
+          "transparent_background": "Transparent background",
           "canvas_width": "Canvas width (pixels)",
           "canvas_height": "Canvas height (pixels)",
           "force_fixed_size": "Force fixed size",
           "show_x_ticks": "Show X-axis ticks",
           "start_graph_at": "Start graph at",
-          "x_axis_label_rotation_deg": "X-axis label rotation (degrees)",
           "x_tick_step_hours": "X-axis tick interval (hours)",
           "hours_to_show": "Hours to show (leave empty for all available data)",
           "show_y_axis": "Show Y-axis",
+          "show_y_axis_ticks": "Show Y-axis ticks",
           "show_horizontal_grid": "Show horizontal grid",
           "show_average_price_line": "Show average price line",
           "cheap_price_points": "Cheap price points to highlight",
@@ -88,16 +89,17 @@
           "auto_refresh_enabled": "Enable auto-refresh"
         },
         "data_description": {
-          "theme": "Visual theme for the graph. Choose 'Dark' for standard dark theme, 'Light' for light theme, or 'Dark (black background)' for OLED-friendly pure black background.\nDefault: Dark",
+          "theme": "Visual theme for the graph. Choose 'Dark' for standard dark theme or 'Light' for light theme.\nDefault: Dark",
+          "transparent_background": "Use transparent background with the selected theme, useful for OLED displays or custom dashboards.\nDefault: off",
           "canvas_width": "Width of the generated graph image in pixels.\nDefault: 1180",
           "canvas_height": "Height of the generated graph image in pixels.\nDefault: 820",
           "force_fixed_size": "Always render at fixed size (ignores camera size requests).\nDefault: on",
           "show_x_ticks": "Show tick marks on the X-axis at label positions.\nDefault: off",
           "start_graph_at": "Choose where to start the graph: 'Midnight' starts at midnight, 'Current hour' starts at current hour, 'Show all' shows all available data from first to last price point. The hours shown also depend on 'Hours to show' setting.\nDefault: Midnight",
-          "x_axis_label_rotation_deg": "Rotation angle for X-axis time labels in degrees (e.g., 0 = horizontal, 45 = diagonal, 90 = vertical).\nDefault: 45",
           "x_tick_step_hours": "Hours between each time label on the X-axis.\nDefault: 3",
           "hours_to_show": "Number of hours to show from the start point. Leave empty to show all available data (default). To show a 24-hour period from midnight, enable 'Start at midnight' and set this to 24.\nDefault: all available data (reconfigure to reset)",
           "show_y_axis": "Show the Y-axis with ticks, labels, and spine.\nDefault: on",
+          "show_y_axis_ticks": "Show tick marks on the Y-axis at price levels.\nDefault: off",
           "show_horizontal_grid": "Show horizontal gridlines across the graph.\nDefault: off",
           "show_average_price_line": "Show a dotted line at the average price level. The average is calculated from all available price data (past and future), not just the visible period.\nDefault: on",
           "cheap_price_points": "Number of lowest-price periods to highlight with a light green background per day (0 = none). Highlights the cheapest hours or quarters for each day across all available data. Past periods are dimmed.\nDefault: 0",
