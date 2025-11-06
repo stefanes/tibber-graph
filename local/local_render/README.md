@@ -7,7 +7,7 @@ This directory contains tools for rendering and testing the Tibber Graph locally
 1. Navigate to the local_render directory:
 
    ```bash
-   cd tests/local_render
+   cd local/local_render
    ```
 
 2. Install the required dependencies:
@@ -32,7 +32,7 @@ This will:
 
 - Generate sample price data (48 hours in 15-minute intervals, from midnight today through tomorrow)
 - Render the graph using the selected configuration mode
-- Save the output as `local_render.png` in the `tests/` directory
+- Save the output as `local_render.png` in the `local/local_render/` directory
 
 ## Configuration Modes
 
@@ -59,13 +59,13 @@ The script supports three configuration modes:
 
 1. Make changes to the component code in `../../custom_components/tibber_graph`
 2. Run `python local_render.py` (test mode) or `python local_render.py --wearos`
-3. Open `../local_render.png` in the `tests/` directory to see your changes in action
+3. Open `../local_render.png` in the `local/` directory to see your changes in action
 4. Repeat until satisfied!
 
 ## Data and Output Files
 
-- **Input**: `tests/local_render.json` - Price data (shared with ui_test). This file format matches the expected format for entity-based price data in Home Assistant (list of prices with `start_time`|`start`|`startsAt` and `price`|`price_per_kwh`|`total` fields).
-- **Output**: `tests/local_render.png` - Generated graph image
+- **Input**: `local/local_render/local_render.json` - Price data (shared with local_web_ui). This file format matches the expected format for entity-based price data in Home Assistant (list of prices with `start_time`|`start`|`startsAt` and `price`|`price_per_kwh`|`total` fields).
+- **Output**: `local/local_render.png` - Generated graph image
 
 ## Customizing Test Mode
 

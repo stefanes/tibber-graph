@@ -7,17 +7,26 @@ Usage:
     python local_render.py --old-defaults     # Use old default values (before recent changes)
     python local_render.py --random           # Use random generated price data instead of real Tibber data
     python local_render.py --time 19:34       # Simulate a specific time (e.g., 19:34 today)
+    python local_render.py --publish          # Publish mode: resize to 590px, add border/rounded corners, black bg if transparent
+    python local_render.py --custom-theme '{"axis_label_color": "#d8b9ff", ...}'  # Use custom theme from JSON string
 
-This will generate a rendered graph image at 'tests/local_render.png'.
+This will generate a rendered graph image at 'local/local_render.png'.
 """
 import datetime
+import json
 import sys
 from pathlib import Path
+
+# Add parent directory to path to import test_helpers
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from test_helpers import load_price_data_from_json, parse_time_string
 
 # Check for command-line arguments
 config_mode = 'test'  # 'test', 'wearos', 'defaults', or 'old_defaults'
 use_random_data = False
 fixed_time = None
+publish_mode = False  # Combines resize, border/corners, and black background for transparent images
+custom_theme_json = None  # Custom theme config as JSON string
 
 i = 1
 while i < len(sys.argv):
@@ -41,6 +50,17 @@ while i < len(sys.argv):
             i += 1  # Skip next argument
         else:
             print("Error: --time requires a time argument (e.g., --time 19:34)")
+            sys.exit(1)
+    elif arg in ('--publish', '-p'):
+        publish_mode = True
+        print("Publish mode: will resize, add border/rounded corners, and convert transparent to black")
+    elif arg in ('--custom-theme', '-c'):
+        if i + 1 < len(sys.argv):
+            custom_theme_json = sys.argv[i + 1]
+            print(f"Using custom theme configuration")
+            i += 1  # Skip next argument
+        else:
+            print("Error: --custom-theme requires a JSON string argument")
             sys.exit(1)
     elif arg in ('--help', '-h'):
         print(__doc__)
@@ -93,12 +113,62 @@ with open(renderer_file, 'r', encoding='utf-8') as f:
     # Replace the relative imports with nothing (constants already loaded)
     # Remove the entire import section from const and defaults
     renderer_code = re.sub(
-        r'^# Import default constants from const\.py.*?from \.defaults import \([^)]+\)',
+        r'^# Import default constants from const\.py.*?\n\)',
         '# Constants already loaded from defaults.py and const.py',
         renderer_code,
         flags=re.DOTALL | re.MULTILINE
     )
+    # Also remove the themes import since we'll define get_theme_config locally
+    renderer_code = re.sub(
+        r'^# Import theme loader for dynamic theme selection\nfrom \.themes import get_theme_config',
+        '# Theme loader defined locally',
+        renderer_code,
+        flags=re.MULTILINE
+    )
     exec(renderer_code, globals())
+
+# Load theme validation function from themes.py
+# We only need the REQUIRED_THEME_FIELDS constant and validate_custom_theme function
+themes_file = component_dir / "themes.py"
+with open(themes_file, 'r', encoding='utf-8') as f:
+    themes_code = f.read()
+
+# Load themes.json for the get_theme_config function
+themes_json_file = component_dir / "themes.json"
+with open(themes_json_file, 'r', encoding='utf-8') as f:
+    _THEMES_DATA = json.load(f)
+
+# Extract REQUIRED_THEME_FIELDS and validate_custom_theme function
+REQUIRED_THEME_FIELDS = {
+    "axis_label_color", "background_color", "cheap_price_color", "fill_alpha", "fill_color",
+    "grid_alpha", "grid_color", "label_color", "label_color_avg", "label_color_max",
+    "label_color_min", "label_stroke", "nowline_alpha", "nowline_color", "plot_linewidth",
+    "price_line_color", "price_line_color_above_avg", "price_line_color_below_avg",
+    "price_line_color_near_avg", "spine_color", "tick_color", "tickline_color",
+}
+
+def validate_custom_theme(theme_config):
+    """Validate that a custom theme contains all required fields."""
+    if not isinstance(theme_config, dict):
+        return False, "Theme config must be a dictionary"
+
+    missing_fields = REQUIRED_THEME_FIELDS - set(theme_config.keys())
+
+    if missing_fields:
+        return False, f"Missing required theme fields: {', '.join(sorted(missing_fields))}"
+
+    return True, ""
+
+def get_theme_config(theme_name, custom_theme=None):
+    """Get configuration for a specific theme or use custom theme."""
+    if custom_theme is not None:
+        return custom_theme
+
+    if theme_name not in _THEMES_DATA:
+        print(f"Warning: Theme '{theme_name}' not found, falling back to 'dark' theme")
+        theme_name = "dark"
+
+    return _THEMES_DATA[theme_name]
 
 # Import just the _aggregate_to_hourly function from camera.py
 # We extract and execute only the static method to avoid Home Assistant dependencies
@@ -131,16 +201,123 @@ with open(camera_file, 'r', encoding='utf-8') as f:
 
 from dateutil import tz
 import json
+from PIL import Image, ImageDraw
 
 # Configuration
-OUTPUT_FILE = Path(__file__).parent.parent / "local_render.png"
-PRICE_DATA_FILE = Path(__file__).parent.parent / "local_render.json"
+OUTPUT_FILE = Path(__file__).parent / "local_render.png"
+PRICE_DATA_FILE = Path(__file__).parent / "local_render.json"
 # Width, height, and currency are loaded from const.py:
 # - CANVAS_WIDTH and CANVAS_HEIGHT
 # - CURRENCY_OVERRIDE
 
 # Local timezone
 LOCAL_TZ = tz.tzlocal()
+
+# Process and validate custom theme if provided
+custom_theme_config = None
+if custom_theme_json:
+    try:
+        custom_theme_config = json.loads(custom_theme_json)
+        print(f"Parsed custom theme JSON successfully")
+
+        # Validate the custom theme using the validation function from themes.py
+        is_valid, error_message = validate_custom_theme(custom_theme_config)
+        if not is_valid:
+            print(f"Error: Invalid custom theme configuration - {error_message}")
+            sys.exit(1)
+
+        print(f"✓ Custom theme validated successfully")
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON in custom theme - {e}")
+        sys.exit(1)
+
+
+def publish_image(image_path, resize_width=590, border_width=1, border_color=(61, 61, 61), corner_radius=10):
+    """Prepare image for publishing: resize, add border/rounded corners, convert transparent to black background.
+
+    Args:
+        image_path: Path to the image file to modify
+        resize_width: Target width in pixels (default: 590)
+        border_width: Width of the border in pixels (default: 1)
+        border_color: RGB tuple for border color (default: dark gray (61, 61, 61))
+        corner_radius: Radius for rounded corners in pixels (default: 10)
+    """
+    img = Image.open(image_path)
+
+    # Step 1: Resize to target width
+    if resize_width:
+        original_size = img.size
+        aspect_ratio = original_size[1] / original_size[0]
+        new_height = int(resize_width * aspect_ratio)
+        img = img.resize((resize_width, new_height), Image.LANCZOS)
+        print(f"  → Resized from {original_size[0]}x{original_size[1]} to {resize_width}x{new_height}")
+
+    width, height = img.size
+
+    # Step 2: Determine if we need to add a black background (for transparent images)
+    convert_transparent = img.mode == 'RGBA'
+
+    # Step 3: Apply rounded corners with appropriate background
+    if convert_transparent:
+        # For transparent images, keep corners transparent and convert only the content area to black background
+        from PIL import ImageChops
+
+        # First, flatten the transparent image onto black background
+        black_bg = Image.new('RGB', (width, height), (0, 0, 0))
+        black_bg.paste(img, (0, 0), img)
+
+        # Create rounded corner mask (use same coordinates as border will use)
+        mask = Image.new('L', (width, height), 0)
+        draw_mask = ImageDraw.Draw(mask)
+        draw_mask.rounded_rectangle([(0, 0), (width - 1, height - 1)], corner_radius, fill=255)
+
+        # Convert flattened image to RGBA
+        black_bg_rgba = black_bg.convert('RGBA')
+
+        # Use the mask as the alpha channel (corners will be transparent)
+        r, g, b, _ = black_bg_rgba.split()
+        result = Image.merge('RGBA', (r, g, b, mask))
+
+        print(f"  → Converted transparent background to black with transparent rounded corners")
+    else:
+        # For RGB images, just apply rounded corners
+        # Sample corners to detect background color
+        corner_pixels = [
+            img.getpixel((0, 0)),
+            img.getpixel((width-1, 0)),
+            img.getpixel((0, height-1)),
+            img.getpixel((width-1, height-1))
+        ]
+        avg_brightness = sum(sum(pixel[:3]) for pixel in corner_pixels) / (len(corner_pixels) * 3)
+        bg_color = (0, 0, 0) if avg_brightness < 128 else (255, 255, 255)
+
+        result = Image.new('RGB', (width, height), bg_color)
+        mask = Image.new('L', (width, height), 0)
+        draw_mask = ImageDraw.Draw(mask)
+        draw_mask.rounded_rectangle([(0, 0), (width - 1, height - 1)], corner_radius, fill=255)
+        result.paste(img, (0, 0), mask)
+        print(f"  → Applied rounded corners")
+
+    # Step 4: Draw border
+    draw = ImageDraw.Draw(result)
+    if result.mode == 'RGBA':
+        draw.rounded_rectangle(
+            [(0, 0), (width - 1, height - 1)],
+            corner_radius,
+            outline=border_color + (255,),  # Add alpha channel for RGBA
+            width=border_width
+        )
+    else:
+        draw.rounded_rectangle(
+            [(0, 0), (width - 1, height - 1)],
+            corner_radius,
+            outline=border_color,
+            width=border_width
+        )
+    print(f"  → Added {border_width}px border")
+
+    # Save the result
+    result.save(image_path)
 
 
 def generate_price_data(use_random=False, fixed_time=None):
@@ -154,23 +331,11 @@ def generate_price_data(use_random=False, fixed_time=None):
     now = datetime.datetime.now(LOCAL_TZ)
     if fixed_time:
         # Parse fixed_time as "HH:MM" and set it to today
-        time_parts = fixed_time.split(':')
-        if len(time_parts) != 2:
-            print(f"Error: Invalid time format '{fixed_time}'. Use HH:MM format (e.g., 19:34)")
+        parsed_time = parse_time_string(fixed_time, now.date())
+        if parsed_time is None:
+            print(f"Error: Invalid time format '{fixed_time}'. Use HH:MM or HH:MM:SS format (e.g., 19:34)")
             sys.exit(1)
-
-        try:
-            hour, minute = int(time_parts[0]), int(time_parts[1])
-            if not (0 <= hour <= 23):
-                print(f"Error: Hour must be 0-23, got {hour}")
-                sys.exit(1)
-            if not (0 <= minute <= 59):
-                print(f"Error: Minute must be 0-59, got {minute}")
-                sys.exit(1)
-            now = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        except ValueError as e:
-            print(f"Error: Invalid time format '{fixed_time}': {e}")
-            sys.exit(1)
+        now = parsed_time
 
     # Get today's and tomorrow's dates for dynamic date generation
     today = now.date()
@@ -276,44 +441,36 @@ def generate_price_data(use_random=False, fixed_time=None):
         print(f"Error: No price data found in {PRICE_DATA_FILE}")
         sys.exit(1)
 
-    dates = []
-    prices = []
+    # Use shared helper to load and process price data
+    # This includes date mapping and filtering (today+tomorrow only by default)
+    dates, prices, date_mapping = load_price_data_from_json(
+        PRICE_DATA_FILE,
+        reference_date=today,
+        start_graph_at=None,  # Use default filtering (today+tomorrow)
+        include_all=False
+    )
 
-    from dateutil import parser
+    # Print date mapping information
+    if date_mapping:
+        sorted_original = sorted(date_mapping.keys())
+        print(f"JSON contains data for {len(sorted_original)} day(s): {', '.join(str(d) for d in sorted_original)}")
 
-    # Find unique dates in the JSON data
-    unique_dates = set()
-    for entry in price_data_json:
-        dt = parser.isoparse(entry['start_time'])
-        unique_dates.add(dt.date())
+        # Show mapping details
+        yesterday = today - datetime.timedelta(days=1)
+        tomorrow = today + datetime.timedelta(days=1)
 
-    # Sort to get first and potentially second date
-    sorted_dates = sorted(unique_dates)
-    first_json_date = sorted_dates[0]
-    second_json_date = sorted_dates[1] if len(sorted_dates) > 1 else None
-
-    print(f"JSON contains data for {len(sorted_dates)} day(s): {', '.join(str(d) for d in sorted_dates)}")
-
-    for entry in price_data_json:
-        # Parse the timestamp from JSON
-        dt = parser.isoparse(entry['start_time'])
-        # Convert to local timezone
-        dt_local = dt.astimezone(LOCAL_TZ)
-
-        # Update the date to match today/tomorrow based on which day it is in the JSON
-        original_date = dt_local.date()
-        if original_date == first_json_date:
-            # First day in JSON -> use today
-            dt_local = dt_local.replace(year=today.year, month=today.month, day=today.day)
-        elif second_json_date and original_date == second_json_date:
-            # Second day in JSON -> use tomorrow (only if second day exists)
-            dt_local = dt_local.replace(year=tomorrow.year, month=tomorrow.month, day=tomorrow.day)
-        else:
-            # Fallback: keep original date but log warning
-            print(f"Warning: Unexpected date {original_date} in JSON data")
-
-        dates.append(dt_local)
-        prices.append(entry['price'])
+        for original_date in sorted_original:
+            mapped_date = date_mapping[original_date]
+            if mapped_date == yesterday:
+                label = "yesterday"
+            elif mapped_date == today:
+                label = "today"
+            elif mapped_date == tomorrow:
+                label = "tomorrow"
+            else:
+                days_from_tomorrow = (mapped_date - tomorrow).days
+                label = f"tomorrow+{days_from_tomorrow}"
+            print(f"Mapping: {original_date} → {label}")
 
     return dates, prices, now
 
@@ -333,7 +490,7 @@ def main():
             # Y-axis overrides
             "show_y_axis_ticks": True,  # Old default: show Y-axis ticks (new default: False)
             # Price label overrides
-            "label_current_at_top": False,  # Old default: show current label on graph (new default: True)
+            "label_current_in_header": False,  # Old default: show current label on graph (new default: True)
             "color_price_line_by_average": False,  # Old default: single color price line (new default: True)
         }
         print("Using old default values (Y-axis ticks visible, current label on graph, single color price line)")
@@ -348,11 +505,12 @@ def main():
             "y_tick_count": 3,  # Override: 3 ticks instead of automatic (default: None)
             "y_tick_use_colors": True,  # Override: colored ticks (default: False)
             "cheap_price_points": 5,  # Override: highlight 20 cheapest periods per day (default: 0)
+            "cheap_price_threshold": 1.0,  # Override: highlight periods below 100 öre (default: 0)
             # Price label overrides
             "use_hourly_prices": True,  # Override: aggregate to hourly (default: False)
             "label_min": False,  # Override: hide min label (default: True)
             "label_max": False,  # Override: hide max label (default: True)
-            "label_current_at_top": False,  # Override: show current label on graph instead of at top (default: True)
+            "label_current_in_header": False,  # Override: show current label on graph instead of in header (default: True)
             "color_price_line_by_average": False,  # Override: use single color price line (default: True)
         }
         print("Using test configuration: light theme, colored labels")
@@ -378,10 +536,18 @@ def main():
             "use_hourly_prices": True,  # Override: aggregate to hourly (default: False)
             "use_cents": True,  # Override: display in cents (default: False)
             "currency_override": "öre",  # Override: display "öre" instead of "¢" (default: None)
+            "label_current_in_header_more": False,  # Override: show additional info in header (default: True)
             "label_font_size": 20,  # Override: larger font (default: 11)
             "label_minmax_show_price": False,  # Override: show only time on min/max labels (default: True)
         }
         print("Using Wear OS configuration: dark theme, hourly prices, öre currency")
+
+    # Apply custom theme if provided
+    if custom_theme_config:
+        if render_options is None:
+            render_options = {}
+        render_options["custom_theme"] = custom_theme_config
+        print("Applied custom theme to render options")
 
     print("Generating sample price data...")
     dates_raw, prices_raw, now_local = generate_price_data(
@@ -466,6 +632,16 @@ def main():
     )
 
     print(f"✓ Successfully rendered to {OUTPUT_FILE}")
+
+    # Apply publish mode if requested
+    if publish_mode:
+        print(f"\nPreparing image for publishing...")
+        try:
+            publish_image(OUTPUT_FILE, resize_width=590, border_width=1, border_color=(61, 61, 61), corner_radius=10)
+            print(f"✓ Image prepared for publishing")
+        except Exception as e:
+            print(f"✗ Failed to prepare image: {e}")
+
     print("\nYou can now open the image to see the result!")
 
 

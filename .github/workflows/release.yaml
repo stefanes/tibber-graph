@@ -12,7 +12,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: ⤵️ Checkout repo
+      - name: Checkout repo
         uses: actions/checkout@v5
       - name: 🔢 Update version number
         shell: bash

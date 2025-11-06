@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD036 -->
+
 # Tibber Graph UI Test
 
 A local web-based UI for testing and previewing Tibber Graph configuration options with a Home Assistant-inspired interface.
@@ -25,7 +27,7 @@ This test UI provides a browser-based interface for configuring and previewing t
 ### 1. Install Dependencies
 
 ```powershell
-cd tests\ui_test
+cd local\local_web_ui
 pip install -r requirements.txt
 ```
 
@@ -63,13 +65,14 @@ The UI is organized into sections matching the Home Assistant options flow:
 ### Test Options
 
 **Simulate Time**
+
 - Enter a time in `HH:MM` format (e.g., `19:34`) to simulate how the graph looks at that specific time
 - Press Enter or click outside the field to trigger re-render
 - Leave empty to use current time
 
-## Data Source
+### Data Source
 
-The UI uses the price data from `tests/local_render.json`. This file must exist for the UI to work. You can generate or update this file using the existing `local_render.py` script with real Tibber data.
+The UI uses the price data from `local/local_render/local_render.json`. This file must exist for the UI to work. You can generate or update this file using the existing `local_render.py` script with real Tibber data.
 
 ## Requirements
 
@@ -93,15 +96,19 @@ The application dynamically loads the Tibber Graph component code (`defaults.py`
 ## Troubleshooting
 
 **Issue**: "Failed to load price data"
-- **Solution**: Ensure a valid `local_render.json` file exists in `tests/`. You can create it using the `local_render.py` script in `tests/local_render/`.
+
+- **Solution**: Ensure a valid `local_render.json` file exists in `local/local_render/`. You can create it using the `local_render.py` script in `local/local_render/`.
 
 **Issue**: Graph doesn't render
+
 - **Solution**: Check the browser console (F12) for JavaScript errors and the terminal for Python errors.
 
 **Issue**: Port 5000 already in use
+
 - **Solution**: Edit `app.py` and change the port in the last line: `app.run(debug=True, port=5001)`
 
 **Issue**: Changes don't auto-render
+
 - **Solution**: For text inputs like "Simulate Time", press Enter or click outside the field to trigger the change event.
 
 ## Development
@@ -116,7 +123,7 @@ The Flask server runs in debug mode by default, so changes to Python files will 
 
 ## Comparison with local_render
 
-While `tests/local_render/local_render.py` is a CLI tool for batch rendering, this UI test provides:
+While `local/local_render/local_render.py` is a CLI tool for batch rendering, this UI test provides:
 
 - Interactive visual configuration with dark mode
 - Immediate automatic feedback on changes

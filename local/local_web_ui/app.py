@@ -15,6 +15,10 @@ import sys
 from pathlib import Path
 from flask import Flask, render_template, request, send_file, jsonify
 
+# Import shared test helpers
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from test_helpers import load_price_data_from_json, parse_time_string
+
 # Add the local_render directory to the path to use its utilities
 local_render_dir = Path(__file__).parent.parent / "local_render"
 sys.path.insert(0, str(local_render_dir))
@@ -22,8 +26,8 @@ sys.path.insert(0, str(local_render_dir))
 # Load the component directory path
 component_dir = Path(__file__).parent.parent.parent / "custom_components" / "tibber_graph"
 
-# Price data file location (in tests/ folder)
-PRICE_DATA_FILE = Path(__file__).parent.parent / "local_render.json"
+# Price data file location (in local/local_render/ folder)
+PRICE_DATA_FILE = Path(__file__).parent.parent / "local_render" / "local_render.json"
 
 # Load strings.json to get the list of available options
 strings_file = component_dir / "strings.json"
@@ -59,17 +63,31 @@ with open(const_file, 'r', encoding='utf-8') as f:
     )
     exec(const_code, globals())
 
+# Load themes.py using importlib to avoid import issues
+import importlib.util
+spec = importlib.util.spec_from_file_location("themes", component_dir / "themes.py")
+themes_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(themes_module)
+get_theme_config = themes_module.get_theme_config
+
 # Read and execute renderer.py (replacing relative imports)
 renderer_file = component_dir / "renderer.py"
 with open(renderer_file, 'r', encoding='utf-8') as f:
     renderer_code = f.read()
     # Replace the relative imports with nothing (constants already loaded)
-    # Remove the entire import section from const and defaults
+    # Remove both import blocks: from .const and from .themes
     renderer_code = re.sub(
-        r'^# Import default constants from const\.py.*?from \.defaults import \([^)]+\)',
+        r'# Import default constants from const\.py.*?\)',
         '# Constants already loaded from defaults.py and const.py',
         renderer_code,
-        flags=re.DOTALL | re.MULTILINE
+        flags=re.DOTALL
+    )
+    # Remove the themes import
+    renderer_code = re.sub(
+        r'# Import theme loader.*?from \.themes import get_theme_config',
+        '',
+        renderer_code,
+        flags=re.DOTALL
     )
     exec(renderer_code, globals())
 
@@ -112,11 +130,8 @@ def get_default_value(option_key):
     value = globals().get(const_name)
 
     # Handle special cases where value might be None
-    if option_key == 'y_tick_count' and value is None:
-        return ''
-    if option_key == 'currency_override' and value is None:
-        return ''
-    if option_key == 'hours_to_show' and value is None:
+    # Return empty string for UI display, but keep None for nullable options
+    if option_key in ('y_tick_count', 'currency_override', 'hours_to_show', 'price_decimals') and value is None:
         return ''
 
     return value if value is not None else ''
@@ -127,10 +142,6 @@ def build_defaults_dict():
     defaults = {}
     for option_key in AVAILABLE_OPTIONS:
         defaults[option_key] = get_default_value(option_key)
-
-    # Auto-determine price_decimals if not explicitly set (None = auto)
-    if defaults.get('price_decimals') is None:
-        defaults['price_decimals'] = 0 if defaults.get('use_cents', False) else 2
 
     return defaults
 
@@ -143,7 +154,7 @@ def parse_option_value(option_key, form_value, default_fallback):
         'show_y_axis', 'show_y_axis_ticks', 'show_horizontal_grid', 'show_average_price_line',
         'show_vertical_grid', 'y_tick_use_colors',
         'use_hourly_prices', 'use_cents',
-        'label_current', 'label_current_at_top', 'label_max', 'label_min',
+        'label_current', 'label_current_in_header', 'label_current_in_header_more', 'label_max', 'label_min',
         'label_minmax_show_price', 'label_show_currency', 'label_use_colors',
         'color_price_line_by_average',
         'auto_refresh_enabled'
@@ -152,15 +163,23 @@ def parse_option_value(option_key, form_value, default_fallback):
     # Integer options
     integer_options = [
         'canvas_width', 'canvas_height', 'x_tick_step_hours',
-        'hours_to_show', 'cheap_price_points', 'y_axis_label_rotation_deg', 'y_tick_count',
+        'hours_to_show', 'cheap_price_points', 'cheap_price_threshold', 'y_axis_label_rotation_deg', 'y_tick_count',
         'label_font_size', 'price_decimals'
     ]
 
-    # String options that can be empty
+    # Float options
+    float_options = ['cheap_price_threshold']
+
+    # Integer options that can be empty
     nullable_string_options = ['currency_override', 'y_tick_count', 'hours_to_show']
 
     if option_key in boolean_options:
         return form_value == 'true'
+    elif option_key in float_options:
+        try:
+            return float(form_value) if form_value else default_fallback
+        except (ValueError, TypeError):
+            return default_fallback
     elif option_key in integer_options:
         # Allow None for nullable integer options
         if option_key in ('y_tick_count', 'price_decimals', 'hours_to_show') and not form_value:
@@ -193,54 +212,31 @@ def build_render_options(form_data):
     return render_options
 
 
-def load_price_data(fixed_time=None):
-    """Load price data from JSON file."""
+def load_price_data(fixed_time=None, start_graph_at=None):
+    """Load price data from JSON file.
+
+    Args:
+        fixed_time: Optional fixed time string (HH:MM) to simulate a different current time
+        start_graph_at: Optional start_graph_at setting to filter data appropriately
+    """
     now = datetime.datetime.now(LOCAL_TZ)
 
     if fixed_time:
-        time_parts = fixed_time.split(':')
-        if len(time_parts) == 2:
-            try:
-                hour, minute = int(time_parts[0]), int(time_parts[1])
-                now = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            except ValueError:
-                pass
+        parsed_time = parse_time_string(fixed_time, now.date())
+        if parsed_time is not None:
+            now = parsed_time
 
     today = now.date()
-    tomorrow = today + datetime.timedelta(days=1)
 
-    # Load from JSON file
+    # Use shared helper to load and process price data
     try:
-        with open(PRICE_DATA_FILE, 'r', encoding='utf-8') as f:
-            price_data_json = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+        dates, prices, date_mapping = load_price_data_from_json(
+            PRICE_DATA_FILE,
+            reference_date=today,
+            start_graph_at=start_graph_at
+        )
+    except RuntimeError:
         return None, None, now
-
-    dates = []
-    prices = []
-    from dateutil import parser
-
-    unique_dates = set()
-    for entry in price_data_json:
-        dt = parser.isoparse(entry['start_time'])
-        unique_dates.add(dt.date())
-
-    sorted_dates = sorted(unique_dates)
-    first_json_date = sorted_dates[0]
-    second_json_date = sorted_dates[1] if len(sorted_dates) > 1 else None
-
-    for entry in price_data_json:
-        dt = parser.isoparse(entry['start_time'])
-        dt_local = dt.astimezone(LOCAL_TZ)
-        original_date = dt_local.date()
-
-        if original_date == first_json_date:
-            dt_local = dt_local.replace(year=today.year, month=today.month, day=today.day)
-        elif second_json_date and original_date == second_json_date:
-            dt_local = dt_local.replace(year=tomorrow.year, month=tomorrow.month, day=tomorrow.day)
-
-        dates.append(dt_local)
-        prices.append(entry['price'])
 
     return dates, prices, now
 
@@ -267,11 +263,14 @@ def render_graph():
         # Get additional parameters (not in strings.json options)
         fixed_time = data.get('fixed_time', '') or None
 
-        # Load price data
-        dates_raw, prices_raw, now_local = load_price_data(fixed_time=fixed_time)
+        # Load price data with start_graph_at option to handle filtering
+        dates_raw, prices_raw, now_local = load_price_data(
+            fixed_time=fixed_time,
+            start_graph_at=render_options.get('start_graph_at')
+        )
 
         if dates_raw is None or prices_raw is None:
-            return jsonify({'error': 'Failed to load price data. Please ensure local_render.json exists in tests/.'}), 400
+            return jsonify({'error': 'Failed to load price data. Please ensure local_render.json exists in local/local_render/.'}), 400
 
         # Aggregate to hourly if configured
         if render_options['use_hourly_prices']:

@@ -54,7 +54,7 @@ if (-not $Destination) {
 }
 
 # Get the source directory
-$Source = Join-Path $PSScriptRoot "..\custom_components\tibber_graph" -Resolve
+$Source = Join-Path $PSScriptRoot "..\..\custom_components\tibber_graph" -Resolve
 
 # Verify source exists
 if (-not (Test-Path $Source)) {
@@ -105,6 +105,29 @@ Write-Host ""
 Write-Host "Deployment complete!" -ForegroundColor Green
 Write-Host "Files copied: $copied" -ForegroundColor Gray
 Write-Host "Files skipped: $skipped" -ForegroundColor Gray
+
+# Update manifest.json version at destination to X.Y.HHMM
+$destManifestPath = Join-Path $Destination "manifest.json"
+if (Test-Path $destManifestPath) {
+    try {
+        $manifest = Get-Content $destManifestPath -Raw | ConvertFrom-Json
+        $originalVersion = $manifest.version
+        # Extract major.minor from original version and append HHMM
+        if ($originalVersion -match '^(\d+\.\d+)') {
+            $versionPrefix = $Matches[1]
+            $timestamp = Get-Date -Format "HHmm"
+            $newVersion = "$versionPrefix.$timestamp"
+            $manifest.version = $newVersion
+            $manifest | ConvertTo-Json -Depth 10 | Set-Content $destManifestPath
+            Write-Host ""
+            Write-Host "Updated destination manifest version: $originalVersion → $newVersion" -ForegroundColor Yellow
+        }
+    }
+    catch {
+        Write-Warning "Failed to update destination manifest version: $_"
+    }
+}
+
 Write-Host ""
 
 # Restart Home Assistant if URL and token are provided

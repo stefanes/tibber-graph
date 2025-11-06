@@ -1,6 +1,6 @@
-# Tibber Graph - Configuration Options
+# Configuration Options
 
-This document provides a comprehensive reference for all configurable options available through the Home Assistant UI (**Settings → Devices & Services → [Your Entity Name] → Configure**).
+This document provides a comprehensive reference for all configurable options available through the Home Assistant UI (**Settings → Devices & services → Tibber Graph → [Entity Name] ⚙**) and the [provided actions](README.md#actions).
 
 ## Table of Contents
 
@@ -20,7 +20,10 @@ Create multiple independent camera entities with different configurations for di
 
 **Option:** `price_entity_id` | **Type:** String | **Default:** Empty (use Tibber) | **Location:** Setup dialog
 
-Optional sensor entity containing price data in its `prices` or `data` attribute. Must contain a list of prices with `start_time`|`start`|`startsAt` and `price`|`price_per_kwh`|`total` fields. Leave blank to use the Tibber integration. **Cannot be changed after creation.**
+Optional sensor entity containing price data in its `prices` or `data` attribute. Must contain a list of prices with `start_time`|`start`|`startsAt` and `price`|`price_per_kwh`|`total` fields. Leave blank to use the Tibber integration.
+
+> [!TIP]
+> The data source can be changed at any time using the `tibber_graph.set_data_source` action (see [README.md](README.md#actions)).
 
 ### Entity Name
 
@@ -32,7 +35,7 @@ Identifies each Tibber Graph instance. Leave blank to auto-generate from price e
 
 ### Theme
 
-**Option:** `theme` | **Type:** Select | **Options:** Dark, Light | **Default:** Dark
+**Option:** `theme` | **Type:** Select | **Options:** `dark`, `light` | **Default:** `dark`
 
 Visual theme affecting colors for background, grid, labels, and price lines.
 
@@ -70,15 +73,15 @@ Show tick marks on the X-axis at label positions.
 
 ### Start Graph At
 
-**Option:** `start_graph_at` | **Type:** Select | **Options:** Midnight, Current hour, Show all | **Default:** Midnight
+**Option:** `start_graph_at` | **Type:** Select | **Options:** `midnight`, `current_hour`, `show_all` | **Default:** `show_all`
 
 Choose where to start the graph:
 
 - **Midnight**: Start at midnight
-- **Current hour**: Start at current hour
+- **Current hour**: Start at current hour (an extra hour before is shown for visual continuity but not included in calculations)
 - **Show all**: Show all available data from first to last price point
 
-The hours shown also depend on the 'Hours to show' setting.
+The hours shown also depend on the 'Hours to show' setting. All price calculations (min, max, average) are based on the displayed price data.
 
 ### X-axis Tick Step
 
@@ -122,13 +125,19 @@ Show horizontal gridlines at Y-axis tick positions.
 
 **Option:** `show_average_price_line` | **Type:** Boolean | **Default:** `true`
 
-Show dotted line at average price level.
+Show dotted line at average price level. The average is calculated from the displayed price data, taking into account filtering options like "Start graph at" and "Hours to show".
 
 ### Cheap Price Points
 
 **Option:** `cheap_price_points` | **Type:** Integer | **Default:** `0`
 
-Number of lowest-price periods to highlight per day (0 = none). Past periods are dimmed.
+Number of lowest-price periods to highlight per day (0 = none). Past periods are dimmed. Works in combination with `cheap_price_threshold` - always highlights at least N cheapest periods, plus any additional periods below the threshold.
+
+### Cheap Price Threshold
+
+**Option:** `cheap_price_threshold` | **Type:** Float | **Default:** `0.0`
+
+Price threshold below which periods are highlighted as cheap (0 = disabled, e.g., 0.5 = 50 öre). Works in combination with `cheap_price_points` - highlights the N cheapest periods plus any additional periods below this threshold. The threshold is in the same unit as prices.
 
 ### Y-axis Label Rotation
 
@@ -180,11 +189,17 @@ Override currency symbol (e.g., `EUR`, `SEK`, `öre`). Leave empty for automatic
 
 Show current price label on the graph.
 
-### Label Current at Top
+### Label Current in Header
 
-**Option:** `label_current_at_top` | **Type:** Boolean | **Default:** `true`
+**Option:** `label_current_in_header` | **Type:** Boolean | **Default:** `true`
 
-Display current price centered at top (true) or on the graph (false).
+Display current price centered in header (true) or on the graph (false).
+
+### Label Current in Header More
+
+**Option:** `label_current_in_header_more` | **Type:** Boolean | **Default:** `true`
+
+Show additional info in header (average price and % to average) when `label_current_in_header` is enabled. The average and percentage are calculated from the displayed price data.
 
 ### Label Font Size
 
@@ -196,13 +211,13 @@ Font size for all labels (X-axis, Y-axis, and in-graph price labels).
 
 **Option:** `label_max` | **Type:** Boolean | **Default:** `true`
 
-Show maximum price label on the graph.
+Show maximum price label on the graph. The maximum is determined from the displayed price data.
 
 ### Label Minimum Price
 
 **Option:** `label_min` | **Type:** Boolean | **Default:** `true`
 
-Show minimum price label on the graph.
+Show minimum price label on the graph. The minimum is determined from the displayed price data.
 
 ### Label Min/Max Show Price
 
@@ -232,7 +247,7 @@ Number of decimal places for prices. Leave empty for automatic.
 
 **Option:** `color_price_line_by_average` | **Type:** Boolean | **Default:** `true`
 
-Color the price line based on average price. Blue for below average, amber for near average (±25%), red for above average. Future prices only.
+Color the price line based on average price. Blue for below average, amber for near average (±25%), red for above average. The average is calculated from the displayed price data.
 
 ## Auto-refresh Settings
 
@@ -240,14 +255,24 @@ Color the price line based on average price. Blue for below average, amber for n
 
 **Option:** `auto_refresh_enabled` | **Type:** Boolean | **Default:** `false`
 
-Automatically refresh the graph at regular intervals.
+Automatically refresh the graph every 10 minutes.
 
 ## Resetting Options to Default
 
+Options can be reset to their default values in two ways:
+
+### Using the UI
+
 Some options (Hours to show, Y-axis tick count, Price decimals, Currency override) can be reset to their default automatic behavior:
 
-1. Go to **Settings** → **Devices & Services** → **Integrations**
-2. Find your integration instance (shown by entity/home name) and click the three-dot menu (⋮)
-3. Select **Reconfigure**
-4. Check the boxes for options to reset
-5. Click **Submit**
+1. Go to **Settings → Devices & services → Tibber Graph → [Entity Name] ⋮**
+2. Select **Reconfigure**
+3. Check the boxes for options to reset
+4. Click **Submit**
+
+### Using Actions
+
+You can also reset options programmatically using the [`tibber_graph.reset_option` action](README.md#actions). This action allows you to:
+
+- Reset specific options by providing a list of option names
+- Reset all options at once by omitting the options parameter or providing an empty list

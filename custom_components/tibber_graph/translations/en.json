@@ -18,7 +18,7 @@
         }
       },
       "reconfigure": {
-        "title": "Reset",
+        "title": "Reconfigure {entity_name}",
         "description": "Select which values to reset to their defaults. Other settings will be preserved.",
         "data": {
           "reset_hours_to_show": "Hours to show",
@@ -48,10 +48,99 @@
       "no_price_source": "Either a price entity must be provided or the Tibber integration must be configured."
     }
   },
+  "selector": {
+    "theme": {
+      "options": {
+        "dark": "Dark",
+        "light": "Light"
+      }
+    },
+    "start_graph_at": {
+      "options": {
+        "midnight": "Midnight",
+        "current_hour": "Current hour",
+        "show_all": "Show all"
+      }
+    },
+    "y_axis_side": {
+      "options": {
+        "left": "Left",
+        "right": "Right"
+      }
+    }
+  },
+  "entity": {
+    "camera": {
+      "tibber_graph": {
+        "state_attributes": {
+          "label_at": {
+            "name": "at"
+          },
+          "label_avg": {
+            "name": "avg."
+          }
+        }
+      }
+    }
+  },
+  "services": {
+    "set_option": {
+      "name": "Set option",
+      "description": "Update one or more configuration options for a Tibber Graph entity. The entity will be reloaded automatically.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "The entity ID of the Tibber Graph camera to update."
+        },
+        "options": {
+          "name": "Options",
+          "description": "Dictionary of options to update, where keys are option names (as defined in OPTIONS.md) and values are the new values. All values will be validated before applying."
+        }
+      }
+    },
+    "reset_option": {
+      "name": "Reset option",
+      "description": "Reset one or more configuration options to their default values for a Tibber Graph entity. The entity will be reloaded automatically.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "The entity ID of the Tibber Graph camera to reset options for."
+        },
+        "options": {
+          "name": "Options",
+          "description": "List of option names to reset (as defined in OPTIONS.md). Leave empty or omit to reset all options to their default values."
+        }
+      }
+    },
+    "set_data_source": {
+      "name": "Set data source",
+      "description": "Change the price data source for a Tibber Graph entity. Can switch between Tibber integration and a custom price entity. The entity will be reloaded automatically.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "The entity ID of the Tibber Graph camera to update the data source for."
+        },
+        "price_entity_id": {
+          "name": "Price entity",
+          "description": "The entity ID of a sensor containing price data (see README.md for details). Leave empty to use the Tibber integration instead."
+        }
+      }
+    },
+    "render": {
+      "name": "Render",
+      "description": "Render the graph for a Tibber Graph entity.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "The entity ID (or list of entity IDs) of the Tibber Graph camera to render. If not provided, all Tibber Graph entities are rendered."
+        }
+      }
+    }
+  },
   "options": {
     "step": {
       "init": {
-        "title": "Options",
+        "title": "Options for {entity_name}",
         "description": "Configure how the price graph is displayed.",
         "data": {
           "theme": "Theme",
@@ -68,6 +157,7 @@
           "show_horizontal_grid": "Show horizontal grid",
           "show_average_price_line": "Show average price line",
           "cheap_price_points": "Cheap price points to highlight",
+          "cheap_price_threshold": "Cheap price threshold",
           "show_vertical_grid": "Show vertical grid",
           "y_axis_label_rotation_deg": "Y-axis label rotation (degrees)",
           "y_axis_side": "Y-axis position",
@@ -77,7 +167,8 @@
           "use_cents": "Display in cents",
           "currency_override": "Currency override (leave blank for auto)",
           "label_current": "Show current price label",
-          "label_current_at_top": "Show current price at top",
+          "label_current_in_header": "Show current price in header",
+          "label_current_in_header_more": "Show additional info in header",
           "label_font_size": "Label font size",
           "label_max": "Show maximum price label",
           "label_min": "Show minimum price label",
@@ -95,14 +186,15 @@
           "canvas_height": "Height of the generated graph image in pixels.\nDefault: 820",
           "force_fixed_size": "Always render at fixed size (ignores camera size requests).\nDefault: on",
           "show_x_ticks": "Show tick marks on the X-axis at label positions.\nDefault: off",
-          "start_graph_at": "Choose where to start the graph: 'Midnight' starts at midnight, 'Current hour' starts at current hour, 'Show all' shows all available data from first to last price point. The hours shown also depend on 'Hours to show' setting.\nDefault: Midnight",
+          "start_graph_at": "Choose where to start the graph: 'Midnight' starts at midnight, 'Current hour' starts at current hour (an extra hour before is shown for visual continuity but not included in calculations), 'Show all' shows all available data from first to last price point. The hours shown also depend on 'Hours to show' setting. All price calculations (min, max, average) are based on the displayed price data.\nDefault: Midnight",
           "x_tick_step_hours": "Hours between each time label on the X-axis.\nDefault: 3",
           "hours_to_show": "Number of hours to show from the start point. Leave empty to show all available data (default). To show a 24-hour period from midnight, enable 'Start at midnight' and set this to 24.\nDefault: all available data (reconfigure to reset)",
           "show_y_axis": "Show the Y-axis with ticks, labels, and spine.\nDefault: on",
           "show_y_axis_ticks": "Show tick marks on the Y-axis at price levels.\nDefault: off",
           "show_horizontal_grid": "Show horizontal gridlines across the graph.\nDefault: off",
-          "show_average_price_line": "Show a dotted line at the average price level. The average is calculated from all available price data (past and future), not just the visible period.\nDefault: on",
-          "cheap_price_points": "Number of lowest-price periods to highlight with a light green background per day (0 = none). Highlights the cheapest hours or quarters for each day across all available data. Past periods are dimmed.\nDefault: 0",
+          "show_average_price_line": "Show a dotted line at the average price level. The average is calculated from the displayed price data, taking into account filtering options like 'Start graph at' and 'Hours to show'.\nDefault: on",
+          "cheap_price_points": "Number of lowest-price periods to highlight with a light green background per day (0 = none). Highlights the cheapest hours or quarters for each day across all available data. Past periods are dimmed. Works in combination with 'Cheap price threshold' - always highlights at least N cheapest periods, plus any additional periods below the threshold.\nDefault: 0",
+          "cheap_price_threshold": "Price threshold below which periods are highlighted as cheap (0 = disabled, e.g., 0.5 = 50 öre). Works in combination with 'Cheap price points' - highlights the N cheapest periods plus any additional periods below this threshold. In the same unit as prices.\nDefault: 0",
           "show_vertical_grid": "Show vertical gridlines across the graph.\nDefault: on",
           "y_axis_label_rotation_deg": "Rotation angle for Y-axis labels in degrees (0 = horizontal, 90 = vertical for left side, 270 = vertical for right side).\nDefault: 0",
           "y_axis_side": "Display Y-axis on the left or right side of the graph.\nDefault: left",
@@ -112,15 +204,16 @@
           "use_cents": "Display prices in cents instead of main currency unit (use 'Currency override' to override).\nDefault: off",
           "currency_override": "Override currency display (e.g., 'EUR', 'SEK', 'öre'). Leave blank for auto (Tibber home currency in standard mode, '¢' in cents mode).\nDefault: automatic (reconfigure to reset)",
           "label_current": "Show a label for the current price on the graph.\nDefault: on",
-          "label_current_at_top": "Show current price label centered at top instead of on the graph.\nDefault: on",
+          "label_current_in_header": "Show current price label centered in header instead of on the graph.\nDefault: on",
+          "label_current_in_header_more": "Show additional info in header (average price and percentage to average) when 'Show current price in header' is enabled. Requires 'Show current price in header' to be enabled. The average and percentage are calculated from the displayed price data.\nDefault: on",
           "label_font_size": "Font size for all labels (X-axis time, Y-axis price, and in-graph price labels).\nDefault: 11",
-          "label_max": "Show a label for the maximum price on the graph.\nDefault: on",
-          "label_min": "Show a label for the minimum price on the graph.\nDefault: on",
+          "label_max": "Show a label for the maximum price on the graph. The maximum is determined from the displayed price data.\nDefault: on",
+          "label_min": "Show a label for the minimum price on the graph. The minimum is determined from the displayed price data.\nDefault: on",
           "label_minmax_show_price": "Show price value on min/max labels (if false, only time is shown).\nDefault: on",
           "label_show_currency": "Show currency symbol on price labels.\nDefault: on",
           "label_use_colors": "Color min/max labels green/red for easier identification.\nDefault: off",
           "price_decimals": "Number of decimal places to show for prices. Leave empty for auto (2 for standard, 0 for cents).\nDefault: automatic (reconfigure to reset)",
-          "color_price_line_by_average": "Dynamically color the price line based on average price with smooth gradients: blue below average, amber near average, red above average. Only future prices are colored. The average is calculated from all available price data (past and future).\nDefault: on",
+          "color_price_line_by_average": "Dynamically color the price line based on average price with smooth gradients: blue below average, amber near average, red above average. Only future prices are colored. The average is calculated from the displayed price data.\nDefault: on",
           "auto_refresh_enabled": "Automatically refresh the graph at regular intervals.\nDefault: off"
         }
       }

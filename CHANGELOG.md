@@ -1,22 +1,43 @@
+<!-- markdownlint-disable MD024 -->
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
 
-## [0.4.1] - 2025-11-01 🍂
+## [0.5.0] - 2025-11-06
+
+### Added
+
+- 🎨 **Custom theme support**: Apply custom color schemes dynamically to any Tibber Graph entity. Custom themes persist across restarts and take precedence over the configured theme, see [CUSTOM_THEME.md](docs/CUSTOM_THEME.md) for details and examples.
+- 🎬 **Actions for configuration and rendering** (see [README.md](README.md#actions) for usage examples):
+  - `tibber_graph.set_option` to update any UI option.
+  - `tibber_graph.reset_option` to reset options to default values.
+  - `tibber_graph.set_data_source` to change the price data source.
+  - `tibber_graph.render` to render the graph.
+  - `tibber_graph.set_custom_theme` to dynamically set a custom color scheme.
+- New **Last update sensor** (`sensor.tibber_graph_{entity_name}_last_update`) that provides the timestamp of the last successful image render for each camera entity, with attributes showing the data source entity ID and friendly name.
+- New **Show additional info in header** option to display average price and percentage difference from average in the header alongside current price.
+- New **Cheap price threshold** option to set a price threshold (e.g., 0.5 = 50 öre) below which periods are highlighted as cheap, working in combination with **Cheap price points**.
+
+### Changed
+
+- **Default behavior**: By default the graph now shows additional info (average price and percentage difference) in the header alongside current price when **Show current price in header** is enabled. To restore the previous default behavior, disable **Show additional info in header** in the options.
+
+## [0.4.1] - 2025-11-01
+
+### Added
+
+- 🪟 New **Transparent background** option, replacing the previous **Dark (black background)** theme, to enable transparent background for both dark and light themes. Useful for OLED displays or custom dashboards.
 
 ### Changed
 
 - Minor UI tweaks.
 
-### Added
-
-- New **Transparent background** option, replacing the previous **Dark (black background)** theme, to enable transparent background for both dark and light themes. Useful for OLED displays or custom dashboards.
-
 ## [0.4.0] - 2025-10-31 🧛🏻
 
 ### Added
 
-- **Custom entity support**: Configure Tibber Graph to read price data from any Home Assistant sensor entity (instead of the Tibber integration). The entity must have either a `prices` or `data` attribute containing a list of prices with `start_time`|`start`|`startsAt` and `price`|`price_per_kwh`|`total` fields - see [README.md](README.md#custom-data-source) for examples. The price data source is selected during setup and cannot be changed after creation.
+- 🔀 **Custom entity support**: Configure Tibber Graph to read price data from any Home Assistant sensor entity (instead of the Tibber integration). The entity must have either a `prices` or `data` attribute containing a list of prices with `start_time`|`start`|`startsAt` and `price`|`price_per_kwh`|`total` fields - see [README.md](README.md#custom-data-source) for examples. The price data source is selected during setup and cannot be changed after creation.
 
 ### Changed
 
@@ -26,7 +47,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **Multiple entity support**: Create multiple independent Tibber Graph camera entities, each with its own configuration
+- 🔢 **Multiple entity support**: Create multiple independent Tibber Graph camera entities, each with its own configuration
 - New `entity_name` configuration option to customize the name of each entity
 
 ### Changed
@@ -37,16 +58,16 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- New **Hours to show** option to limit the number of hours displayed on the graph. When set, the graph shows from the start time (midnight or current hour, depending on the **Start graph at** setting) up to the specified number of hours or the last available data point, whichever comes first.
+- 🕐 New **Hours to show** option to limit the number of hours displayed on the graph. When set, the graph shows from the start time (midnight or current hour, depending on the **Start graph at** setting) up to the specified number of hours or the last available data point, whichever comes first.
 
 ## [0.2.0] - 2025-10-20
 
 ### Changed
 
-- **BREAKING**: Removed support for legacy YAML configuration. The component now requires configuration through the UI (**Settings → Integrations → Add Integration → Tibber Graph**). Existing YAML configurations must be migrated to config flow entries.
+- 🖱️ **BREAKING**: Removed support for legacy YAML configuration. The component now requires configuration through the UI (**Settings → Integrations → Add Integration → Tibber Graph**). Existing YAML configurations must be migrated to config flow entries.
 
 ## [0.1.0] - 2025-10-17
 
 ### Added
 
-- Initial implementation of Tibber Graph camera component
+- 🚧 Initial implementation of Tibber Graph camera component

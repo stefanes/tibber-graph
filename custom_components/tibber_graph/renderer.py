@@ -27,6 +27,7 @@ from .const import (
     DEFAULT_SHOW_HORIZONTAL_GRID as SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE as SHOW_AVERAGE_PRICE_LINE,
     DEFAULT_CHEAP_PRICE_POINTS as CHEAP_PRICE_POINTS,
+    DEFAULT_CHEAP_PRICE_THRESHOLD as CHEAP_PRICE_THRESHOLD,
     DEFAULT_Y_AXIS_LABEL_ROTATION_DEG as Y_AXIS_LABEL_ROTATION_DEG,
     DEFAULT_Y_AXIS_LABEL_VERTICAL_ANCHOR as Y_AXIS_LABEL_VERTICAL_ANCHOR,
     DEFAULT_Y_AXIS_SIDE as Y_AXIS_SIDE,
@@ -35,9 +36,10 @@ from .const import (
     DEFAULT_USE_CENTS as USE_CENTS,
     DEFAULT_CURRENCY_OVERRIDE as CURRENCY_OVERRIDE,
     DEFAULT_LABEL_CURRENT as LABEL_CURRENT,
-    DEFAULT_LABEL_CURRENT_AT_TOP as LABEL_CURRENT_AT_TOP,
-    DEFAULT_LABEL_CURRENT_AT_TOP_FONT_WEIGHT as LABEL_CURRENT_AT_TOP_FONT_WEIGHT,
-    DEFAULT_LABEL_CURRENT_AT_TOP_PADDING as LABEL_CURRENT_AT_TOP_PADDING,
+    DEFAULT_LABEL_CURRENT_IN_HEADER as LABEL_CURRENT_IN_HEADER,
+    DEFAULT_LABEL_CURRENT_IN_HEADER_MORE as LABEL_CURRENT_IN_HEADER_MORE,
+    DEFAULT_LABEL_CURRENT_IN_HEADER_FONT_WEIGHT as LABEL_CURRENT_IN_HEADER_FONT_WEIGHT,
+    DEFAULT_LABEL_CURRENT_IN_HEADER_PADDING as LABEL_CURRENT_IN_HEADER_PADDING,
     DEFAULT_LABEL_FONT_SIZE as LABEL_FONT_SIZE,
     DEFAULT_LABEL_FONT_WEIGHT as LABEL_FONT_WEIGHT,
     DEFAULT_LABEL_MAX as LABEL_MAX,
@@ -54,55 +56,8 @@ from .const import (
     START_GRAPH_AT_SHOW_ALL,
 )
 
-# Import theme color constants from defaults.py for dynamic theme selection
-from .defaults import (
-    LIGHT_BACKGROUND_COLOR,
-    LIGHT_CHEAP_PRICE_COLOR,
-    LIGHT_FILL_ALPHA,
-    LIGHT_FILL_COLOR,
-    LIGHT_GRID_ALPHA,
-    LIGHT_GRID_COLOR,
-    LIGHT_LABEL_COLOR,
-    LIGHT_NOWLINE_ALPHA,
-    LIGHT_NOWLINE_COLOR,
-    LIGHT_PLOT_LINEWIDTH,
-    LIGHT_PRICE_LINE_COLOR,
-    LIGHT_SPINE_COLOR,
-    LIGHT_STYLE_NAME,
-    LIGHT_TICK_COLOR,
-    LIGHT_TICKLINE_COLOR,
-    LIGHT_AXIS_LABEL_COLOR,
-    LIGHT_LABEL_STROKE,
-    LIGHT_LABEL_COLOR_MIN,
-    LIGHT_LABEL_COLOR_MAX,
-    LIGHT_LABEL_COLOR_AVG,
-    DARK_BACKGROUND_COLOR,
-    DARK_CHEAP_PRICE_COLOR,
-    DARK_FILL_ALPHA,
-    DARK_FILL_COLOR,
-    DARK_GRID_ALPHA,
-    DARK_GRID_COLOR,
-    DARK_LABEL_COLOR,
-    DARK_NOWLINE_ALPHA,
-    DARK_NOWLINE_COLOR,
-    DARK_PLOT_LINEWIDTH,
-    DARK_PRICE_LINE_COLOR,
-    DARK_SPINE_COLOR,
-    DARK_STYLE_NAME,
-    DARK_TICK_COLOR,
-    DARK_TICKLINE_COLOR,
-    DARK_AXIS_LABEL_COLOR,
-    DARK_LABEL_STROKE,
-    DARK_LABEL_COLOR_MIN,
-    DARK_LABEL_COLOR_MAX,
-    DARK_LABEL_COLOR_AVG,
-    LIGHT_PRICE_LINE_COLOR_ABOVE_AVG,
-    LIGHT_PRICE_LINE_COLOR_BELOW_AVG,
-    LIGHT_PRICE_LINE_COLOR_NEAR_AVG,
-    DARK_PRICE_LINE_COLOR_ABOVE_AVG,
-    DARK_PRICE_LINE_COLOR_BELOW_AVG,
-    DARK_PRICE_LINE_COLOR_NEAR_AVG,
-)
+# Import theme loader for dynamic theme selection
+from .themes import get_theme_config
 
 # Matplotlib heavy imports: import once at module load to reduce per-render overhead
 matplotlib.use("Agg")
@@ -113,6 +68,139 @@ plt.rcParams.update({'font.size': 12})
 
 # Reuse local timezone object
 LOCAL_TZ = tz.tzlocal()
+
+
+def _ensure_timezone(dt, tz_info=None):
+    """Ensure a datetime object has timezone information.
+
+    Args:
+        dt: datetime object to check
+        tz_info: timezone to apply if missing (defaults to LOCAL_TZ)
+
+    Returns:
+        datetime object with timezone information
+    """
+    if tz_info is None:
+        tz_info = LOCAL_TZ
+    return dt if dt.tzinfo else dt.replace(tzinfo=tz_info)
+
+
+def _split_past_future_data(dates_plot, prices_plot, now_local):
+    """Split price data into past and future sections at current time.
+
+    Ensures continuity at the "now" point by adding interpolation points.
+
+    Args:
+        dates_plot: List of datetime objects
+        prices_plot: List of price values
+        now_local: Current local time as datetime
+
+    Returns:
+        Tuple of (past_dates, past_prices, future_dates, future_prices)
+    """
+    # Validate input data
+    if not dates_plot or not prices_plot:
+        return [], [], [], []
+    if len(dates_plot) != len(prices_plot):
+        return [], [], [], []
+
+    past_dates = []
+    past_prices = []
+    future_dates = []
+    future_prices = []
+
+    for i, (d, p) in enumerate(zip(dates_plot, prices_plot)):
+        if d <= now_local:
+            past_dates.append(d)
+            past_prices.append(p)
+        if d >= now_local:
+            future_dates.append(d)
+            future_prices.append(p)
+
+    # Ensure continuity at the "now" point
+    if past_dates and future_dates:
+        if past_dates[-1] != now_local and future_dates[0] != now_local:
+            if past_prices:
+                past_dates.append(now_local)
+                past_prices.append(past_prices[-1])
+            if future_prices:
+                future_dates.insert(0, now_local)
+                future_prices.insert(0, future_prices[0])
+
+    return past_dates, past_prices, future_dates, future_prices
+
+
+def _draw_colored_price_line(ax, dates, prices, average_price, threshold,
+                             color_below, color_near, color_above, linewidth):
+    """Draw price line with color gradients based on position relative to average.
+
+    Args:
+        ax: matplotlib axes object
+        dates: List of datetime objects
+        prices: List of price values
+        average_price: Average price for color calculation
+        threshold: Threshold percentage for color zones
+        color_below: Color for prices below average
+        color_near: Color for prices near average
+        color_above: Color for prices above average
+        linewidth: Width of the price line
+    """
+    import numpy as np
+
+    # Validate input data to prevent rendering errors
+    if not dates or not prices or len(dates) <= 1 or len(prices) <= 1:
+        return
+    if len(dates) != len(prices):
+        return
+
+    for i in range(len(dates) - 1):
+        color = _get_price_color(prices[i], average_price, threshold,
+                                color_below, color_near, color_above)
+        # Draw horizontal segment
+        ax.plot([dates[i], dates[i + 1]], [prices[i], prices[i]],
+               color=color, linewidth=linewidth, zorder=4)
+
+        # Draw vertical segment with interpolated color
+        if i + 1 < len(prices) - 1:
+            # Interpolate color for vertical segment between current and next price
+            color_next = _get_price_color(prices[i + 1], average_price, threshold,
+                                          color_below, color_near, color_above)
+            # Create gradient on vertical segment
+            n_points = 10
+            y_vals = np.linspace(prices[i], prices[i + 1], n_points)
+            for j in range(n_points - 1):
+                ratio = j / (n_points - 1)
+                interp_color = tuple(color[k] + (color_next[k] - color[k]) * ratio for k in range(3))
+                ax.plot([dates[i + 1], dates[i + 1]],
+                       [y_vals[j], y_vals[j + 1]],
+                       color=interp_color, linewidth=linewidth, zorder=4)
+        else:
+            # Last vertical segment
+            ax.plot([dates[i + 1], dates[i + 1]],
+                   [prices[i], prices[i + 1]],
+                   color=color, linewidth=linewidth, zorder=4)
+
+
+def _calculate_end_hour(start_hour, hours_to_show, dates_plot, default_end):
+    """Calculate end hour with optional hours limit.
+
+    Args:
+        start_hour: Start time as datetime
+        hours_to_show: Maximum hours to show (None for no limit)
+        dates_plot: List of available data points
+        default_end: Default end time if no limit and no data
+
+    Returns:
+        End hour as datetime with timezone
+    """
+    if hours_to_show is not None and hours_to_show > 0:
+        hours_end = start_hour + datetime.timedelta(hours=hours_to_show)
+        last_data_point = dates_plot[-1] if dates_plot else default_end
+        last_data_point = _ensure_timezone(last_data_point)
+        return min(hours_end, last_data_point)
+    else:
+        end_hour = dates_plot[-1] if dates_plot else default_end
+        return _ensure_timezone(end_hour)
 
 
 def _get_price_color(price, average_price, threshold_pct, color_below, color_near, color_above):
@@ -169,8 +257,9 @@ def render_plot_to_path(
     currency,
     out_path,
     render_options=None,
+    translations=None,
 ):
-    """Render and save the matplotlib price chart.
+    """Render and save the matplotlib price graph.
 
     Args:
         width: Canvas width in pixels
@@ -184,6 +273,7 @@ def render_plot_to_path(
         currency: Currency code string (e.g., "EUR", "SEK", "öre")
         out_path: Output file path for the rendered image
         render_options: Optional dict of rendering options to override defaults.py values
+        translations: Optional dict of translated strings for rendered labels (e.g., {"label_at": "at"})
     """
     # Matplotlib imports and rc settings are prepared at module import to
     # minimize per-render overhead.
@@ -192,6 +282,12 @@ def render_plot_to_path(
     # Apply render options if provided, otherwise use global config values
     if render_options is None:
         render_options = {}
+
+    # Extract translations with fallbacks to English
+    if translations is None:
+        translations = {}
+    label_at = translations.get("label_at", "at")
+    label_avg = translations.get("label_avg", "avg.")
 
     # Get option with fallback to global config
     def get_opt(key, global_var):
@@ -217,6 +313,7 @@ def render_plot_to_path(
     SHOW_HORIZONTAL_GRID_OPT = get_opt("show_horizontal_grid", SHOW_HORIZONTAL_GRID)
     SHOW_AVERAGE_PRICE_LINE_OPT = get_opt("show_average_price_line", SHOW_AVERAGE_PRICE_LINE)
     CHEAP_PRICE_POINTS_OPT = get_opt("cheap_price_points", CHEAP_PRICE_POINTS)
+    CHEAP_PRICE_THRESHOLD_OPT = get_opt("cheap_price_threshold", CHEAP_PRICE_THRESHOLD)
     Y_AXIS_LABEL_ROTATION_DEG_OPT = get_opt("y_axis_label_rotation_deg", Y_AXIS_LABEL_ROTATION_DEG)
     Y_AXIS_LABEL_VERTICAL_ANCHOR_OPT = get_opt("y_axis_label_vertical_anchor", Y_AXIS_LABEL_VERTICAL_ANCHOR)
     Y_AXIS_SIDE_OPT = get_opt("y_axis_side", Y_AXIS_SIDE)
@@ -226,9 +323,10 @@ def render_plot_to_path(
     USE_CENTS_OPT = get_opt("use_cents", USE_CENTS)
     CURRENCY_OVERRIDE_OPT = get_opt("currency_override", CURRENCY_OVERRIDE)
     LABEL_CURRENT_OPT = get_opt("label_current", LABEL_CURRENT)
-    LABEL_CURRENT_AT_TOP_OPT = get_opt("label_current_at_top", LABEL_CURRENT_AT_TOP)
-    LABEL_CURRENT_AT_TOP_FONT_WEIGHT_OPT = get_opt("label_current_at_top_font_weight", LABEL_CURRENT_AT_TOP_FONT_WEIGHT)
-    LABEL_CURRENT_AT_TOP_PADDING_OPT = get_opt("label_current_at_top_padding", LABEL_CURRENT_AT_TOP_PADDING)
+    LABEL_CURRENT_IN_HEADER_OPT = get_opt("label_current_in_header", LABEL_CURRENT_IN_HEADER)
+    LABEL_CURRENT_IN_HEADER_MORE_OPT = get_opt("label_current_in_header_more", LABEL_CURRENT_IN_HEADER_MORE)
+    LABEL_CURRENT_IN_HEADER_FONT_WEIGHT_OPT = get_opt("label_current_in_header_font_weight", LABEL_CURRENT_IN_HEADER_FONT_WEIGHT)
+    LABEL_CURRENT_IN_HEADER_PADDING_OPT = get_opt("label_current_in_header_padding", LABEL_CURRENT_IN_HEADER_PADDING)
     LABEL_FONT_SIZE_OPT = get_opt("label_font_size", LABEL_FONT_SIZE)
     LABEL_FONT_WEIGHT_OPT = get_opt("label_font_weight", LABEL_FONT_WEIGHT)
     LABEL_MAX_OPT = get_opt("label_max", LABEL_MAX)
@@ -247,47 +345,64 @@ def render_plot_to_path(
     # Get transparent background option
     TRANSPARENT_BACKGROUND_OPT = get_opt("transparent_background", TRANSPARENT_BACKGROUND)
 
-    # Select theme-specific constants based on THEME setting
-    theme_prefix = "DARK_" if THEME_OPT == "dark" else "LIGHT_"
+    # Load theme configuration from themes.json or custom theme
+    CUSTOM_THEME_OPT = get_opt("custom_theme", None)
+    theme_config = get_theme_config(THEME_OPT, CUSTOM_THEME_OPT)
 
-    # Load all theme constants with the selected prefix
-    CHEAP_PRICE_COLOR = globals()[f"{theme_prefix}CHEAP_PRICE_COLOR"]
-    FILL_ALPHA = globals()[f"{theme_prefix}FILL_ALPHA"]
-    FILL_COLOR = globals()[f"{theme_prefix}FILL_COLOR"]
-    GRID_ALPHA = globals()[f"{theme_prefix}GRID_ALPHA"]
-    GRID_COLOR = globals()[f"{theme_prefix}GRID_COLOR"]
-    LABEL_COLOR = globals()[f"{theme_prefix}LABEL_COLOR"]
-    NOWLINE_ALPHA = globals()[f"{theme_prefix}NOWLINE_ALPHA"]
-    NOWLINE_COLOR = globals()[f"{theme_prefix}NOWLINE_COLOR"]
-    PLOT_LINEWIDTH = globals()[f"{theme_prefix}PLOT_LINEWIDTH"]
-    PRICE_LINE_COLOR = globals()[f"{theme_prefix}PRICE_LINE_COLOR"]
-    SPINE_COLOR = globals()[f"{theme_prefix}SPINE_COLOR"]
-    STYLE_NAME = globals()[f"{theme_prefix}STYLE_NAME"]
-    TICK_COLOR = globals()[f"{theme_prefix}TICK_COLOR"]
-    TICKLINE_COLOR = globals()[f"{theme_prefix}TICKLINE_COLOR"]
-    AXIS_LABEL_COLOR = globals()[f"{theme_prefix}AXIS_LABEL_COLOR"]
-    LABEL_STROKE = globals()[f"{theme_prefix}LABEL_STROKE"]
-    LABEL_COLOR_MIN = globals()[f"{theme_prefix}LABEL_COLOR_MIN"]
-    LABEL_COLOR_MAX = globals()[f"{theme_prefix}LABEL_COLOR_MAX"]
-    LABEL_COLOR_AVG = globals()[f"{theme_prefix}LABEL_COLOR_AVG"]
-    PRICE_LINE_COLOR_ABOVE_AVG = globals()[f"{theme_prefix}PRICE_LINE_COLOR_ABOVE_AVG"]
-    PRICE_LINE_COLOR_BELOW_AVG = globals()[f"{theme_prefix}PRICE_LINE_COLOR_BELOW_AVG"]
-    PRICE_LINE_COLOR_NEAR_AVG = globals()[f"{theme_prefix}PRICE_LINE_COLOR_NEAR_AVG"]
+    # Extract theme colors from configuration
+    CHEAP_PRICE_COLOR = theme_config["cheap_price_color"]
+    FILL_ALPHA = theme_config["fill_alpha"]
+    FILL_COLOR = theme_config["fill_color"]
+    GRID_ALPHA = theme_config["grid_alpha"]
+    GRID_COLOR = theme_config["grid_color"]
+    LABEL_COLOR = theme_config["label_color"]
+    NOWLINE_ALPHA = theme_config["nowline_alpha"]
+    NOWLINE_COLOR = theme_config["nowline_color"]
+    PLOT_LINEWIDTH = theme_config["plot_linewidth"]
+    PRICE_LINE_COLOR = theme_config["price_line_color"]
+    SPINE_COLOR = theme_config["spine_color"]
+    TICK_COLOR = theme_config["tick_color"]
+    TICKLINE_COLOR = theme_config["tickline_color"]
+    AXIS_LABEL_COLOR = theme_config["axis_label_color"]
+    LABEL_STROKE = theme_config["label_stroke"]
+    LABEL_COLOR_MIN = theme_config["label_color_min"]
+    LABEL_COLOR_MAX = theme_config["label_color_max"]
+    LABEL_COLOR_AVG = theme_config["label_color_avg"]
+    PRICE_LINE_COLOR_ABOVE_AVG = theme_config["price_line_color_above_avg"]
+    PRICE_LINE_COLOR_BELOW_AVG = theme_config["price_line_color_below_avg"]
+    PRICE_LINE_COLOR_NEAR_AVG = theme_config["price_line_color_near_avg"]
 
     # Handle transparent background
     if TRANSPARENT_BACKGROUND_OPT:
         BACKGROUND_COLOR = "none"
     else:
-        BACKGROUND_COLOR = globals()[f"{theme_prefix}BACKGROUND_COLOR"]
+        BACKGROUND_COLOR = theme_config["background_color"]
+
+    # Validate input data early to prevent rendering with empty/invalid data
+    if not dates_plot or not prices_plot or len(dates_plot) < 2 or len(prices_plot) < 2:
+        # Data is invalid - do not render to prevent matplotlib errors
+        # Return without modifying the output file to preserve last valid render
+        return
+    if len(dates_plot) != len(prices_plot):
+        # Data length mismatch - cannot render safely
+        # Return without modifying the output file to preserve last valid render
+        return
+
+    # Clean up any existing figures before creating new ones
+    plt.close("all")
 
     fig_w = (CANVAS_WIDTH_OPT if FORCE_FIXED_SIZE_OPT else width) / 200
     fig_h = (CANVAS_HEIGHT_OPT if FORCE_FIXED_SIZE_OPT else height) / 200
 
-    plt.close("all")
-    plt.style.use(STYLE_NAME)
+    # Create new figure with explicit reference
     fig = plt.figure(figsize=(fig_w, fig_h), dpi=200)
     fig.patch.set_facecolor(BACKGROUND_COLOR)
+
+    # Create axes
     ax = fig.add_subplot(111)
+    ax.clear()
+
+    # Set background color after clearing
     ax.set_facecolor(BACKGROUND_COLOR)
 
     # Style spines and tick colors and place Y axis on configured side
@@ -310,10 +425,7 @@ def render_plot_to_path(
             ax.yaxis.tick_left()
         else:
             ax.yaxis.tick_right()
-    # Use ax.tick_params for this axes only and ensure only the chosen side shows labels
-    # Y-axis label rotation: use the configured rotation angle
-    # If rotation is 0, labels are horizontal
-    # If rotation is non-zero, labels are rotated (typically 90 for left side, 270 for right side)
+
     y_rotation = Y_AXIS_LABEL_ROTATION_DEG_OPT
 
     # Calculate padding dynamically based on font size
@@ -327,8 +439,8 @@ def render_plot_to_path(
         colors=TICK_COLOR,
         labelleft=SHOW_Y_AXIS_OPT and Y_AXIS_SIDE_OPT == "left",
         labelright=SHOW_Y_AXIS_OPT and Y_AXIS_SIDE_OPT == "right",
-        left=SHOW_Y_AXIS_TICKS_OPT and Y_AXIS_SIDE_OPT == "left",
-        right=SHOW_Y_AXIS_TICKS_OPT and Y_AXIS_SIDE_OPT == "right",
+        left=SHOW_Y_AXIS_OPT and SHOW_Y_AXIS_TICKS_OPT and Y_AXIS_SIDE_OPT == "left",
+        right=SHOW_Y_AXIS_OPT and SHOW_Y_AXIS_TICKS_OPT and Y_AXIS_SIDE_OPT == "right",
         labelsize=(LABEL_FONT_SIZE_OPT),
         rotation=y_rotation,
         pad=y_padding,
@@ -360,7 +472,8 @@ def render_plot_to_path(
 
     # Disable auto X-ticks (we'll draw them manually). Don't set left labels here to avoid
     # interfering with Y_AXIS_SIDE; that is handled per-axis above.
-    plt.tick_params(axis="both", which="both", bottom=False, labelbottom=False)
+    # IMPORTANT: Use ax.tick_params() not plt.tick_params() to avoid affecting global state
+    ax.tick_params(axis="both", which="both", bottom=False, labelbottom=False)
 
     # Price line and fill will be drawn after determining time range and "now" visibility
     # Cheap price point highlights will be drawn after determining visible data (at z-order 0.5, between background and fill)
@@ -369,35 +482,19 @@ def render_plot_to_path(
     if START_GRAPH_AT_OPT == START_GRAPH_AT_MIDNIGHT:
         # Start at local midnight
         start_hour = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-        start_hour = start_hour if start_hour.tzinfo else start_hour.replace(tzinfo=LOCAL_TZ)
+        start_hour = _ensure_timezone(start_hour)
 
-        # Apply hours limit if configured
-        if HOURS_TO_SHOW_OPT is not None and HOURS_TO_SHOW_OPT > 0:
-            # Show from midnight up to the configured number of hours OR last data point, whichever comes first
-            hours_end = start_hour + datetime.timedelta(hours=HOURS_TO_SHOW_OPT)
-            last_data_point = dates_plot[-1] if dates_plot else hours_end
-            last_data_point = last_data_point if last_data_point.tzinfo else last_data_point.replace(tzinfo=LOCAL_TZ)
-            end_hour = min(hours_end, last_data_point)
-        else:
-            # Default: show all available data from midnight to last data point
-            end_hour = dates_plot[-1] if dates_plot else (start_hour + datetime.timedelta(days=1))
-            end_hour = end_hour if end_hour.tzinfo else end_hour.replace(tzinfo=LOCAL_TZ)
+        # Calculate end hour with optional hours limit
+        default_end = start_hour + datetime.timedelta(days=1)
+        end_hour = _calculate_end_hour(start_hour, HOURS_TO_SHOW_OPT, dates_plot, default_end)
     elif START_GRAPH_AT_OPT == START_GRAPH_AT_CURRENT_HOUR:
         # Start one hour before the current hour and show data up to the last available point
         start_hour = now_local.replace(minute=0, second=0, microsecond=0) - datetime.timedelta(hours=1)
-        start_hour = start_hour if start_hour.tzinfo else start_hour.replace(tzinfo=LOCAL_TZ)
+        start_hour = _ensure_timezone(start_hour)
 
-        # Apply hours limit if configured
-        if HOURS_TO_SHOW_OPT is not None and HOURS_TO_SHOW_OPT > 0:
-            # Show from one hour before current up to the configured number of hours OR last data point, whichever comes first
-            hours_end = start_hour + datetime.timedelta(hours=HOURS_TO_SHOW_OPT)
-            last_data_point = dates_plot[-1] if dates_plot else (start_hour + datetime.timedelta(hours=2))
-            last_data_point = last_data_point if last_data_point.tzinfo else last_data_point.replace(tzinfo=LOCAL_TZ)
-            end_hour = min(hours_end, last_data_point)
-        else:
-            # Default: end at the last available plotted data point instead of a fixed span
-            end_hour = dates_plot[-1] if dates_plot else (start_hour + datetime.timedelta(hours=2))
-            end_hour = end_hour if end_hour.tzinfo else end_hour.replace(tzinfo=LOCAL_TZ)
+        # Calculate end hour with optional hours limit
+        default_end = start_hour + datetime.timedelta(hours=2)
+        end_hour = _calculate_end_hour(start_hour, HOURS_TO_SHOW_OPT, dates_plot, default_end)
 
         # If the last data point is before the start_hour, ensure a minimal span
         if end_hour <= start_hour:
@@ -405,14 +502,12 @@ def render_plot_to_path(
     else:  # START_GRAPH_AT_SHOW_ALL
         # Show all available data from first to last data point
         if dates_plot:
-            start_hour = dates_plot[0]
-            start_hour = start_hour if start_hour.tzinfo else start_hour.replace(tzinfo=LOCAL_TZ)
-            end_hour = dates_plot[-1]
-            end_hour = end_hour if end_hour.tzinfo else end_hour.replace(tzinfo=LOCAL_TZ)
+            start_hour = _ensure_timezone(dates_plot[0])
+            end_hour = _ensure_timezone(dates_plot[-1])
         else:
             # Fallback if no data
             start_hour = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-            start_hour = start_hour if start_hour.tzinfo else start_hour.replace(tzinfo=LOCAL_TZ)
+            start_hour = _ensure_timezone(start_hour)
             end_hour = start_hour + datetime.timedelta(days=1)
 
         # Apply hours limit if configured (even in show_all mode)
@@ -423,9 +518,56 @@ def render_plot_to_path(
     # Check if "now" marker is visible within the time range
     now_is_visible = start_hour <= now_local <= end_hour
 
+    # Compute visible prices from the plotted points (dates_plot/prices_plot)
+    # Use numeric timestamps instead of relying on hour values so ranges that
+    # cross midnight (and thus wrap hour numbers) are handled correctly.
+    start_ts = start_hour.timestamp()
+    end_ts = end_hour.timestamp()
+
+    # For "Current hour" mode, determine the calculation start time (excluding cosmetic hour)
+    # The cosmetic hour is the extra hour shown before the current hour for visual continuity
+    if START_GRAPH_AT_OPT == START_GRAPH_AT_CURRENT_HOUR:
+        # Calculations should start from current hour, not the cosmetic hour before
+        calc_start_hour = now_local.replace(minute=0, second=0, microsecond=0)
+        calc_start_ts = calc_start_hour.timestamp()
+    else:
+        # For other modes, calculations start from the display start
+        calc_start_ts = start_ts
+
+    # Initialize data lists
+    visible_prices = []
+    visible_indices = []
+    calc_prices = []
+    calc_indices = []
+
+    # Filter visible data in one pass - build both prices and indices lists simultaneously
+    for i, (d, p) in enumerate(zip(dates_plot, prices_plot)):
+        if start_ts <= d.timestamp() <= end_ts:
+            visible_prices.append(p)
+            # Only track indices that correspond to raw data (plot has one extra point)
+            if i < len(dates_raw):
+                visible_indices.append(i)
+                # For calculation data, check if within calculation range
+                if calc_start_ts <= d.timestamp() <= end_ts:
+                    calc_prices.append(p)
+                    calc_indices.append(i)
+
+    # Fallback if no visible data found
+    if not visible_prices:
+        visible_prices = prices_plot or prices_raw or [0]
+    if not visible_indices and prices_raw:
+        visible_indices = list(range(len(prices_raw)))
+
+    # Fallback for calculation data
+    if not calc_prices:
+        calc_prices = visible_prices
+    if not calc_indices:
+        calc_indices = visible_indices
+
     # Identify and draw cheap price point highlights if configured
     # This is done before drawing the price line and fill so highlights appear behind the graph
-    if CHEAP_PRICE_POINTS_OPT > 0 and dates_raw and prices_raw:
+    # Highlights are shown when either CHEAP_PRICE_POINTS_OPT > 0 or CHEAP_PRICE_THRESHOLD_OPT > 0
+    if (CHEAP_PRICE_POINTS_OPT > 0 or CHEAP_PRICE_THRESHOLD_OPT > 0) and dates_raw and prices_raw:
         # Determine step size for each period (quarter or hour)
         if len(dates_raw) >= 2:
             step_minutes = int((dates_raw[1] - dates_raw[0]).total_seconds() // 60) or 15
@@ -442,13 +584,22 @@ def render_plot_to_path(
             day_key = d.date()  # Group by date (ignoring time)
             prices_by_day[day_key].append(i)
 
-        # For each day, find the N cheapest periods
+        # For each day, find cheap periods based on configured criteria
         cheap_indices_all_days = []
         for day_key, day_indices in prices_by_day.items():
             # Sort indices by price (ascending) for this day
             sorted_day_indices = sorted(day_indices, key=lambda i: prices_raw[i])
-            # Take the N cheapest periods for this day
-            cheap_for_day = sorted_day_indices[:min(CHEAP_PRICE_POINTS_OPT, len(sorted_day_indices))]
+
+            # Start with the N cheapest periods (if cheap_price_points is set)
+            cheap_for_day = set()
+            if CHEAP_PRICE_POINTS_OPT > 0:
+                # Always include the N cheapest periods
+                cheap_for_day.update(sorted_day_indices[:min(CHEAP_PRICE_POINTS_OPT, len(sorted_day_indices))])
+
+            # Additionally include all periods below the threshold (if threshold is set)
+            if CHEAP_PRICE_THRESHOLD_OPT > 0:
+                cheap_for_day.update([i for i in sorted_day_indices if prices_raw[i] < CHEAP_PRICE_THRESHOLD_OPT])
+
             cheap_indices_all_days.extend(cheap_for_day)
 
         # Draw background highlights for cheap periods (only if they're in the visible range)
@@ -478,109 +629,59 @@ def render_plot_to_path(
 
     # Draw price line, fill, and "now" line based on visibility
     # If COLOR_PRICE_LINE_BY_AVERAGE is enabled, color future segments with gradient transitions
-    if COLOR_PRICE_LINE_BY_AVERAGE_OPT and prices_raw:
-        # Calculate average price from all available data
-        average_price = sum(prices_raw) / len(prices_raw)
+    if COLOR_PRICE_LINE_BY_AVERAGE_OPT and calc_prices and len(calc_prices) > 0:
+        # Calculate average price from calculation data (filtered based on display options)
+        average_price = sum(calc_prices) / len(calc_prices)
 
         # Import necessary for gradient coloring
         import numpy as np
 
         if now_is_visible:
             # Split the data into past (dimmed) and future (bright) sections
-            past_dates = []
-            past_prices = []
-            future_dates = []
-            future_prices = []
+            past_dates, past_prices, future_dates, future_prices = _split_past_future_data(
+                dates_plot, prices_plot, now_local
+            )
 
-            for i, (d, p) in enumerate(zip(dates_plot, prices_plot)):
-                if d <= now_local:
-                    past_dates.append(d)
-                    past_prices.append(p)
-                if d >= now_local:
-                    future_dates.append(d)
-                    future_prices.append(p)
+            # Check if split produced valid sections
+            past_has_data = past_dates and past_prices and len(past_dates) > 1
+            future_has_data = future_dates and future_prices and len(future_dates) > 1
 
-            # Ensure continuity at the "now" point
-            if past_dates and future_dates:
-                if past_dates[-1] != now_local and future_dates[0] != now_local:
-                    if past_prices:
-                        past_dates.append(now_local)
-                        past_prices.append(past_prices[-1])
-                    if future_prices:
-                        future_dates.insert(0, now_local)
-                        future_prices.insert(0, future_prices[0])
+            # If BOTH sections are invalid, fall back to drawing full unsplit data
+            if not past_has_data and not future_has_data:
+                # Draw as if "now" is not visible (no split)
+                ax.fill_between(dates_plot, 0, prices_plot, facecolor=FILL_COLOR, alpha=FILL_ALPHA, step="post", zorder=1)
+                _draw_colored_price_line(
+                    ax, dates_plot, prices_plot, average_price, NEAR_AVERAGE_THRESHOLD,
+                    PRICE_LINE_COLOR_BELOW_AVG, PRICE_LINE_COLOR_NEAR_AVG,
+                    PRICE_LINE_COLOR_ABOVE_AVG, PLOT_LINEWIDTH
+                )
+            else:
+                # Draw dimmed fill and line for past data (use default color, no coloring)
+                if past_has_data:
+                    ax.fill_between(past_dates, 0, past_prices, facecolor=FILL_COLOR, alpha=FILL_ALPHA * 0.3, step="post", zorder=1)
+                    # Use default price line color for past data
+                    ax.step(past_dates, past_prices, PRICE_LINE_COLOR, where="post", linewidth=PLOT_LINEWIDTH, alpha=0.3, zorder=4)
 
-            # Draw dimmed fill and line for past data (use default color, no coloring)
-            if past_dates and past_prices:
-                ax.fill_between(past_dates, 0, past_prices, facecolor=FILL_COLOR, alpha=FILL_ALPHA * 0.3, step="post", zorder=1)
-                # Use default price line color for past data
-                ax.step(past_dates, past_prices, PRICE_LINE_COLOR, where="post", linewidth=PLOT_LINEWIDTH, alpha=0.3, zorder=4)
+                # Draw bright fill for future data
+                if future_has_data:
+                    ax.fill_between(future_dates, 0, future_prices, facecolor=FILL_COLOR, alpha=FILL_ALPHA, step="post", zorder=1)
 
-            # Draw bright fill for future data
-            if future_dates and future_prices:
-                ax.fill_between(future_dates, 0, future_prices, facecolor=FILL_COLOR, alpha=FILL_ALPHA, step="post", zorder=1)
-
-                # Draw colored segments for future data with gradient effect
-                if len(future_dates) > 1:
-                    for i in range(len(future_dates) - 1):
-                        color = _get_price_color(future_prices[i], average_price, NEAR_AVERAGE_THRESHOLD,
-                                                PRICE_LINE_COLOR_BELOW_AVG, PRICE_LINE_COLOR_NEAR_AVG,
-                                                PRICE_LINE_COLOR_ABOVE_AVG)
-                        # Draw horizontal segment
-                        ax.plot([future_dates[i], future_dates[i + 1]], [future_prices[i], future_prices[i]],
-                               color=color, linewidth=PLOT_LINEWIDTH, zorder=4)
-                        # Draw vertical segment with interpolated color
-                        if i + 1 < len(future_prices) - 1:
-                            # Interpolate color for vertical segment between current and next price
-                            color_next = _get_price_color(future_prices[i + 1], average_price, NEAR_AVERAGE_THRESHOLD,
-                                                          PRICE_LINE_COLOR_BELOW_AVG, PRICE_LINE_COLOR_NEAR_AVG,
-                                                          PRICE_LINE_COLOR_ABOVE_AVG)
-                            # Create gradient on vertical segment
-                            n_points = 10
-                            y_vals = np.linspace(future_prices[i], future_prices[i + 1], n_points)
-                            for j in range(n_points - 1):
-                                ratio = j / (n_points - 1)
-                                interp_color = tuple(color[k] + (color_next[k] - color[k]) * ratio for k in range(3))
-                                ax.plot([future_dates[i + 1], future_dates[i + 1]],
-                                       [y_vals[j], y_vals[j + 1]],
-                                       color=interp_color, linewidth=PLOT_LINEWIDTH, zorder=4)
-                        else:
-                            # Last vertical segment
-                            ax.plot([future_dates[i + 1], future_dates[i + 1]],
-                                   [future_prices[i], future_prices[i + 1]],
-                                   color=color, linewidth=PLOT_LINEWIDTH, zorder=4)
+                    # Draw colored segments for future data with gradient effect
+                    _draw_colored_price_line(
+                        ax, future_dates, future_prices, average_price, NEAR_AVERAGE_THRESHOLD,
+                        PRICE_LINE_COLOR_BELOW_AVG, PRICE_LINE_COLOR_NEAR_AVG,
+                        PRICE_LINE_COLOR_ABOVE_AVG, PLOT_LINEWIDTH
+                    )
         else:
             # "Now" marker is not visible - draw fully bright colored line and fill
             ax.fill_between(dates_plot, 0, prices_plot, facecolor=FILL_COLOR, alpha=FILL_ALPHA, step="post", zorder=1)
 
             # Draw colored segments with gradient effect
-            if len(dates_plot) > 1:
-                for i in range(len(dates_plot) - 1):
-                    color = _get_price_color(prices_plot[i], average_price, NEAR_AVERAGE_THRESHOLD,
-                                            PRICE_LINE_COLOR_BELOW_AVG, PRICE_LINE_COLOR_NEAR_AVG,
-                                            PRICE_LINE_COLOR_ABOVE_AVG)
-                    # Draw horizontal segment
-                    ax.plot([dates_plot[i], dates_plot[i + 1]], [prices_plot[i], prices_plot[i]],
-                           color=color, linewidth=PLOT_LINEWIDTH, zorder=4)
-                    # Draw vertical segment with interpolated color
-                    if i + 1 < len(prices_plot) - 1:
-                        color_next = _get_price_color(prices_plot[i + 1], average_price, NEAR_AVERAGE_THRESHOLD,
-                                                      PRICE_LINE_COLOR_BELOW_AVG, PRICE_LINE_COLOR_NEAR_AVG,
-                                                      PRICE_LINE_COLOR_ABOVE_AVG)
-                        # Create gradient on vertical segment
-                        n_points = 10
-                        y_vals = np.linspace(prices_plot[i], prices_plot[i + 1], n_points)
-                        for j in range(n_points - 1):
-                            ratio = j / (n_points - 1)
-                            interp_color = tuple(color[k] + (color_next[k] - color[k]) * ratio for k in range(3))
-                            ax.plot([dates_plot[i + 1], dates_plot[i + 1]],
-                                   [y_vals[j], y_vals[j + 1]],
-                                   color=interp_color, linewidth=PLOT_LINEWIDTH, zorder=4)
-                    else:
-                        # Last vertical segment
-                        ax.plot([dates_plot[i + 1], dates_plot[i + 1]],
-                               [prices_plot[i], prices_plot[i + 1]],
-                               color=color, linewidth=PLOT_LINEWIDTH, zorder=4)
+            _draw_colored_price_line(
+                ax, dates_plot, prices_plot, average_price, NEAR_AVERAGE_THRESHOLD,
+                PRICE_LINE_COLOR_BELOW_AVG, PRICE_LINE_COLOR_NEAR_AVG,
+                PRICE_LINE_COLOR_ABOVE_AVG, PLOT_LINEWIDTH
+            )
 
         # Draw "now" line on top (always drawn)
         ax.axvline(now_local, color=NOWLINE_COLOR, alpha=NOWLINE_ALPHA, linestyle="-", zorder=5)
@@ -588,38 +689,29 @@ def render_plot_to_path(
         # Original single-color rendering (when COLOR_PRICE_LINE_BY_AVERAGE is disabled)
         if now_is_visible:
             # Split the data into past (dimmed) and future (bright) sections
-            past_dates = []
-            past_prices = []
-            future_dates = []
-            future_prices = []
+            past_dates, past_prices, future_dates, future_prices = _split_past_future_data(
+                dates_plot, prices_plot, now_local
+            )
 
-            for i, (d, p) in enumerate(zip(dates_plot, prices_plot)):
-                if d <= now_local:
-                    past_dates.append(d)
-                    past_prices.append(p)
-                if d >= now_local:
-                    future_dates.append(d)
-                    future_prices.append(p)
+            # Check if split produced valid sections
+            past_has_data = past_dates and past_prices and len(past_dates) > 1
+            future_has_data = future_dates and future_prices and len(future_dates) > 1
 
-            # Ensure continuity at the "now" point
-            if past_dates and future_dates:
-                if past_dates[-1] != now_local and future_dates[0] != now_local:
-                    if past_prices:
-                        past_dates.append(now_local)
-                        past_prices.append(past_prices[-1])
-                    if future_prices:
-                        future_dates.insert(0, now_local)
-                        future_prices.insert(0, future_prices[0])
+            # If BOTH sections are invalid, fall back to drawing full unsplit data
+            if not past_has_data and not future_has_data:
+                # Draw as if "now" is not visible (no split)
+                ax.fill_between(dates_plot, 0, prices_plot, facecolor=FILL_COLOR, alpha=FILL_ALPHA, step="post", zorder=1)
+                ax.step(dates_plot, prices_plot, PRICE_LINE_COLOR, where="post", linewidth=PLOT_LINEWIDTH, zorder=4)
+            else:
+                # Draw dimmed line and fill for past data
+                if past_has_data:
+                    ax.fill_between(past_dates, 0, past_prices, facecolor=FILL_COLOR, alpha=FILL_ALPHA * 0.3, step="post", zorder=1)
+                    ax.step(past_dates, past_prices, PRICE_LINE_COLOR, where="post", linewidth=PLOT_LINEWIDTH, alpha=0.3, zorder=4)
 
-            # Draw dimmed line and fill for past data
-            if past_dates and past_prices:
-                ax.fill_between(past_dates, 0, past_prices, facecolor=FILL_COLOR, alpha=FILL_ALPHA * 0.3, step="post", zorder=1)
-                ax.step(past_dates, past_prices, PRICE_LINE_COLOR, where="post", linewidth=PLOT_LINEWIDTH, alpha=0.3, zorder=4)
-
-            # Draw bright line and fill for future data
-            if future_dates and future_prices:
-                ax.fill_between(future_dates, 0, future_prices, facecolor=FILL_COLOR, alpha=FILL_ALPHA, step="post", zorder=1)
-                ax.step(future_dates, future_prices, PRICE_LINE_COLOR, where="post", linewidth=PLOT_LINEWIDTH, zorder=4)
+                # Draw bright line and fill for future data
+                if future_has_data:
+                    ax.fill_between(future_dates, 0, future_prices, facecolor=FILL_COLOR, alpha=FILL_ALPHA, step="post", zorder=1)
+                    ax.step(future_dates, future_prices, PRICE_LINE_COLOR, where="post", linewidth=PLOT_LINEWIDTH, zorder=4)
 
             # Draw "now" line on top
             ax.axvline(now_local, color=NOWLINE_COLOR, alpha=NOWLINE_ALPHA, linestyle="-", zorder=5)
@@ -642,28 +734,6 @@ def render_plot_to_path(
                    markersize=8 * size_factor,
                    alpha=NOWLINE_ALPHA * alpha_factor,
                    zorder=5)
-
-    # Compute visible prices from the plotted points (dates_plot/prices_plot)
-    # Use numeric timestamps instead of relying on hour values so ranges that
-    # cross midnight (and thus wrap hour numbers) are handled correctly.
-    start_ts = start_hour.timestamp()
-    end_ts = end_hour.timestamp()
-
-    # Filter visible data in one pass - build both prices and indices lists simultaneously
-    visible_prices = []
-    visible_indices = []
-    for i, (d, p) in enumerate(zip(dates_plot, prices_plot)):
-        if start_ts <= d.timestamp() <= end_ts:
-            visible_prices.append(p)
-            # Only track indices that correspond to raw data (plot has one extra point)
-            if i < len(dates_raw):
-                visible_indices.append(i)
-
-    # Fallback if no visible data found
-    if not visible_prices:
-        visible_prices = prices_plot or prices_raw or [0]
-    if not visible_indices and prices_raw:
-        visible_indices = list(range(len(prices_raw)))
 
     # Calculate price range early for use in label offsets
     y_min = min(visible_prices)
@@ -714,8 +784,8 @@ def render_plot_to_path(
 
     # Draw labels for chosen data points (min, max, current)
     for i in sorted(chosen):
-        # Skip current label here if it will be drawn at top of chart
-        if LABEL_CURRENT_OPT and i == current_idx and LABEL_CURRENT_AT_TOP_OPT:
+        # Skip current label here if it will be drawn in the header
+        if LABEL_CURRENT_OPT and i == current_idx and LABEL_CURRENT_IN_HEADER_OPT:
             continue
 
         # Classify this point to determine styling
@@ -731,17 +801,17 @@ def render_plot_to_path(
         time_str = now_local.strftime('%H:%M') if is_current else dates_raw[i].strftime('%H')
         if show_price:
             price_display = prices_raw[i] * price_multiplier
-            label_text = f"{price_display:.{decimals}f}{currency_label}\nat {time_str}"
+            label_text = f"{price_display:.{decimals}f}{currency_label}\n{label_at} {time_str}"
         else:
             label_text = time_str
 
         # Set vertical alignment:
         # - Current labels always use "bottom" (above point) for in-graph labels
-        # - Max labels use "top" (below point) if LABEL_MAX_BELOW_POINT or LABEL_CURRENT_AT_TOP is enabled
+        # - Max labels use "top" (below point) if LABEL_MAX_BELOW_POINT or LABEL_CURRENT_IN_HEADER is enabled
         # - Min labels always use "bottom" (above point)
         if is_current:
             vertical_align = "bottom"
-        elif is_max and (LABEL_MAX_BELOW_POINT_OPT or LABEL_CURRENT_AT_TOP_OPT):
+        elif is_max and (LABEL_MAX_BELOW_POINT_OPT or LABEL_CURRENT_IN_HEADER_OPT):
             vertical_align = "top"
         else:
             vertical_align = "bottom"
@@ -789,9 +859,9 @@ def render_plot_to_path(
 
             # For min/max, determine color based on whether COLOR_PRICE_LINE_BY_AVERAGE is enabled
             # Only use colored price line logic for future points
-            if COLOR_PRICE_LINE_BY_AVERAGE_OPT and prices_raw and not is_past:
-                # Calculate average price from all available data
-                average_price = sum(prices_raw) / len(prices_raw)
+            if COLOR_PRICE_LINE_BY_AVERAGE_OPT and calc_prices and len(calc_prices) > 0 and not is_past:
+                # Calculate average price from calculation data (filtered based on display options)
+                average_price = sum(calc_prices) / len(calc_prices)
                 # Use helper function for consistent color calculation
                 point_color_rgb = _get_price_color(prices_raw[i], average_price, NEAR_AVERAGE_THRESHOLD,
                                                     PRICE_LINE_COLOR_BELOW_AVG, PRICE_LINE_COLOR_NEAR_AVG,
@@ -817,27 +887,78 @@ def render_plot_to_path(
                    zorder=5)
 
     # Draw current price label at fixed position (centered at top above graph) if enabled
-    if LABEL_CURRENT_OPT and current_idx is not None and LABEL_CURRENT_AT_TOP_OPT:
+    if LABEL_CURRENT_OPT and current_idx is not None and LABEL_CURRENT_IN_HEADER_OPT:
         price_display = prices_raw[current_idx] * price_multiplier
         now_time = now_local.strftime("%H:%M")
         ax_pos = ax.get_position()
         # Center the label horizontally within the graph area
         label_x = (ax_pos.x0 + ax_pos.x1) / 2
         # Padding now counts from bottom of text (va="bottom")
-        label_y = 1.0 - LABEL_CURRENT_AT_TOP_PADDING_OPT
+        label_y = 1.0 - LABEL_CURRENT_IN_HEADER_PADDING_OPT
 
-        fig.text(
-            label_x,
-            label_y,
-            f"{price_display:.{decimals}f}{currency_label} at {now_time}",
-            fontsize=LABEL_FONT_SIZE_OPT,
-            color=LABEL_COLOR,
-            fontweight=LABEL_CURRENT_AT_TOP_FONT_WEIGHT_OPT,
-            va="bottom",
-            ha="center",
-            zorder=7,
-            path_effects=label_effects,
-        )
+        # Build header text
+        if LABEL_CURRENT_IN_HEADER_MORE_OPT and calc_prices and len(calc_prices) > 0:
+            # Calculate average price from calculation data (filtered based on display options)
+            average_price = sum(calc_prices) / len(calc_prices)
+            avg_display = average_price * price_multiplier
+
+            # Calculate percentage to average (never include '+' sign)
+            current_price = prices_raw[current_idx]
+            pct_to_avg = ((current_price / average_price) * 100)
+            pct_rounded = round(pct_to_avg)
+            pct_str = f"{pct_rounded}%" if pct_rounded >= 0 else f"{pct_rounded}%"
+
+            # Build header as segments to allow different font weights and sizes for separators
+            header_segments = [
+                (f"{price_display:.{decimals}f}{currency_label} {label_at} {now_time}", LABEL_CURRENT_IN_HEADER_FONT_WEIGHT_OPT, LABEL_FONT_SIZE_OPT),
+                (" │ ", "normal", LABEL_FONT_SIZE_OPT - 1),
+                (f"{label_avg} {avg_display:.{decimals}f}{currency_label}", LABEL_CURRENT_IN_HEADER_FONT_WEIGHT_OPT, LABEL_FONT_SIZE_OPT),
+                (" • ", "normal", LABEL_FONT_SIZE_OPT - 1),
+                (pct_str, LABEL_CURRENT_IN_HEADER_FONT_WEIGHT_OPT, LABEL_FONT_SIZE_OPT),
+            ]
+        else:
+            header_segments = [
+                (f"{price_display:.{decimals}f}{currency_label} {label_at} {now_time}", LABEL_CURRENT_IN_HEADER_FONT_WEIGHT_OPT, LABEL_FONT_SIZE_OPT),
+            ]
+
+        # Calculate full header width to center properly
+        full_header_text = "".join([seg[0] for seg in header_segments])
+        temp_text = fig.text(label_x, label_y, full_header_text,
+                            fontsize=LABEL_FONT_SIZE_OPT,
+                            color=LABEL_COLOR,
+                            fontweight=LABEL_CURRENT_IN_HEADER_FONT_WEIGHT_OPT,
+                            va="bottom", ha="center", zorder=7,
+                            path_effects=label_effects)
+        # Get bounding box to calculate width
+        bbox = temp_text.get_window_extent(renderer=fig.canvas.get_renderer())
+        temp_text.remove()
+
+        # Transform bbox to figure coordinates
+        bbox_fig = bbox.transformed(fig.transFigure.inverted())
+        total_width = bbox_fig.width
+
+        # Calculate starting x position (left edge of centered text)
+        start_x = label_x - (total_width / 2)
+
+        # Draw each segment with its own font weight and size
+        current_x = start_x
+        for segment_text, font_weight, font_size in header_segments:
+            text_obj = fig.text(
+                current_x,
+                label_y,
+                segment_text,
+                fontsize=font_size,
+                color=LABEL_COLOR,
+                fontweight=font_weight,
+                va="bottom",
+                ha="left",
+                zorder=7,
+                path_effects=label_effects,
+            )
+            # Get width of this segment to position next segment
+            seg_bbox = text_obj.get_window_extent(renderer=fig.canvas.get_renderer())
+            seg_bbox_fig = seg_bbox.transformed(fig.transFigure.inverted())
+            current_x += seg_bbox_fig.width
 
     # Set X-axis range and Y-axis limits based on visible data
     ax.set_xlim((start_hour, end_hour))
@@ -848,9 +969,9 @@ def render_plot_to_path(
     ax.set_ylim((y_min - pad_low, y_max + pad_high))
 
     # Draw average price line if enabled (at same z-order as horizontal grid lines)
-    # Average is calculated from all available price data (past and future), not just the visible period
-    if SHOW_AVERAGE_PRICE_LINE_OPT and prices_raw:
-        average_price = sum(prices_raw) / len(prices_raw)
+    # Average is calculated from calculation data (filtered based on display options)
+    if SHOW_AVERAGE_PRICE_LINE_OPT and calc_prices and len(calc_prices) > 0:
+        average_price = sum(calc_prices) / len(calc_prices)
         ax.axhline(average_price, color=NOWLINE_COLOR, alpha=GRID_ALPHA, linestyle=":", linewidth=1, zorder=2)
 
     # Calculate Y-axis tick min/max values
@@ -892,8 +1013,13 @@ def render_plot_to_path(
         if Y_TICK_COUNT_OPT:
             try:
                 if Y_TICK_COUNT_OPT == 1:
-                    # Show average of all available prices (consistent with average price line)
-                    y_avg = sum(prices_raw) / len(prices_raw)
+                    # Show average from calculation data (consistent with average price line)
+                    if calc_prices and len(calc_prices) > 0:
+                        y_avg = sum(calc_prices) / len(calc_prices)
+                    elif prices_raw and len(prices_raw) > 0:
+                        y_avg = sum(prices_raw) / len(prices_raw)
+                    else:
+                        y_avg = 0
                     ax.yaxis.set_major_locator(mticker.FixedLocator([y_avg]))
                     if Y_TICK_USE_COLORS_OPT:
                         for tick_label in ax.yaxis.get_ticklabels():
@@ -909,8 +1035,13 @@ def render_plot_to_path(
                             tick_labels[1].set_color(LABEL_COLOR_MAX)
 
                 elif Y_TICK_COUNT_OPT == 3:
-                    # Show min, max, and average of all available prices (consistent with average price line)
-                    y_avg = sum(prices_raw) / len(prices_raw)
+                    # Show min, max, and average from calculation data (consistent with average price line)
+                    if calc_prices and len(calc_prices) > 0:
+                        y_avg = sum(calc_prices) / len(calc_prices)
+                    elif prices_raw and len(prices_raw) > 0:
+                        y_avg = sum(prices_raw) / len(prices_raw)
+                    else:
+                        y_avg = (y_min_tick + y_max_tick) / 2
                     ax.yaxis.set_major_locator(mticker.FixedLocator([y_min_tick, y_avg, y_max_tick]))
                     if Y_TICK_USE_COLORS_OPT:
                         tick_labels = ax.yaxis.get_ticklabels()
@@ -920,10 +1051,23 @@ def render_plot_to_path(
                             tick_labels[2].set_color(LABEL_COLOR_MAX)
 
                 elif Y_TICK_COUNT_OPT >= 4:
-                    # Show evenly distributed ticks between min and max (excluding edges)
-                    step = (y_max_tick - y_min_tick) / (Y_TICK_COUNT_OPT + 1)
-                    tick_positions = [y_min_tick + step * (i + 1) for i in range(Y_TICK_COUNT_OPT)]
+                    # Show min, max, and evenly distributed ticks between them
+                    # Total ticks = Y_TICK_COUNT_OPT, including min and max
+                    # Interior ticks = Y_TICK_COUNT_OPT - 2
+                    num_interior = Y_TICK_COUNT_OPT - 2
+                    if num_interior > 0:
+                        step = (y_max_tick - y_min_tick) / (num_interior + 1)
+                        tick_positions = [y_min_tick] + [y_min_tick + step * (i + 1) for i in range(num_interior)] + [y_max_tick]
+                    else:
+                        # If Y_TICK_COUNT_OPT is exactly 4, just show min and max with 2 evenly spaced ticks
+                        tick_positions = [y_min_tick, y_min_tick + (y_max_tick - y_min_tick) / 3, y_min_tick + 2 * (y_max_tick - y_min_tick) / 3, y_max_tick]
                     ax.yaxis.set_major_locator(mticker.FixedLocator(tick_positions))
+                    if Y_TICK_USE_COLORS_OPT:
+                        tick_labels = ax.yaxis.get_ticklabels()
+                        if len(tick_labels) >= 2:
+                            # Color the first (min) and last (max) tick labels
+                            tick_labels[0].set_color(LABEL_COLOR_MIN)
+                            tick_labels[-1].set_color(LABEL_COLOR_MAX)
             except Exception:
                 # Silently ignore errors in tick configuration (e.g., division by zero)
                 pass
@@ -970,10 +1114,43 @@ def render_plot_to_path(
     ax.margins(x=0)
     fig.subplots_adjust(bottom=BOTTOM_MARGIN_OPT, left=LEFT_MARGIN_OPT, right=1-LEFT_MARGIN_OPT)
 
+    # Use temporary file to prevent corrupting the existing image on render failure
+    import tempfile
+    import os
+    temp_fd = None
+    temp_path = None
+
     try:
-        # Save with correct figure background to avoid white edges
-        fig.savefig(out_path, facecolor=fig.get_facecolor())
+        # Create temporary file in same directory as output to ensure same filesystem
+        # This allows atomic rename operation
+        out_dir = os.path.dirname(out_path)
+        temp_fd, temp_path = tempfile.mkstemp(suffix='.png', dir=out_dir)
+        os.close(temp_fd)  # Close the file descriptor; savefig will open it
+
+        # Save to temporary file with correct figure background to avoid white edges
+        fig.savefig(temp_path, facecolor=fig.get_facecolor())
+
+        # Only replace the actual output file if render succeeded
+        # This is atomic on most filesystems, preventing partial/corrupt images
+        os.replace(temp_path, out_path)
+        temp_path = None  # Mark as successfully moved
+
+    except Exception as err:
+        # If rendering fails, preserve the existing output file
+        # Log the error but don't raise - gracefully fail without corrupting the image
+        import logging
+        _LOGGER = logging.getLogger(__name__)
+        _LOGGER.error("Failed to render graph to %s: %s", out_path, err, exc_info=True)
+
     finally:
-        # Clean up to prevent memory leaks
+        # Clean up temporary file if it still exists (render failed)
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.unlink(temp_path)
+            except Exception:
+                pass
+
+        # Clean up matplotlib objects to prevent memory leaks
+        ax.clear()
         plt.close(fig)
         plt.close("all")

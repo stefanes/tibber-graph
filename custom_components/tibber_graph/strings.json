@@ -16,7 +16,7 @@
         }
       },
       "reconfigure": {
-        "title": "Reset",
+        "title": "Reconfigure {entity_name}",
         "description": "Select which values to reset to their defaults. Other settings will be preserved.",
         "data": {
           "reset_hours_to_show": "Hours to show",
@@ -39,10 +39,99 @@
       "no_price_source": "Either a price entity must be provided or the Tibber integration must be configured."
     }
   },
+  "selector": {
+    "theme": {
+      "options": {
+        "dark": "Dark",
+        "light": "Light"
+      }
+    },
+    "start_graph_at": {
+      "options": {
+        "midnight": "Midnight",
+        "current_hour": "Current hour",
+        "show_all": "Show all"
+      }
+    },
+    "y_axis_side": {
+      "options": {
+        "left": "Left",
+        "right": "Right"
+      }
+    }
+  },
+  "entity": {
+    "camera": {
+      "tibber_graph": {
+        "state_attributes": {
+          "label_at": {
+            "name": "at"
+          },
+          "label_avg": {
+            "name": "avg."
+          }
+        }
+      }
+    }
+  },
+  "services": {
+    "set_option": {
+      "name": "Set option",
+      "description": "Update one or more configuration options for a Tibber Graph entity.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "The entity ID of the Tibber Graph camera to update."
+        },
+        "options": {
+          "name": "Options",
+          "description": "Dictionary of options to update, where keys are option names and values are the new values."
+        }
+      }
+    },
+    "reset_option": {
+      "name": "Reset option",
+      "description": "Reset one or more configuration options to their default values for a Tibber Graph entity.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "The entity ID of the Tibber Graph camera to reset options for."
+        },
+        "options": {
+          "name": "Options",
+          "description": "List of option names to reset. Leave empty to reset all options to defaults."
+        }
+      }
+    },
+    "set_data_source": {
+      "name": "Set data source",
+      "description": "Change the price data source for a Tibber Graph entity. Can switch between Tibber integration and a custom price entity.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "The entity ID of the Tibber Graph camera to update the data source for."
+        },
+        "price_entity_id": {
+          "name": "Price entity",
+          "description": "The entity ID of a sensor containing price data. Leave empty to use the Tibber integration instead."
+        }
+      }
+    },
+    "render": {
+      "name": "Render",
+      "description": "Render the graph for a Tibber Graph entity.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "The entity ID of the Tibber Graph camera to render. If not provided, all Tibber Graph entities are rendered."
+        }
+      }
+    }
+  },
   "options": {
     "step": {
       "init": {
-        "title": "Options",
+        "title": "Options for {entity_name}",
         "description": "Configure how the price graph is displayed.",
         "data": {
           "theme": "Theme",
@@ -59,6 +148,7 @@
           "show_horizontal_grid": "Show horizontal grid",
           "show_average_price_line": "Show average price line",
           "cheap_price_points": "Cheap price points to highlight",
+          "cheap_price_threshold": "Cheap price threshold",
           "show_vertical_grid": "Show vertical grid",
           "y_axis_label_rotation_deg": "Y-axis label rotation (degrees)",
           "y_axis_side": "Y-axis position",
@@ -68,7 +158,8 @@
           "use_cents": "Display in cents",
           "currency_override": "Currency override (leave blank for auto)",
           "label_current": "Show current price label",
-          "label_current_at_top": "Show current price at top",
+          "label_current_in_header": "Show current price in header",
+          "label_current_in_header_more": "Show additional info in header",
           "label_font_size": "Label font size",
           "label_max": "Show maximum price label",
           "label_min": "Show minimum price label",

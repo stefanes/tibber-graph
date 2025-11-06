@@ -12,10 +12,11 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
+from .services import async_register_services, async_unregister_services
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.CAMERA]
+PLATFORMS: list[Platform] = [Platform.CAMERA, Platform.SENSOR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -27,6 +28,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Forward the setup to the camera platform
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Register services
+    await async_register_services(hass)
+
     return True
 
 
@@ -37,4 +41,16 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
 
+        # Unregister services if this is the last entry
+        if not hass.data[DOMAIN]:
+            await async_unregister_services(hass)
+
     return unload_ok
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Handle removal of an entry."""
+    # Mark this entry as being removed so entities can clean up files
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+    hass.data[DOMAIN][f"{entry.entry_id}_removing"] = True
