@@ -35,6 +35,7 @@ from .const import (
     CONF_FORCE_FIXED_SIZE,
     # X-axis config keys
     CONF_SHOW_X_TICKS,
+    CONF_CHEAP_PRICE_ON_X_AXIS,
     CONF_START_GRAPH_AT,
     CONF_X_TICK_STEP_HOURS,
     CONF_HOURS_TO_SHOW,
@@ -78,6 +79,7 @@ from .const import (
     DEFAULT_CANVAS_HEIGHT,
     DEFAULT_FORCE_FIXED_SIZE,
     DEFAULT_SHOW_X_TICKS,
+    DEFAULT_CHEAP_PRICE_ON_X_AXIS,
     DEFAULT_START_GRAPH_AT,
     DEFAULT_X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW,
@@ -116,7 +118,6 @@ from .const import (
     DEFAULT_LABEL_CURRENT_IN_HEADER_PADDING,
     DEFAULT_LABEL_FONT_WEIGHT,
     DEFAULT_LABEL_MAX_BELOW_POINT,
-    DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES,
     DEFAULT_MIN_REDRAW_INTERVAL_SECONDS,
     DEFAULT_RENDER_STAGGER_MAX_SECONDS,
 )
@@ -219,13 +220,9 @@ class TibberCam(LocalFile):
         # Start auto-refresh if enabled (uses Home Assistant's event system instead of blocking tasks)
         auto_refresh = self._get_option(CONF_AUTO_REFRESH_ENABLED, DEFAULT_AUTO_REFRESH_ENABLED)
         if auto_refresh:
-            interval = datetime.timedelta(minutes=max(1, int(DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES)))
-            self._refresh_unsub = async_track_time_interval(
-                self.hass,
-                self._async_auto_refresh_callback,
-                interval
-            )
-            _LOGGER.debug("Started auto-refresh for %s (interval: %d minutes)", self._name, DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES)
+            # Schedule next refresh based on pricing interval
+            await self._schedule_next_refresh()
+            _LOGGER.debug("Started auto-refresh for %s", self._name)
 
     async def async_will_remove_from_hass(self):
         """Cancel the auto-refresh and clean up PNG file when entity is removed."""
@@ -247,17 +244,86 @@ class TibberCam(LocalFile):
         else:
             _LOGGER.debug("Preserving PNG file for %s during reload: %s", self._name, self._path)
 
+    async def _schedule_next_refresh(self) -> None:
+        """Schedule the next auto-refresh based on pricing interval.
+
+        Refreshes 1 minute into each pricing interval:
+        - For 15-minute pricing: 1 minute into every 15-minute interval (e.g., 00:01, 00:16, 00:31, 00:46)
+        - For hourly pricing: 1 minute into every hour (e.g., 00:01, 01:01, 02:01)
+        """
+        # Cancel existing timer if any
+        if self._refresh_unsub:
+            self._refresh_unsub()
+            self._refresh_unsub = None
+
+        # Determine pricing interval from configuration
+        use_hourly = self._get_option(CONF_USE_HOURLY_PRICES, DEFAULT_USE_HOURLY_PRICES)
+
+        now = dt_util.now()
+        now_local = dt_util.as_local(now)
+
+        if use_hourly:
+            # Schedule for 1 minute past the next hour
+            next_refresh = now_local.replace(minute=1, second=0, microsecond=0)
+            if next_refresh <= now_local:
+                # If we're past minute 1, go to next hour
+                next_refresh = next_refresh + datetime.timedelta(hours=1)
+            interval_name = "hourly"
+        else:
+            # Schedule for 1 minute into the next 15-minute interval
+            # 15-minute intervals start at :00, :15, :30, :45
+            current_minute = now_local.minute
+
+            # Calculate next interval: round up to next 15-min boundary, then add 1 minute
+            next_interval_start = ((current_minute // 15) + 1) * 15
+            next_minute = (next_interval_start % 60) + 1
+
+            next_refresh = now_local.replace(minute=next_minute % 60, second=0, microsecond=0)
+
+            # If we rolled over to next hour, add an hour
+            if next_interval_start >= 60:
+                next_refresh = next_refresh + datetime.timedelta(hours=1)
+
+            interval_name = "15-minute"
+
+        # Calculate the delay until next refresh
+        delay = (next_refresh - now_local).total_seconds()
+
+        _LOGGER.debug(
+            "Scheduling next auto-refresh for %s at %s (%s intervals, delay: %.1f seconds)",
+            self._name,
+            next_refresh.strftime("%H:%M:%S"),
+            interval_name,
+            delay
+        )
+
+        # Schedule the callback using async_call_later
+        from homeassistant.helpers.event import async_call_later
+        self._refresh_unsub = async_call_later(
+            self.hass,
+            delay,
+            self._async_auto_refresh_callback
+        )
+
     async def _async_auto_refresh_callback(self, now: datetime.datetime) -> None:
         """Callback triggered by Home Assistant's event system for periodic auto-refresh.
 
-        This is called at the configured interval and does not block Home Assistant startup
-        or other integrations.
+        This is called at the scheduled time and does not block Home Assistant startup
+        or other integrations. After rendering, it schedules the next refresh.
         """
         try:
             _LOGGER.debug("Auto-refresh triggered for %s", self._name)
             await self.async_render_image(width=None, height=None, force_render=False, triggered_by="auto_refresh")
+
+            # Schedule the next refresh after completing this one
+            await self._schedule_next_refresh()
         except Exception as err:
             _LOGGER.error("Failed to auto-refresh %s: %s", self._name, err, exc_info=True)
+            # Try to reschedule even if this refresh failed
+            try:
+                await self._schedule_next_refresh()
+            except Exception as schedule_err:
+                _LOGGER.error("Failed to reschedule auto-refresh for %s: %s", self._name, schedule_err)
 
     async def async_camera_image(self, width=None, height=None):
         """Render the graph if needed and return its bytes."""
@@ -612,6 +678,7 @@ class TibberCam(LocalFile):
             "left_margin": DEFAULT_LEFT_MARGIN,
             # X-axis settings
             "show_x_ticks": self._get_option(CONF_SHOW_X_TICKS, DEFAULT_SHOW_X_TICKS),
+            "cheap_price_on_x_axis": self._get_option(CONF_CHEAP_PRICE_ON_X_AXIS, DEFAULT_CHEAP_PRICE_ON_X_AXIS),
             "start_graph_at": self._get_option(CONF_START_GRAPH_AT, DEFAULT_START_GRAPH_AT),
             "x_axis_label_y_offset": DEFAULT_X_AXIS_LABEL_Y_OFFSET,
             "x_tick_step_hours": self._get_option(CONF_X_TICK_STEP_HOURS, DEFAULT_X_TICK_STEP_HOURS),

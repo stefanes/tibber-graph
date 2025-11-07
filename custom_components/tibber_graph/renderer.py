@@ -14,20 +14,22 @@ from .const import (
     DEFAULT_CANVAS_WIDTH as CANVAS_WIDTH,
     DEFAULT_CANVAS_HEIGHT as CANVAS_HEIGHT,
     DEFAULT_FORCE_FIXED_SIZE as FORCE_FIXED_SIZE,
+    DEFAULT_CHEAP_PRICE_POINTS as CHEAP_PRICE_POINTS,
+    DEFAULT_CHEAP_PRICE_THRESHOLD as CHEAP_PRICE_THRESHOLD,
     DEFAULT_BOTTOM_MARGIN as BOTTOM_MARGIN,
     DEFAULT_LEFT_MARGIN as LEFT_MARGIN,
     DEFAULT_X_AXIS_LABEL_Y_OFFSET as X_AXIS_LABEL_Y_OFFSET,
     DEFAULT_SHOW_X_TICKS as SHOW_X_TICKS,
+    DEFAULT_CHEAP_PRICE_ON_X_AXIS as CHEAP_PRICE_ON_X_AXIS,
     DEFAULT_START_GRAPH_AT as START_GRAPH_AT,
     DEFAULT_X_TICK_STEP_HOURS as X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW as HOURS_TO_SHOW,
     DEFAULT_SHOW_VERTICAL_GRID as SHOW_VERTICAL_GRID,
+    DEFAULT_CHEAP_PERIOD_BOUNDARY_HOURS as CHEAP_PERIOD_BOUNDARY_HOURS,
     DEFAULT_SHOW_Y_AXIS as SHOW_Y_AXIS,
     DEFAULT_SHOW_Y_AXIS_TICKS as SHOW_Y_AXIS_TICKS,
     DEFAULT_SHOW_HORIZONTAL_GRID as SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE as SHOW_AVERAGE_PRICE_LINE,
-    DEFAULT_CHEAP_PRICE_POINTS as CHEAP_PRICE_POINTS,
-    DEFAULT_CHEAP_PRICE_THRESHOLD as CHEAP_PRICE_THRESHOLD,
     DEFAULT_Y_AXIS_LABEL_ROTATION_DEG as Y_AXIS_LABEL_ROTATION_DEG,
     DEFAULT_Y_AXIS_LABEL_VERTICAL_ANCHOR as Y_AXIS_LABEL_VERTICAL_ANCHOR,
     DEFAULT_Y_AXIS_SIDE as Y_AXIS_SIDE,
@@ -299,10 +301,13 @@ def render_plot_to_path(
     CANVAS_WIDTH_OPT = get_opt("canvas_width", CANVAS_WIDTH)
     CANVAS_HEIGHT_OPT = get_opt("canvas_height", CANVAS_HEIGHT)
     FORCE_FIXED_SIZE_OPT = get_opt("force_fixed_size", FORCE_FIXED_SIZE)
+    CHEAP_PRICE_POINTS_OPT = get_opt("cheap_price_points", CHEAP_PRICE_POINTS)
+    CHEAP_PRICE_THRESHOLD_OPT = get_opt("cheap_price_threshold", CHEAP_PRICE_THRESHOLD)
     BOTTOM_MARGIN_OPT = get_opt("bottom_margin", BOTTOM_MARGIN)
     LEFT_MARGIN_OPT = get_opt("left_margin", LEFT_MARGIN)
     # X-axis settings
     SHOW_X_TICKS_OPT = get_opt("show_x_ticks", SHOW_X_TICKS)
+    CHEAP_PRICE_ON_X_AXIS_OPT = get_opt("cheap_price_on_x_axis", CHEAP_PRICE_ON_X_AXIS)
     START_GRAPH_AT_OPT = get_opt("start_graph_at", START_GRAPH_AT)
     X_TICK_STEP_HOURS_OPT = get_opt("x_tick_step_hours", X_TICK_STEP_HOURS)
     HOURS_TO_SHOW_OPT = get_opt("hours_to_show", HOURS_TO_SHOW)
@@ -312,8 +317,6 @@ def render_plot_to_path(
     SHOW_Y_AXIS_TICKS_OPT = get_opt("show_y_axis_ticks", SHOW_Y_AXIS_TICKS)
     SHOW_HORIZONTAL_GRID_OPT = get_opt("show_horizontal_grid", SHOW_HORIZONTAL_GRID)
     SHOW_AVERAGE_PRICE_LINE_OPT = get_opt("show_average_price_line", SHOW_AVERAGE_PRICE_LINE)
-    CHEAP_PRICE_POINTS_OPT = get_opt("cheap_price_points", CHEAP_PRICE_POINTS)
-    CHEAP_PRICE_THRESHOLD_OPT = get_opt("cheap_price_threshold", CHEAP_PRICE_THRESHOLD)
     Y_AXIS_LABEL_ROTATION_DEG_OPT = get_opt("y_axis_label_rotation_deg", Y_AXIS_LABEL_ROTATION_DEG)
     Y_AXIS_LABEL_VERTICAL_ANCHOR_OPT = get_opt("y_axis_label_vertical_anchor", Y_AXIS_LABEL_VERTICAL_ANCHOR)
     Y_AXIS_SIDE_OPT = get_opt("y_axis_side", Y_AXIS_SIDE)
@@ -564,17 +567,17 @@ def render_plot_to_path(
     if not calc_indices:
         calc_indices = visible_indices
 
+    # Determine step size for each period (quarter or hour) - needed for cheap price and X-axis ticks
+    if dates_raw and len(dates_raw) >= 2:
+        step_minutes = int((dates_raw[1] - dates_raw[0]).total_seconds() // 60) or 15
+    else:
+        step_minutes = 15
+    period_duration = datetime.timedelta(minutes=step_minutes)
+
     # Identify and draw cheap price point highlights if configured
     # This is done before drawing the price line and fill so highlights appear behind the graph
     # Highlights are shown when either CHEAP_PRICE_POINTS_OPT > 0 or CHEAP_PRICE_THRESHOLD_OPT > 0
     if (CHEAP_PRICE_POINTS_OPT > 0 or CHEAP_PRICE_THRESHOLD_OPT > 0) and dates_raw and prices_raw:
-        # Determine step size for each period (quarter or hour)
-        if len(dates_raw) >= 2:
-            step_minutes = int((dates_raw[1] - dates_raw[0]).total_seconds() // 60) or 15
-        else:
-            step_minutes = 15
-        period_duration = datetime.timedelta(minutes=step_minutes)
-
         # Group all price data by day (not just visible data)
         # This ensures we identify the cheapest periods per day across all available data
         from collections import defaultdict
@@ -1073,12 +1076,127 @@ def render_plot_to_path(
                 pass
 
     # Draw X-axis tick lines and labels manually
-    # Generate tick times at configured intervals
-    tick_times = []
+    # Helper function to round datetime to nearest hour (for 15-min pricing)
+    def _round_to_nearest_hour(dt):
+        """Round datetime to nearest hour (>= 30 min rounds up)."""
+        rounded = dt.replace(minute=0, second=0, microsecond=0)
+        if dt.minute >= 30:
+            rounded += datetime.timedelta(hours=1)
+        return rounded
+
+    # Check if we have future cheap periods that should be shown on x-axis
+    future_cheap_periods = []
+    has_cheap_periods = (CHEAP_PRICE_POINTS_OPT > 0 or CHEAP_PRICE_THRESHOLD_OPT > 0) and 'cheap_indices_all_days' in locals()
+
+    if has_cheap_periods and CHEAP_PRICE_ON_X_AXIS_OPT:
+        # Filter for future cheap periods only
+        for cheap_idx in cheap_indices_all_days:
+            period_start = dates_raw[cheap_idx]
+            period_end = period_start + period_duration
+
+            # Only include future periods (start is after now)
+            if period_start > now_local and period_start <= end_hour and period_end >= start_hour:
+                future_cheap_periods.append((period_start, period_end, cheap_idx))
+
+        # Sort by start time
+        future_cheap_periods.sort(key=lambda x: x[0])
+
+    # Determine if we're using 15-minute pricing (step_minutes < 60)
+    is_fifteen_min_pricing = step_minutes < 60
+
+    # If there are future cheap periods, group them into continuous ranges
+    cheap_ranges = []
+    if future_cheap_periods:
+        current_range_start = future_cheap_periods[0][0]
+        current_range_end = future_cheap_periods[0][1]
+
+        # Treat gaps of 1 hour or less as continuous (for both 15 min and 60 min pricing)
+        gap_threshold_seconds = 3600
+
+        for i in range(1, len(future_cheap_periods)):
+            period_start, period_end, _ = future_cheap_periods[i]
+
+            # Check if this period is continuous with the current range
+            if (period_start - current_range_end).total_seconds() <= gap_threshold_seconds:
+                # Extend the current range
+                current_range_end = period_end
+            else:
+                # Save the current range and start a new one
+                cheap_ranges.append((current_range_start, current_range_end))
+                current_range_start = period_start
+                current_range_end = period_end
+
+        # Don't forget the last range
+        cheap_ranges.append((current_range_start, current_range_end))
+
+    # Generate regular tick times at configured intervals
+    regular_ticks = []
     t = start_hour
     while t <= end_hour:
-        tick_times.append(t)
+        regular_ticks.append(t)
         t += datetime.timedelta(hours=X_TICK_STEP_HOURS_OPT)
+
+    # Build final tick list based on configuration
+    tick_times = []
+    tick_colors = []
+    # If CHEAP_PERIOD_BOUNDARY_HOURS is 0, use X_TICK_STEP_HOURS as default
+    boundary_threshold_hours = CHEAP_PERIOD_BOUNDARY_HOURS if CHEAP_PERIOD_BOUNDARY_HOURS > 0 else X_TICK_STEP_HOURS_OPT
+    boundary_threshold_seconds = boundary_threshold_hours * 3600
+
+    if cheap_ranges and CHEAP_PRICE_ON_X_AXIS_OPT:
+        # Add cheap period boundary labels
+        for range_start, range_end in cheap_ranges:
+            range_duration_seconds = (range_end - range_start).total_seconds()
+
+            # For 15-minute pricing, round to nearest hour; for hourly, use exact times
+            tick_start = _round_to_nearest_hour(range_start) if is_fifteen_min_pricing else range_start
+            tick_end = _round_to_nearest_hour(range_end) if is_fifteen_min_pricing else range_end
+
+            # Always add start label (use min color for consistency with y-axis cheap price coloring)
+            tick_times.append(tick_start)
+            tick_colors.append(LABEL_COLOR_MIN)
+
+            # Only add end label if period is >= boundary threshold and end differs from start
+            if range_duration_seconds >= boundary_threshold_seconds and tick_end != tick_start:
+                tick_times.append(tick_end)
+                tick_colors.append(LABEL_COLOR_MIN)
+
+        # Behavior depends on SHOW_X_TICKS_OPT setting
+        if SHOW_X_TICKS_OPT:
+            # Add regular ticks, but skip those inside cheap periods or too close to boundaries
+            for reg_tick in regular_ticks:
+                should_skip = False
+
+                # Check if tick is inside any cheap period or too close to boundaries
+                for range_start, range_end in cheap_ranges:
+                    # For 15-minute pricing, use rounded hours; for hourly, use exact times
+                    tick_start = _round_to_nearest_hour(range_start) if is_fifteen_min_pricing else range_start
+                    tick_end = _round_to_nearest_hour(range_end) if is_fifteen_min_pricing else range_end
+
+                    # Calculate distance from tick to boundaries
+                    time_to_start = abs((reg_tick - tick_start).total_seconds())
+                    time_to_end = abs((reg_tick - tick_end).total_seconds())
+
+                    # Skip if tick is inside the period OR too close to either boundary
+                    if (tick_start < reg_tick < tick_end) or \
+                       (time_to_start < boundary_threshold_seconds) or \
+                       (time_to_end < boundary_threshold_seconds):
+                        should_skip = True
+                        break
+
+                if not should_skip:
+                    tick_times.append(reg_tick)
+                    tick_colors.append(AXIS_LABEL_COLOR)
+        # else: SHOW_X_TICKS_OPT is False, so only show cheap period boundaries (already added)
+
+        # Sort tick times
+        sorted_ticks = sorted(zip(tick_times, tick_colors), key=lambda x: x[0])
+        tick_times = [t for t, c in sorted_ticks]
+        tick_colors = [c for t, c in sorted_ticks]
+    else:
+        # No cheap periods or cheap_price_on_x_axis disabled: use regular ticks only
+        tick_times = regular_ticks
+        tick_colors = [AXIS_LABEL_COLOR] * len(tick_times)
 
     ylim = ax.get_ylim()
     xlab_effects = [pe.withStroke(linewidth=2, foreground=BACKGROUND_COLOR)] if LABEL_STROKE else None
@@ -1089,22 +1207,27 @@ def render_plot_to_path(
         ax.tick_params(axis="x", which="both", bottom=True, top=False, labelbottom=False, color=TICK_COLOR)
 
     # Draw time labels (and optionally vertical grid lines if show_vertical_grid is enabled)
-    for tt in tick_times:
+    for tt, tick_color in zip(tick_times, tick_colors):
         # Draw vertical grid lines only if show_vertical_grid is enabled
         # These are independent of show_x_ticks setting
         # Use same linewidth and alpha as horizontal grid for consistency
         if SHOW_VERTICAL_GRID_OPT:
             ax.vlines([tt], ymin=ylim[0], ymax=ylim[1], colors=GRID_COLOR, linewidth=1.0, alpha=GRID_ALPHA, zorder=2)
+
+        # For 15-minute pricing with cheap periods, never show minutes (always just hour)
+        # For other cases, show only hours
+        time_label = tt.strftime("%H")
+
         ax.text(
             tt,
             -X_AXIS_LABEL_Y_OFFSET,
-            tt.strftime("%H"),
+            time_label,
             transform=ax.get_xaxis_transform(),
             rotation=0,
             ha="center",
             va="top",
             fontsize=LABEL_FONT_SIZE_OPT,
-            color=AXIS_LABEL_COLOR,
+            color=tick_color,
             clip_on=False,
             zorder=6,
             path_effects=xlab_effects,

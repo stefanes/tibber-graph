@@ -70,7 +70,7 @@ Key features include:
 - **Grid and axis control**: Customize gridlines, axis position, and tick formatting
 - **Label options**: Configure min/max/current price labels with colors and positioning
 
-For a complete list of available options, their descriptions, and default values, see **[OPTIONS.md](OPTIONS.md)**.
+For a complete list of available options, their descriptions, and default values, see **[OPTIONS.md](docs/OPTIONS.md)**.
 
 ![Configure entry](docs/assets/options.png)
 
@@ -115,10 +115,11 @@ Tibber Graph provides actions for managing the graph configuration and rendering
 
 Update one or more configuration options for an entity. The entity will be reloaded automatically after the options are updated.
 
-| Data attribute | Required | Description                                                                                                                         |
-| -------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `entity_id`    | Yes      | The entity ID of the camera to update                                                                                  |
-| `options`      | Yes      | Dictionary of options to update, where keys are option names (as defined in [OPTIONS.md](OPTIONS.md)) and values are the new values |
+| Data attribute | Required | Description                                                                                                                                                                                            |
+| -------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `entity_id`    | Yes      | The entity ID of the camera to update                                                                                                                                                                  |
+| `options`      | Yes      | Dictionary of options to update, where keys are option names (as defined in [OPTIONS.md](docs/OPTIONS.md)) and values are the new values                                                                    |
+| `overwrite`    | No       | When `true`, all options **not** provided in the `options` dictionary will be reset to their default values. When `false` (default), only provided options are updated, existing options are preserved |
 
 **Examples:**
 
@@ -145,14 +146,27 @@ data:
     currency_override: null # reset nullable option to default
 ```
 
+```yaml
+# Update specific options and reset all others to defaults (overwrite mode)
+action: tibber_graph.set_option
+data:
+  entity_id: camera.tibber_graph_nord_pool_price
+  options:
+    theme: light
+    canvas_width: 1920
+  overwrite: true
+# All options not listed (canvas_height, show_average_price_line, etc.)
+# will be reset to their default values
+```
+
 #### `tibber_graph.reset_option`
 
 Reset one or more configuration options to their default values for an entity. The entity will be reloaded automatically after the options are reset.
 
 | Data attribute | Required | Description                                                                                                                              |
 | -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `entity_id`    | Yes      | The entity ID of the camera to reset options for                                                                            |
-| `options`      | No       | List of option names to reset (as defined in [OPTIONS.md](OPTIONS.md)). Leave empty or omit to reset all options to their default values |
+| `entity_id`    | Yes      | The entity ID of the camera to reset options for                                                                                         |
+| `options`      | No       | List of option names to reset (as defined in [OPTIONS.md](docs/OPTIONS.md)). Leave empty or omit to reset all options to their default values |
 
 **Examples:**
 
@@ -180,7 +194,7 @@ Change the price data source for an entity. This allows you to switch between th
 
 | Data attribute    | Required | Description                                                                                                |
 | ----------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
-| `entity_id`       | Yes      | The entity ID of the camera to update the data source for                                     |
+| `entity_id`       | Yes      | The entity ID of the camera to update the data source for                                                  |
 | `price_entity_id` | No       | The entity ID of a sensor containing price data. Leave empty or omit to use the Tibber integration instead |
 
 **Examples:**
@@ -204,8 +218,8 @@ data:
 
 Render the graph for an entity. If `entity_id` is not provided, renders all Tibber Graph entities.
 
-| Data attribute | Required | Description                                                                                                                |
-| -------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Data attribute | Required | Description                                                                                                   |
+| -------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
 | `entity_id`    | No       | The entity ID (or list of entity IDs) of the camera to render for. If not provided, all entities are rendered |
 
 **Examples:**
@@ -235,10 +249,10 @@ action: tibber_graph.render
 
 Set a custom theme for an entity, allowing you to dynamically change the graph's color scheme. All theme properties must be provided when setting a custom theme. Call without `theme_config` to clear the custom theme and revert to the configured theme.
 
-| Data attribute | Required | Description                                                                                                |
-| -------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
-| `entity_id`    | Yes      | The entity ID of the camera to set the custom theme for                                                   |
-| `theme_config` | No       | Dictionary containing all 23 theme properties. If omitted or empty, clears the custom theme               |
+| Data attribute | Required | Description                                                                                 |
+| -------------- | -------- | ------------------------------------------------------------------------------------------- |
+| `entity_id`    | Yes      | The entity ID of the camera to set the custom theme for                                     |
+| `theme_config` | No       | Dictionary containing all 23 theme properties. If omitted or empty, clears the custom theme |
 
 For detailed information about theme properties, complete examples, and automation ideas, see **[CUSTOM_THEME.md](docs/CUSTOM_THEME.md)**.
 
@@ -401,7 +415,7 @@ attributes:
 ## Example Graphs
 
 > [!TIP]
-> Use the configuration snippets below together with the `tibber_graph.set_option` actions to reproduce the example graphs.
+> Use the configuration snippets below together with the `tibber_graph.set_option` action to reproduce the example graphs.
 
 <details>
 <summary>Graph rendered with old (v0.2.1) defaults:</summary>
@@ -427,6 +441,7 @@ transparent_background: true
 canvas_width: 1280
 canvas_height: 720
 show_x_ticks: true
+cheap_price_on_x_axis: true
 start_graph_at: current_hour
 show_y_axis_ticks: true
 y_axis_label_rotation_deg: 270
@@ -438,7 +453,7 @@ use_hourly_prices: true
 use_cents: true
 currency_override: öre
 label_current_in_header_more: false
-label_font_size: 20
+label_font_size: 17
 label_minmax_show_price: false
 ```
 

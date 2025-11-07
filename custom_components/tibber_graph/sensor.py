@@ -49,6 +49,7 @@ class TibberGraphLastUpdateSensor(SensorEntity):
         self._entry = entry
         self._entity_name = entity_name
         self._camera_unique_id = camera_unique_id
+        self._triggered_by = None  # Track triggered_by separately
 
         # Create a sanitized version for unique IDs
         name_sanitized = entity_name.lower().replace(" ", "_").replace("-", "_")
@@ -104,12 +105,11 @@ class TibberGraphLastUpdateSensor(SensorEntity):
             triggered_by = event.data.get("triggered_by")
             if timestamp:
                 self._attr_native_value = timestamp
-                # Update triggered_by attribute
+                # Store triggered_by
                 if triggered_by:
-                    self._attr_extra_state_attributes = {
-                        **self._attr_extra_state_attributes,
-                        "triggered_by": triggered_by,
-                    }
+                    self._triggered_by = triggered_by
+                # Rebuild attributes to include triggered_by and updated data source info
+                self._attr_extra_state_attributes = self._build_attributes()
                 self.async_write_ha_state()
                 _LOGGER.debug("Updated %s with timestamp: %s (triggered by: %s)",
                             self.entity_id, timestamp, triggered_by or "unknown")
@@ -136,23 +136,34 @@ class TibberGraphLastUpdateSensor(SensorEntity):
             # Using custom entity as data source
             attributes["data_source_entity_id"] = self._price_entity_id
 
-            # Get friendly name from entity registry first, then state, then fallback to entity_id
-            entity_registry = er.async_get(self.hass)
-            entity_entry = entity_registry.async_get(self._price_entity_id)
+            # Get friendly name from state's friendly_name attribute first (customized name),
+            # then entity registry, then state's name
+            state = self.hass.states.get(self._price_entity_id)
 
-            if entity_entry and entity_entry.name:
-                # Use the name from entity registry (user-customized name)
-                attributes["data_source_friendly_name"] = entity_entry.name
+            if state and state.attributes.get("friendly_name"):
+                # Use the friendly_name from state attributes (user-customized name)
+                attributes["data_source_friendly_name"] = state.attributes.get("friendly_name")
             else:
-                # Fallback to state's name or entity_id
-                state = self.hass.states.get(self._price_entity_id)
-                if state and state.name:
+                # Fallback to entity registry name
+                entity_registry = er.async_get(self.hass)
+                entity_entry = entity_registry.async_get(self._price_entity_id)
+
+                if entity_entry and entity_entry.name:
+                    # Use the name from entity registry
+                    attributes["data_source_friendly_name"] = entity_entry.name
+                elif state and state.name:
+                    # Fallback to state's name
                     attributes["data_source_friendly_name"] = state.name
                 else:
-                    attributes["data_source_friendly_name"] = self._price_entity_id
+                    # No friendly name available
+                    attributes["data_source_friendly_name"] = ""
         else:
             # Using Tibber integration as data source
             attributes["data_source_entity_id"] = ""
             attributes["data_source_friendly_name"] = "Tibber Integration"
+
+        # Add triggered_by if available
+        if self._triggered_by:
+            attributes["triggered_by"] = self._triggered_by
 
         return attributes

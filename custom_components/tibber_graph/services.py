@@ -25,6 +25,7 @@ from .const import (
     CONF_FORCE_FIXED_SIZE,
     # X-axis config keys
     CONF_SHOW_X_TICKS,
+    CONF_CHEAP_PRICE_ON_X_AXIS,
     CONF_START_GRAPH_AT,
     CONF_X_TICK_STEP_HOURS,
     CONF_HOURS_TO_SHOW,
@@ -77,6 +78,7 @@ SERVICE_SET_OPTION_SCHEMA = vol.Schema(
     {
         vol.Required("entity_id"): cv.entity_id,
         vol.Required("options"): dict,
+        vol.Optional("overwrite", default=False): cv.boolean,
     }
 )
 
@@ -121,6 +123,7 @@ VALID_OPTIONS = {
     CONF_FORCE_FIXED_SIZE: cv.boolean,
     # X-axis settings
     CONF_SHOW_X_TICKS: cv.boolean,
+    CONF_CHEAP_PRICE_ON_X_AXIS: cv.boolean,
     CONF_START_GRAPH_AT: vol.In([START_GRAPH_AT_MIDNIGHT, START_GRAPH_AT_CURRENT_HOUR, START_GRAPH_AT_SHOW_ALL]),
     CONF_X_TICK_STEP_HOURS: cv.positive_int,
     CONF_HOURS_TO_SHOW: vol.Any(None, cv.positive_int),
@@ -208,6 +211,7 @@ async def async_handle_set_option(call: ServiceCall) -> None:
     hass = call.hass
     entity_id = call.data["entity_id"]
     options = call.data["options"]
+    overwrite = call.data.get("overwrite", False)
 
     # Get the config entry for this entity
     config_entry = await _get_config_entry_for_entity(hass, entity_id)
@@ -234,12 +238,20 @@ async def async_handle_set_option(call: ServiceCall) -> None:
         except (vol.Invalid, ValueError) as err:
             raise HomeAssistantError(f"Invalid value for {key}: {value}. Error: {err}") from err
 
+    # Determine new options based on overwrite flag
+    if overwrite:
+        # When overwrite is True, start with only the provided options
+        # All unprovided options will revert to defaults (by not being in config entry options)
+        new_options = validated_options
+        _LOGGER.info("Updated options for %s (overwrite=True): %s", entity_id, validated_options)
+    else:
+        # When overwrite is False, merge with existing options (default behavior)
+        new_options = {**config_entry.options, **validated_options}
+        _LOGGER.info("Updated options for %s: %s", entity_id, validated_options)
+
     # Update the config entry options
-    new_options = {**config_entry.options, **validated_options}
     hass.config_entries.async_update_entry(config_entry, options=new_options)
     await hass.config_entries.async_reload(config_entry.entry_id)
-
-    _LOGGER.info("Updated options for %s: %s", entity_id, validated_options)
 
 
 async def async_handle_reset_option(call: ServiceCall) -> None:

@@ -26,8 +26,11 @@ from .const import (
     CONF_CANVAS_WIDTH,
     CONF_CANVAS_HEIGHT,
     CONF_FORCE_FIXED_SIZE,
+    CONF_CHEAP_PRICE_POINTS,
+    CONF_CHEAP_PRICE_THRESHOLD,
     # X-axis config keys
     CONF_SHOW_X_TICKS,
+    CONF_CHEAP_PRICE_ON_X_AXIS,
     CONF_START_GRAPH_AT,
     CONF_X_TICK_STEP_HOURS,
     CONF_HOURS_TO_SHOW,
@@ -37,8 +40,6 @@ from .const import (
     CONF_SHOW_Y_AXIS_TICKS,
     CONF_SHOW_HORIZONTAL_GRID,
     CONF_SHOW_AVERAGE_PRICE_LINE,
-    CONF_CHEAP_PRICE_POINTS,
-    CONF_CHEAP_PRICE_THRESHOLD,
     CONF_Y_AXIS_LABEL_ROTATION_DEG,
     CONF_Y_AXIS_SIDE,
     CONF_Y_TICK_COUNT,
@@ -67,8 +68,11 @@ from .const import (
     DEFAULT_CANVAS_WIDTH,
     DEFAULT_CANVAS_HEIGHT,
     DEFAULT_FORCE_FIXED_SIZE,
+    DEFAULT_CHEAP_PRICE_POINTS,
+    DEFAULT_CHEAP_PRICE_THRESHOLD,
     # X-axis defaults
     DEFAULT_SHOW_X_TICKS,
+    DEFAULT_CHEAP_PRICE_ON_X_AXIS,
     DEFAULT_START_GRAPH_AT,
     DEFAULT_X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW,
@@ -78,8 +82,6 @@ from .const import (
     DEFAULT_SHOW_Y_AXIS_TICKS,
     DEFAULT_SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE,
-    DEFAULT_CHEAP_PRICE_POINTS,
-    DEFAULT_CHEAP_PRICE_THRESHOLD,
     DEFAULT_Y_AXIS_LABEL_ROTATION_DEG,
     DEFAULT_Y_AXIS_SIDE,
     DEFAULT_Y_TICK_COUNT,
@@ -347,10 +349,22 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                     CONF_FORCE_FIXED_SIZE,
                     default=options.get(CONF_FORCE_FIXED_SIZE, DEFAULT_FORCE_FIXED_SIZE),
                 ): cv.boolean,
+                vol.Optional(
+                    CONF_CHEAP_PRICE_POINTS,
+                    default=options.get(CONF_CHEAP_PRICE_POINTS, DEFAULT_CHEAP_PRICE_POINTS),
+                ): cv.positive_int,
+                vol.Optional(
+                    CONF_CHEAP_PRICE_THRESHOLD,
+                    default=options.get(CONF_CHEAP_PRICE_THRESHOLD, DEFAULT_CHEAP_PRICE_THRESHOLD),
+                ): vol.Coerce(float),
                 # X-axis settings
                 vol.Optional(
                     CONF_SHOW_X_TICKS,
                     default=options.get(CONF_SHOW_X_TICKS, DEFAULT_SHOW_X_TICKS),
+                ): cv.boolean,
+                vol.Optional(
+                    CONF_CHEAP_PRICE_ON_X_AXIS,
+                    default=options.get(CONF_CHEAP_PRICE_ON_X_AXIS, DEFAULT_CHEAP_PRICE_ON_X_AXIS),
                 ): cv.boolean,
                 vol.Optional(
                     CONF_START_GRAPH_AT,
@@ -385,14 +399,6 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                     CONF_SHOW_AVERAGE_PRICE_LINE,
                     default=options.get(CONF_SHOW_AVERAGE_PRICE_LINE, DEFAULT_SHOW_AVERAGE_PRICE_LINE),
                 ): cv.boolean,
-                vol.Optional(
-                    CONF_CHEAP_PRICE_POINTS,
-                    default=options.get(CONF_CHEAP_PRICE_POINTS, DEFAULT_CHEAP_PRICE_POINTS),
-                ): cv.positive_int,
-                vol.Optional(
-                    CONF_CHEAP_PRICE_THRESHOLD,
-                    default=options.get(CONF_CHEAP_PRICE_THRESHOLD, DEFAULT_CHEAP_PRICE_THRESHOLD),
-                ): vol.Coerce(float),
                 vol.Optional(
                     CONF_Y_AXIS_LABEL_ROTATION_DEG,
                     default=options.get(CONF_Y_AXIS_LABEL_ROTATION_DEG, DEFAULT_Y_AXIS_LABEL_ROTATION_DEG),

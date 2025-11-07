@@ -15,11 +15,19 @@ set_option:
           domain: camera
     options:
       name: Options
-      description: Dictionary of options to update, where keys are option names and values are the new values.
+      description: Dictionary of options to update, where keys are option names (as defined in OPTIONS.md) and values are the new values. All values will be validated before applying.
       required: true
       example: '{"theme": "light", "canvas_width": 1920, "show_average_price_line": true}'
       selector:
         object:
+    overwrite:
+      name: Overwrite
+      description: When true, all options not provided in the options dictionary will be reset to their default values. When false (default), only provided options are updated.
+      required: false
+      default: false
+      example: false
+      selector:
+        boolean:
 
 reset_option:
   name: Reset option
@@ -36,7 +44,7 @@ reset_option:
           domain: camera
     options:
       name: Options
-      description: List of option names to reset. Leave empty to reset all options to defaults.
+      description: List of option names to reset (as defined in OPTIONS.md). Leave empty or omit to reset all options to their default values.
       required: false
       example: '["theme", "canvas_width", "show_average_price_line"]'
       selector:
@@ -57,7 +65,7 @@ set_data_source:
           domain: camera
     price_entity_id:
       name: Price entity
-      description: The entity ID of a sensor containing price data. Leave empty to use the Tibber integration instead.
+      description: The entity ID of a sensor containing price data (see README.md for details). Leave empty to use the Tibber integration instead.
       required: false
       example: "sensor.nord_pool_price"
       selector:
@@ -66,11 +74,11 @@ set_data_source:
 
 render:
   name: Render
-  description: Render the graph for a Tibber Graph entity. If entity_id is not provided, renders all Tibber Graph entities.
+  description: Render the graph for a Tibber Graph entity.
   fields:
     entity_id:
       name: Entity ID
-      description: The entity ID of the Tibber Graph camera to render the image for. If not provided, all Tibber Graph entities will be rendered.
+      description: The entity ID (or list of entity IDs) of the Tibber Graph camera to render. If not provided, all Tibber Graph entities are rendered.
       required: false
       example: "camera.tibber_graph_nord_pool_price"
       selector:

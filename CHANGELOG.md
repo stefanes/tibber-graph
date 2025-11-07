@@ -4,6 +4,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2025-11-07
+
+### Added
+
+- 🕐 **Show cheap periods on X-axis** option to display cheap period start/end times on the X-axis when highlighting cheap periods.
+- 🔧 **Overwrite parameter** for `set_option` action to reset unprovided options to defaults.
+
+### Fixed
+
+- Last update sensor now correctly displays user-customized friendly names for custom data source entities.
+
 ## [0.5.0] - 2025-11-06
 
 ### Added

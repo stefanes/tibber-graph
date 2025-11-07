@@ -61,6 +61,36 @@ The UI is organized into sections matching the Home Assistant options flow:
 1. **Adjust Configuration**: Modify any settings in the left sidebar
 2. **See Changes Instantly**: The graph automatically re-renders when you change any option
 3. **Reset**: Click "Reset to Defaults" to restore all defaults and re-render
+4. **Set Options from Text**: Click the document icon to paste options in YAML format (see below)
+
+### Setting Options from Text
+
+The UI includes an options dialog that allows you to paste configuration options in YAML-style format (`key: value`), similar to the examples in README.md:
+
+1. **Click the document button** (📄 icon) in the floating menu at the bottom-right
+2. **Paste your options** - Use the same option names and format as in README.md examples
+3. **Toggle Overwrite mode** (optional):
+   - **Unchecked** (default): Only the provided options are updated, existing options are preserved
+   - **Checked**: All options **not** provided will be reset to their default values
+4. **Click Apply** to apply the options and render
+
+**Example options**:
+
+```yaml
+theme: dark
+canvas_width: 1920
+canvas_height: 1080
+show_x_ticks: true
+cheap_price_points: 5
+start_graph_at: current_hour
+```
+
+This feature is useful for:
+
+- Quickly testing configurations from documentation examples
+- Applying the same settings used in Home Assistant automations
+- Sharing configurations with others
+- Testing options before using them in Home Assistant
 
 ### Test Options
 

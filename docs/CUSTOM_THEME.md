@@ -2,6 +2,9 @@
 
 The `set_custom_theme` action allows you to dynamically set a custom color scheme for your Tibber Graph entity. This provides complete control over the visual appearance of your graph.
 
+> [!TIP]
+> Please do not hesitate to share your custom themes with the community by opening a pull request to get it added to the list of [built-in themes](/custom_components/tibber_graph/themes.json).
+
 ## Usage
 
 See [README.md](README.md#actions) for how to use.
@@ -34,6 +37,9 @@ All properties must be included when setting a custom theme:
 | `spine_color`                | string  | Color for chart border (hex)               | `"#3a4250"` |
 | `tick_color`                 | string  | Color for axis ticks (hex)                 | `"#cfd6e6"` |
 | `tickline_color`             | string  | Color for tick lines (hex)                 | `"#1f2530"` |
+
+> [!NOTE]
+> The is the configuration for the built-in dark theme.
 
 ## Examples
 

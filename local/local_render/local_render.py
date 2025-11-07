@@ -485,11 +485,12 @@ def main():
     elif config_mode == 'old_defaults':
         # Old default values (before recent changes to defaults.py)
         render_options = {
+            # General settings
             "canvas_width": 1200,  # Override: increased width for watch (default: 1180)
             "canvas_height": 700,  # Override: square for watch (default: 820)
-            # Y-axis overrides
+            # Y-axis settings
             "show_y_axis_ticks": True,  # Old default: show Y-axis ticks (new default: False)
-            # Price label overrides
+            # Price labels
             "label_current_in_header": False,  # Old default: show current label on graph (new default: True)
             "color_price_line_by_average": False,  # Old default: single color price line (new default: True)
         }
@@ -497,16 +498,17 @@ def main():
     elif config_mode == 'test':
         # Test configuration: light theme with colored labels (only overrides from defaults)
         render_options = {
+            # General settings
             "theme": "light",  # Override: light instead of dark (default: dark)
-            # X-axis overrides
-            "show_x_ticks": True,  # Override: show X-axis ticks (default: False)
-            "show_vertical_grid": False,  # Override: hide vertical grid (default: True)
-            # Y-axis overrides
-            "y_tick_count": 3,  # Override: 3 ticks instead of automatic (default: None)
-            "y_tick_use_colors": True,  # Override: colored ticks (default: False)
             "cheap_price_points": 5,  # Override: highlight 20 cheapest periods per day (default: 0)
             "cheap_price_threshold": 1.0,  # Override: highlight periods below 100 öre (default: 0)
-            # Price label overrides
+            # X-axis settings
+            "show_x_ticks": True,  # Override: show X-axis ticks (default: False)
+            "show_vertical_grid": False,  # Override: hide vertical grid (default: True)
+            # Y-axis settings
+            "y_tick_count": 3,  # Override: 3 ticks instead of automatic (default: None)
+            "y_tick_use_colors": True,  # Override: colored ticks (default: False)
+            # Price labels
             "use_hourly_prices": True,  # Override: aggregate to hourly (default: False)
             "label_min": False,  # Override: hide min label (default: True)
             "label_max": False,  # Override: hide max label (default: True)
@@ -517,27 +519,28 @@ def main():
     else:  # wearos
         # Wear OS configuration (only overrides from defaults)
         render_options = {
-            # General overrides
+            # General settings
             "theme": "dark",  # Override: dark theme (default: dark)
             "transparent_background": True,  # Override: transparent background (default: False)
             "canvas_width": 1280,  # Override: increased width for watch (default: 1180)
             "canvas_height": 720,  # Override: square for watch (default: 820)
-            # X-axis overrides
+            "cheap_price_points": 5,  # Override: highlight 5 cheapest periods per day (default: 0)
+            # X-axis settings
             "show_x_ticks": True,  # Override: show X-axis ticks (default: False)
             "start_graph_at": "current_hour",  # Override: start at current hour (default: midnight)
-            # Y-axis overrides
+            "cheap_price_on_x_axis": True,  # Override: show cheap price points on X-axis (default: False)
+            # Y-axis settings
             "show_y_axis_ticks": True, # Override: show Y-axis ticks (default: False)
             "y_axis_label_rotation_deg": 270,  # Override: vertical labels for right side (default: 0)
             "y_axis_side": "right",  # Override: Y-axis on right (default: left)
             "y_tick_count": 2,  # Override: 3 ticks instead of automatic (default: None)
             "y_tick_use_colors": True,  # Override: colored ticks (default: False)
-            "cheap_price_points": 5,  # Override: highlight 5 cheapest periods per day (default: 0)
-            # Price label overrides
+            # Price labels
             "use_hourly_prices": True,  # Override: aggregate to hourly (default: False)
             "use_cents": True,  # Override: display in cents (default: False)
             "currency_override": "öre",  # Override: display "öre" instead of "¢" (default: None)
             "label_current_in_header_more": False,  # Override: show additional info in header (default: True)
-            "label_font_size": 20,  # Override: larger font (default: 11)
+            "label_font_size": 17,  # Override: larger font (default: 11)
             "label_minmax_show_price": False,  # Override: show only time on min/max labels (default: True)
         }
         print("Using Wear OS configuration: dark theme, hourly prices, öre currency")
