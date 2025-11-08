@@ -489,7 +489,7 @@ def main():
             "canvas_width": 1200,  # Override: increased width for watch (default: 1180)
             "canvas_height": 700,  # Override: square for watch (default: 820)
             # Y-axis settings
-            "show_y_axis_ticks": True,  # Old default: show Y-axis ticks (new default: False)
+            "show_y_axis_tick_marks": True,  # Old default: show Y-axis tick marks (new default: False)
             # Price labels
             "label_current_in_header": False,  # Old default: show current label on graph (new default: True)
             "color_price_line_by_average": False,  # Old default: single color price line (new default: True)
@@ -503,7 +503,7 @@ def main():
             "cheap_price_points": 5,  # Override: highlight 20 cheapest periods per day (default: 0)
             "cheap_price_threshold": 1.0,  # Override: highlight periods below 100 öre (default: 0)
             # X-axis settings
-            "show_x_ticks": True,  # Override: show X-axis ticks (default: False)
+            "show_x_axis_tick_marks": True,  # Override: show X-axis tick marks (default: False)
             "show_vertical_grid": False,  # Override: hide vertical grid (default: True)
             # Y-axis settings
             "y_tick_count": 3,  # Override: 3 ticks instead of automatic (default: None)
@@ -526,11 +526,11 @@ def main():
             "canvas_height": 720,  # Override: square for watch (default: 820)
             "cheap_price_points": 5,  # Override: highlight 5 cheapest periods per day (default: 0)
             # X-axis settings
-            "show_x_ticks": True,  # Override: show X-axis ticks (default: False)
+            "show_x_axis_tick_marks": True,  # Override: show X-axis tick marks (default: False)
             "start_graph_at": "current_hour",  # Override: start at current hour (default: midnight)
             "cheap_price_on_x_axis": True,  # Override: show cheap price points on X-axis (default: False)
             # Y-axis settings
-            "show_y_axis_ticks": True, # Override: show Y-axis ticks (default: False)
+            "show_y_axis_tick_marks": True, # Override: show Y-axis tick marks (default: False)
             "y_axis_label_rotation_deg": 270,  # Override: vertical labels for right side (default: 0)
             "y_axis_side": "right",  # Override: Y-axis on right (default: left)
             "y_tick_count": 2,  # Override: 3 ticks instead of automatic (default: None)

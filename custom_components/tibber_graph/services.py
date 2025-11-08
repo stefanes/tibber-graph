@@ -24,7 +24,7 @@ from .const import (
     CONF_CANVAS_HEIGHT,
     CONF_FORCE_FIXED_SIZE,
     # X-axis config keys
-    CONF_SHOW_X_TICKS,
+    CONF_SHOW_X_AXIS_TICK_MARKS,
     CONF_CHEAP_PRICE_ON_X_AXIS,
     CONF_START_GRAPH_AT,
     CONF_X_TICK_STEP_HOURS,
@@ -32,7 +32,7 @@ from .const import (
     CONF_SHOW_VERTICAL_GRID,
     # Y-axis config keys
     CONF_SHOW_Y_AXIS,
-    CONF_SHOW_Y_AXIS_TICKS,
+    CONF_SHOW_Y_AXIS_TICK_MARKS,
     CONF_SHOW_HORIZONTAL_GRID,
     CONF_SHOW_AVERAGE_PRICE_LINE,
     CONF_CHEAP_PRICE_POINTS,
@@ -122,7 +122,7 @@ VALID_OPTIONS = {
     CONF_CANVAS_HEIGHT: cv.positive_int,
     CONF_FORCE_FIXED_SIZE: cv.boolean,
     # X-axis settings
-    CONF_SHOW_X_TICKS: cv.boolean,
+    CONF_SHOW_X_AXIS_TICK_MARKS: cv.boolean,
     CONF_CHEAP_PRICE_ON_X_AXIS: cv.boolean,
     CONF_START_GRAPH_AT: vol.In([START_GRAPH_AT_MIDNIGHT, START_GRAPH_AT_CURRENT_HOUR, START_GRAPH_AT_SHOW_ALL]),
     CONF_X_TICK_STEP_HOURS: cv.positive_int,
@@ -130,7 +130,7 @@ VALID_OPTIONS = {
     CONF_SHOW_VERTICAL_GRID: cv.boolean,
     # Y-axis settings
     CONF_SHOW_Y_AXIS: cv.boolean,
-    CONF_SHOW_Y_AXIS_TICKS: cv.boolean,
+    CONF_SHOW_Y_AXIS_TICK_MARKS: cv.boolean,
     CONF_SHOW_HORIZONTAL_GRID: cv.boolean,
     CONF_SHOW_AVERAGE_PRICE_LINE: cv.boolean,
     CONF_CHEAP_PRICE_POINTS: cv.positive_int,
@@ -294,7 +294,11 @@ async def async_handle_render(call: ServiceCall) -> None:
 
     # If no entity_id provided, render all Tibber Graph entities
     if not entity_ids:
-        all_entities = er.async_entries_for_domain(entity_registry, DOMAIN)
+        # Filter for camera entities that belong to tibber_graph platform
+        all_entities = [
+            entry for entry in entity_registry.entities.values()
+            if entry.platform == DOMAIN
+        ]
         entity_ids = [entry.entity_id for entry in all_entities]
         if not entity_ids:
             raise HomeAssistantError("No Tibber Graph entities found")

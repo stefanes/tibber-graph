@@ -423,7 +423,7 @@ attributes:
 ```yaml
 canvas_width: 1200
 canvas_height: 700
-show_y_axis_ticks: true
+show_y_axis_tick_marks: true
 label_current_in_header: false
 color_price_line_by_average: false
 ```
@@ -433,17 +433,17 @@ color_price_line_by_average: false
 ![Graph with old defaults](docs/assets/old-defaults.png)
 
 <details>
-<summary>Graph rendered with Wear OS configuration:</summary>
+<summary>Graph rendered with my Wear OS configuration:</summary>
 
 ```yaml
 theme: dark
 transparent_background: true
 canvas_width: 1280
 canvas_height: 720
-show_x_ticks: true
+show_x_axis_tick_marks: true
 cheap_price_on_x_axis: true
 start_graph_at: current_hour
-show_y_axis_ticks: true
+show_y_axis_tick_marks: true
 y_axis_label_rotation_deg: 270
 y_axis_side: right
 y_tick_count: 2
@@ -466,7 +466,7 @@ label_minmax_show_price: false
 
 ```yaml
 theme: light
-show_x_ticks: true
+show_x_axis_tick_marks: true
 show_vertical_grid: false
 y_tick_count: 3
 y_tick_use_colors: true

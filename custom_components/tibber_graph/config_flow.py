@@ -29,7 +29,7 @@ from .const import (
     CONF_CHEAP_PRICE_POINTS,
     CONF_CHEAP_PRICE_THRESHOLD,
     # X-axis config keys
-    CONF_SHOW_X_TICKS,
+    CONF_SHOW_X_AXIS_TICK_MARKS,
     CONF_CHEAP_PRICE_ON_X_AXIS,
     CONF_START_GRAPH_AT,
     CONF_X_TICK_STEP_HOURS,
@@ -37,7 +37,7 @@ from .const import (
     CONF_SHOW_VERTICAL_GRID,
     # Y-axis config keys
     CONF_SHOW_Y_AXIS,
-    CONF_SHOW_Y_AXIS_TICKS,
+    CONF_SHOW_Y_AXIS_TICK_MARKS,
     CONF_SHOW_HORIZONTAL_GRID,
     CONF_SHOW_AVERAGE_PRICE_LINE,
     CONF_Y_AXIS_LABEL_ROTATION_DEG,
@@ -71,7 +71,7 @@ from .const import (
     DEFAULT_CHEAP_PRICE_POINTS,
     DEFAULT_CHEAP_PRICE_THRESHOLD,
     # X-axis defaults
-    DEFAULT_SHOW_X_TICKS,
+    DEFAULT_SHOW_X_AXIS_TICK_MARKS,
     DEFAULT_CHEAP_PRICE_ON_X_AXIS,
     DEFAULT_START_GRAPH_AT,
     DEFAULT_X_TICK_STEP_HOURS,
@@ -79,7 +79,7 @@ from .const import (
     DEFAULT_SHOW_VERTICAL_GRID,
     # Y-axis defaults
     DEFAULT_SHOW_Y_AXIS,
-    DEFAULT_SHOW_Y_AXIS_TICKS,
+    DEFAULT_SHOW_Y_AXIS_TICK_MARKS,
     DEFAULT_SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE,
     DEFAULT_Y_AXIS_LABEL_ROTATION_DEG,
@@ -359,8 +359,8 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                 ): vol.Coerce(float),
                 # X-axis settings
                 vol.Optional(
-                    CONF_SHOW_X_TICKS,
-                    default=options.get(CONF_SHOW_X_TICKS, DEFAULT_SHOW_X_TICKS),
+                    CONF_SHOW_X_AXIS_TICK_MARKS,
+                    default=options.get(CONF_SHOW_X_AXIS_TICK_MARKS, DEFAULT_SHOW_X_AXIS_TICK_MARKS),
                 ): cv.boolean,
                 vol.Optional(
                     CONF_CHEAP_PRICE_ON_X_AXIS,
@@ -388,8 +388,8 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                     default=options.get(CONF_SHOW_Y_AXIS, DEFAULT_SHOW_Y_AXIS),
                 ): cv.boolean,
                 vol.Optional(
-                    CONF_SHOW_Y_AXIS_TICKS,
-                    default=options.get(CONF_SHOW_Y_AXIS_TICKS, DEFAULT_SHOW_Y_AXIS_TICKS),
+                    CONF_SHOW_Y_AXIS_TICK_MARKS,
+                    default=options.get(CONF_SHOW_Y_AXIS_TICK_MARKS, DEFAULT_SHOW_Y_AXIS_TICK_MARKS),
                 ): cv.boolean,
                 vol.Optional(
                     CONF_SHOW_HORIZONTAL_GRID,

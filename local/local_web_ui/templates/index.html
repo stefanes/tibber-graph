@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tibber Graph - Configuration Test</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -67,8 +68,8 @@
 
                         <div class="form-group checkbox">
                             <label>
-                                <input type="checkbox" id="show_x_ticks" name="show_x_ticks" {% if defaults.show_x_ticks %}checked{% endif %}>
-                                <span>Show X-axis Ticks</span>
+                                <input type="checkbox" id="show_x_axis_tick_marks" name="show_x_axis_tick_marks" {% if defaults.show_x_axis_tick_marks %}checked{% endif %}>
+                                <span>Show X-axis Tick Marks</span>
                             </label>
                         </div>
 
@@ -118,8 +119,8 @@
 
                         <div class="form-group checkbox">
                             <label>
-                                <input type="checkbox" id="show_y_axis_ticks" name="show_y_axis_ticks" {% if defaults.show_y_axis_ticks %}checked{% endif %}>
-                                <span>Show Y-axis Ticks</span>
+                                <input type="checkbox" id="show_y_axis_tick_marks" name="show_y_axis_tick_marks" {% if defaults.show_y_axis_tick_marks %}checked{% endif %}>
+                                <span>Show Y-axis Tick Marks</span>
                             </label>
                         </div>
 
@@ -275,7 +276,7 @@
 
                         <div class="form-group">
                             <label for="fixed_time">Simulate Time (HH:MM)</label>
-                            <input type="text" id="fixed_time" name="fixed_time" placeholder="e.g., 19:34" class="auto-render">
+                            <input type="text" id="fixed_time" name="fixed_time" value="19:34" placeholder="e.g., 19:34" class="auto-render">
                         </div>
                     </div>
 
@@ -351,7 +352,7 @@
 
                 <div class="form-group">
                     <label for="json-options-input">Options (YAML format)</label>
-                    <textarea id="json-options-input" rows="10" placeholder="theme: dark&#10;canvas_width: 1920&#10;show_x_ticks: true&#10;cheap_price_points: 5"></textarea>
+                    <textarea id="json-options-input" rows="10" placeholder="theme: dark&#10;canvas_width: 1920&#10;show_x_axis_tick_marks: true&#10;cheap_price_points: 5"></textarea>
                 </div>
 
                 <div class="form-group checkbox">

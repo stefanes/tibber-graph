@@ -77,9 +77,9 @@ Price threshold for highlighting cheap periods (0 = disabled). Works with `cheap
 
 ## X-axis Settings
 
-### Show X-axis Ticks
+### Show X-axis Tick Marks
 
-**Option:** `show_x_ticks` | **Type:** Boolean | **Default:** `false`
+**Option:** `show_x_axis_tick_marks` | **Type:** Boolean | **Default:** `false`
 
 Show tick marks on X-axis.
 
@@ -121,9 +121,9 @@ Show vertical gridlines.
 
 Show Y-axis with ticks, labels, and spine.
 
-### Show Y-axis Ticks
+### Show Y-axis Tick Marks
 
-**Option:** `show_y_axis_ticks` | **Type:** Boolean | **Default:** `false`
+**Option:** `show_y_axis_tick_marks` | **Type:** Boolean | **Default:** `false`
 
 Show tick marks on Y-axis.
 

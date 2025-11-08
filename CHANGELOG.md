@@ -4,6 +4,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2025-11-08
+
+### Changed
+
+- 🕐 **Cheap period labels**: Now displayed on a separate row below the regular X-axis for better readability.
+
+### Fixed
+
+- Fixed an issue with rendering cheap periods on the X-axis, using the **Show cheap periods on X-axis** option, and not showing tick marks.
+- Fixed `tibber_graph.render` action when no `entity_id` is provided.
+
 ## [0.5.1] - 2025-11-07
 
 ### Added

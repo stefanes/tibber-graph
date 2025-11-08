@@ -10,6 +10,8 @@ from .const import (
     CONF_THEME,
     CONF_TRANSPARENT_BACKGROUND,
     CONF_LABEL_CURRENT_IN_HEADER,
+    CONF_SHOW_X_AXIS_TICK_MARKS,
+    CONF_SHOW_Y_AXIS_TICK_MARKS,
     START_GRAPH_AT_MIDNIGHT,
     START_GRAPH_AT_CURRENT_HOUR,
 )
@@ -212,3 +214,113 @@ def migrate_label_current_option(hass, entry, options, name):
         return new_options
 
     return options
+
+
+def _migrate_option_rename(hass, entry, options, name, old_key, new_key):
+    """Helper function to migrate an option by renaming it.
+
+    This function renames the option from old_key to new_key.
+    The migration is performed only once when the old option exists.
+    After migration, the old option is removed from the config entry.
+
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry to migrate
+        options: Current options dictionary
+        name: Entity name for logging
+        old_key: Old option key name
+        new_key: New option key name
+
+    Returns:
+        dict: Updated options dictionary if migration occurred, otherwise original options
+    """
+    if not entry:
+        return options
+
+    # Check if old option exists in either options or data
+    has_old_option = False
+    old_value = None
+
+    # Check options first (priority)
+    if options and old_key in options:
+        has_old_option = True
+        old_value = options[old_key]
+        location = "options"
+    # Then check entry.data
+    elif old_key in entry.data:
+        has_old_option = True
+        old_value = entry.data[old_key]
+        location = "data"
+
+    # Only migrate if old option exists and new option doesn't
+    if has_old_option and new_key not in (options or {}):
+        _LOGGER.info(
+            "Migrating %s option for %s: %s=%s → %s=%s",
+            location, name, old_key, old_value, new_key, old_value
+        )
+
+        # Update the config entry with new option and remove old one
+        new_options = dict(options) if options else {}
+        new_options[new_key] = old_value
+
+        # Remove old option from the dict we're updating
+        if old_key in new_options:
+            del new_options[old_key]
+
+        # Update the config entry
+        hass.config_entries.async_update_entry(
+            entry,
+            options=new_options
+        )
+
+        return new_options
+
+    return options
+
+
+def migrate_show_x_ticks_option(hass, entry, options, name):
+    """Migrate old 'show_x_ticks' option to new 'show_x_axis_tick_marks'.
+
+    This function renames the option from the old name to the new name:
+    - show_x_ticks → show_x_axis_tick_marks
+
+    The migration is performed only once when the old option exists.
+    After migration, the old option is removed from the config entry.
+
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry to migrate
+        options: Current options dictionary
+        name: Entity name for logging
+
+    Returns:
+        dict: Updated options dictionary if migration occurred, otherwise original options
+    """
+    return _migrate_option_rename(
+        hass, entry, options, name,
+        "show_x_ticks", CONF_SHOW_X_AXIS_TICK_MARKS
+    )
+
+
+def migrate_show_y_axis_ticks_option(hass, entry, options, name):
+    """Migrate old 'show_y_axis_ticks' option to new 'show_y_axis_tick_marks'.
+
+    This function renames the option from the old name to the new name:
+    - show_y_axis_ticks → show_y_axis_tick_marks
+
+    The migration is performed only once when the old option exists.
+    After migration, the old option is removed from the config entry.
+
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry to migrate
+        options: Current options dictionary
+        name: Entity name for logging
+
+    Returns:
+        dict: Updated options dictionary if migration occurred, otherwise original options
+    """
+    return _migrate_option_rename(
+        hass, entry, options, name,
+        "show_y_axis_ticks", CONF_SHOW_Y_AXIS_TICK_MARKS
+    )

@@ -19,15 +19,16 @@ from .const import (
     DEFAULT_BOTTOM_MARGIN as BOTTOM_MARGIN,
     DEFAULT_LEFT_MARGIN as LEFT_MARGIN,
     DEFAULT_X_AXIS_LABEL_Y_OFFSET as X_AXIS_LABEL_Y_OFFSET,
-    DEFAULT_SHOW_X_TICKS as SHOW_X_TICKS,
+    DEFAULT_SHOW_X_AXIS_TICK_MARKS as SHOW_X_AXIS_TICK_MARKS,
     DEFAULT_CHEAP_PRICE_ON_X_AXIS as CHEAP_PRICE_ON_X_AXIS,
     DEFAULT_START_GRAPH_AT as START_GRAPH_AT,
     DEFAULT_X_TICK_STEP_HOURS as X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW as HOURS_TO_SHOW,
     DEFAULT_SHOW_VERTICAL_GRID as SHOW_VERTICAL_GRID,
     DEFAULT_CHEAP_PERIOD_BOUNDARY_HOURS as CHEAP_PERIOD_BOUNDARY_HOURS,
+    DEFAULT_CHEAP_LABELS_IN_SEPARATE_ROW as CHEAP_LABELS_IN_SEPARATE_ROW,
     DEFAULT_SHOW_Y_AXIS as SHOW_Y_AXIS,
-    DEFAULT_SHOW_Y_AXIS_TICKS as SHOW_Y_AXIS_TICKS,
+    DEFAULT_SHOW_Y_AXIS_TICK_MARKS as SHOW_Y_AXIS_TICK_MARKS,
     DEFAULT_SHOW_HORIZONTAL_GRID as SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE as SHOW_AVERAGE_PRICE_LINE,
     DEFAULT_Y_AXIS_LABEL_ROTATION_DEG as Y_AXIS_LABEL_ROTATION_DEG,
@@ -306,15 +307,16 @@ def render_plot_to_path(
     BOTTOM_MARGIN_OPT = get_opt("bottom_margin", BOTTOM_MARGIN)
     LEFT_MARGIN_OPT = get_opt("left_margin", LEFT_MARGIN)
     # X-axis settings
-    SHOW_X_TICKS_OPT = get_opt("show_x_ticks", SHOW_X_TICKS)
+    SHOW_X_AXIS_TICK_MARKS_OPT = get_opt("show_x_axis_tick_marks", SHOW_X_AXIS_TICK_MARKS)
     CHEAP_PRICE_ON_X_AXIS_OPT = get_opt("cheap_price_on_x_axis", CHEAP_PRICE_ON_X_AXIS)
     START_GRAPH_AT_OPT = get_opt("start_graph_at", START_GRAPH_AT)
     X_TICK_STEP_HOURS_OPT = get_opt("x_tick_step_hours", X_TICK_STEP_HOURS)
     HOURS_TO_SHOW_OPT = get_opt("hours_to_show", HOURS_TO_SHOW)
     SHOW_VERTICAL_GRID_OPT = get_opt("show_vertical_grid", SHOW_VERTICAL_GRID)
+    CHEAP_LABELS_IN_SEPARATE_ROW_OPT = get_opt("cheap_labels_in_separate_row", CHEAP_LABELS_IN_SEPARATE_ROW)
     # Y-axis settings
     SHOW_Y_AXIS_OPT = get_opt("show_y_axis", SHOW_Y_AXIS)
-    SHOW_Y_AXIS_TICKS_OPT = get_opt("show_y_axis_ticks", SHOW_Y_AXIS_TICKS)
+    SHOW_Y_AXIS_TICK_MARKS_OPT = get_opt("show_y_axis_tick_marks", SHOW_Y_AXIS_TICK_MARKS)
     SHOW_HORIZONTAL_GRID_OPT = get_opt("show_horizontal_grid", SHOW_HORIZONTAL_GRID)
     SHOW_AVERAGE_PRICE_LINE_OPT = get_opt("show_average_price_line", SHOW_AVERAGE_PRICE_LINE)
     Y_AXIS_LABEL_ROTATION_DEG_OPT = get_opt("y_axis_label_rotation_deg", Y_AXIS_LABEL_ROTATION_DEG)
@@ -442,8 +444,8 @@ def render_plot_to_path(
         colors=TICK_COLOR,
         labelleft=SHOW_Y_AXIS_OPT and Y_AXIS_SIDE_OPT == "left",
         labelright=SHOW_Y_AXIS_OPT and Y_AXIS_SIDE_OPT == "right",
-        left=SHOW_Y_AXIS_OPT and SHOW_Y_AXIS_TICKS_OPT and Y_AXIS_SIDE_OPT == "left",
-        right=SHOW_Y_AXIS_OPT and SHOW_Y_AXIS_TICKS_OPT and Y_AXIS_SIDE_OPT == "right",
+        left=SHOW_Y_AXIS_OPT and SHOW_Y_AXIS_TICK_MARKS_OPT and Y_AXIS_SIDE_OPT == "left",
+        right=SHOW_Y_AXIS_OPT and SHOW_Y_AXIS_TICK_MARKS_OPT and Y_AXIS_SIDE_OPT == "right",
         labelsize=(LABEL_FONT_SIZE_OPT),
         rotation=y_rotation,
         pad=y_padding,
@@ -1105,7 +1107,10 @@ def render_plot_to_path(
     is_fifteen_min_pricing = step_minutes < 60
 
     # If there are future cheap periods, group them into continuous ranges
+    # and track gap boundary times for intermediate labels
     cheap_ranges = []
+    gap_start_times = []  # Track where gaps (non-cheap periods) start (when cheap resumes)
+    gap_end_times = []    # Track where gaps start (when cheap ends before gap)
     if future_cheap_periods:
         current_range_start = future_cheap_periods[0][0]
         current_range_end = future_cheap_periods[0][1]
@@ -1118,6 +1123,11 @@ def render_plot_to_path(
 
             # Check if this period is continuous with the current range
             if (period_start - current_range_end).total_seconds() <= gap_threshold_seconds:
+                # There's a gap, but we're merging the ranges for display
+                # Track both the end of cheap period before gap and start after gap
+                if (period_start - current_range_end).total_seconds() > 0:
+                    gap_end_times.append(current_range_end)
+                    gap_start_times.append(period_start)
                 # Extend the current range
                 current_range_end = period_end
             else:
@@ -1139,103 +1149,162 @@ def render_plot_to_path(
     # Build final tick list based on configuration
     tick_times = []
     tick_colors = []
-    # If CHEAP_PERIOD_BOUNDARY_HOURS is 0, use X_TICK_STEP_HOURS as default
-    boundary_threshold_hours = CHEAP_PERIOD_BOUNDARY_HOURS if CHEAP_PERIOD_BOUNDARY_HOURS > 0 else X_TICK_STEP_HOURS_OPT
-    boundary_threshold_seconds = boundary_threshold_hours * 3600
+    # Boundary threshold: use X_TICK_STEP_HOURS if CHEAP_PERIOD_BOUNDARY_HOURS is 0
+    boundary_threshold_seconds = (CHEAP_PERIOD_BOUNDARY_HOURS if CHEAP_PERIOD_BOUNDARY_HOURS > 0 else X_TICK_STEP_HOURS_OPT) * 3600
 
-    if cheap_ranges and CHEAP_PRICE_ON_X_AXIS_OPT:
-        # Add cheap period boundary labels
-        for range_start, range_end in cheap_ranges:
-            range_duration_seconds = (range_end - range_start).total_seconds()
+    # Determine if we should show cheap period boundaries on x-axis
+    show_cheap_boundaries = cheap_ranges and CHEAP_PRICE_ON_X_AXIS_OPT
 
-            # For 15-minute pricing, round to nearest hour; for hourly, use exact times
-            tick_start = _round_to_nearest_hour(range_start) if is_fifteen_min_pricing else range_start
-            tick_end = _round_to_nearest_hour(range_end) if is_fifteen_min_pricing else range_end
+    # Helper functions for tick time processing
+    def _get_tick_time(dt):
+        """Get tick time: rounded to nearest hour for 15-min pricing, exact otherwise."""
+        return _round_to_nearest_hour(dt) if is_fifteen_min_pricing else dt
 
-            # Always add start label (use min color for consistency with y-axis cheap price coloring)
-            tick_times.append(tick_start)
-            tick_colors.append(LABEL_COLOR_MIN)
+    def _is_in_cheap_range(tick):
+        """Check if tick falls within any merged cheap period range."""
+        return any(range_start <= tick <= range_end for range_start, range_end in cheap_ranges)
 
-            # Only add end label if period is >= boundary threshold and end differs from start
-            if range_duration_seconds >= boundary_threshold_seconds and tick_end != tick_start:
-                tick_times.append(tick_end)
-                tick_colors.append(LABEL_COLOR_MIN)
+    def _add_gap_boundary_ticks(gap_times, range_start, range_end, cheap_tick_times):
+        """Add gap boundary ticks within a range if not already present."""
+        for gap_time in gap_times:
+            if range_start <= gap_time <= range_end:
+                gap_tick = _get_tick_time(gap_time)
+                if gap_tick not in cheap_tick_times:
+                    cheap_tick_times.append(gap_tick)
 
-        # Behavior depends on SHOW_X_TICKS_OPT setting
-        if SHOW_X_TICKS_OPT:
-            # Add regular ticks, but skip those inside cheap periods or too close to boundaries
-            for reg_tick in regular_ticks:
-                should_skip = False
-
-                # Check if tick is inside any cheap period or too close to boundaries
-                for range_start, range_end in cheap_ranges:
-                    # For 15-minute pricing, use rounded hours; for hourly, use exact times
-                    tick_start = _round_to_nearest_hour(range_start) if is_fifteen_min_pricing else range_start
-                    tick_end = _round_to_nearest_hour(range_end) if is_fifteen_min_pricing else range_end
-
-                    # Calculate distance from tick to boundaries
-                    time_to_start = abs((reg_tick - tick_start).total_seconds())
-                    time_to_end = abs((reg_tick - tick_end).total_seconds())
-
-                    # Skip if tick is inside the period OR too close to either boundary
-                    if (tick_start < reg_tick < tick_end) or \
-                       (time_to_start < boundary_threshold_seconds) or \
-                       (time_to_end < boundary_threshold_seconds):
-                        should_skip = True
-                        break
-
-                if not should_skip:
-                    tick_times.append(reg_tick)
-                    tick_colors.append(AXIS_LABEL_COLOR)
-        # else: SHOW_X_TICKS_OPT is False, so only show cheap period boundaries (already added)
-
-        # Sort tick times
-        sorted_ticks = sorted(zip(tick_times, tick_colors), key=lambda x: x[0])
-        tick_times = [t for t, c in sorted_ticks]
-        tick_colors = [c for t, c in sorted_ticks]
-    else:
-        # No cheap periods or cheap_price_on_x_axis disabled: use regular ticks only
-        tick_times = regular_ticks
-        tick_colors = [AXIS_LABEL_COLOR] * len(tick_times)
-
-    ylim = ax.get_ylim()
-    xlab_effects = [pe.withStroke(linewidth=2, foreground=BACKGROUND_COLOR)] if LABEL_STROKE else None
-
-    # Enable X-ticks at the tick positions if configured
-    if SHOW_X_TICKS_OPT:
-        ax.set_xticks(tick_times)
-        ax.tick_params(axis="x", which="both", bottom=True, top=False, labelbottom=False, color=TICK_COLOR)
-
-    # Draw time labels (and optionally vertical grid lines if show_vertical_grid is enabled)
-    for tt, tick_color in zip(tick_times, tick_colors):
-        # Draw vertical grid lines only if show_vertical_grid is enabled
-        # These are independent of show_x_ticks setting
-        # Use same linewidth and alpha as horizontal grid for consistency
-        if SHOW_VERTICAL_GRID_OPT:
-            ax.vlines([tt], ymin=ylim[0], ymax=ylim[1], colors=GRID_COLOR, linewidth=1.0, alpha=GRID_ALPHA, zorder=2)
-
-        # For 15-minute pricing with cheap periods, never show minutes (always just hour)
-        # For other cases, show only hours
-        time_label = tt.strftime("%H")
-
+    def _draw_x_label(ax, tick_time, y_offset, label_color, label_effects):
+        """Draw x-axis label at specified position with given styling."""
         ax.text(
-            tt,
-            -X_AXIS_LABEL_Y_OFFSET,
-            time_label,
+            tick_time,
+            -y_offset,
+            tick_time.strftime("%H"),
             transform=ax.get_xaxis_transform(),
             rotation=0,
             ha="center",
             va="top",
             fontsize=LABEL_FONT_SIZE_OPT,
-            color=tick_color,
+            color=label_color,
             clip_on=False,
             zorder=6,
-            path_effects=xlab_effects,
+            path_effects=label_effects,
         )
+
+    # Collect cheap period boundary and gap times
+    cheap_tick_times = []
+    if show_cheap_boundaries:
+        for idx, (range_start, range_end) in enumerate(cheap_ranges):
+            tick_start = _get_tick_time(range_start)
+            tick_end = _get_tick_time(range_end)
+
+            # Always add start label for the first range
+            if idx == 0:
+                cheap_tick_times.append(tick_start)
+            else:
+                # For subsequent ranges, check if we should add intermediate start label
+                prev_tick_end = _get_tick_time(cheap_ranges[idx - 1][1])
+                time_diff_seconds = (tick_start - prev_tick_end).total_seconds()
+
+                # Add start label if sufficiently far from previous end label
+                if time_diff_seconds >= boundary_threshold_seconds:
+                    cheap_tick_times.append(tick_start)
+
+            # Add gap boundary labels within this range (both gap ends and gap starts)
+            _add_gap_boundary_ticks(gap_end_times, range_start, range_end, cheap_tick_times)
+            _add_gap_boundary_ticks(gap_start_times, range_start, range_end, cheap_tick_times)
+
+            # Always add end label if it differs from start
+            if tick_end != tick_start:
+                cheap_tick_times.append(tick_end)
+
+    # Choose tick generation strategy based on configuration
+    if CHEAP_LABELS_IN_SEPARATE_ROW_OPT:
+        # Mode 1 (new default): Show all regular ticks, add cheap period labels in separate row below
+        tick_times = regular_ticks
+        tick_colors = [AXIS_LABEL_COLOR] * len(tick_times)
+    else:
+        # Mode 2 (original): Make room on same row by removing regular ticks that conflict with cheap labels
+        if show_cheap_boundaries:
+            # Keep only regular ticks that are far enough from cheap period boundaries
+            for regular_tick in regular_ticks:
+                if all(abs((regular_tick - ct).total_seconds()) >= boundary_threshold_seconds for ct in cheap_tick_times):
+                    tick_times.append(regular_tick)
+                    tick_colors.append(AXIS_LABEL_COLOR)
+
+            # Add cheap ticks with their own color
+            tick_times.extend(cheap_tick_times)
+            tick_colors.extend([LABEL_COLOR_MIN] * len(cheap_tick_times))
+
+            # Sort by time to maintain correct order
+            combined = sorted(zip(tick_times, tick_colors), key=lambda x: x[0])
+            tick_times, tick_colors = zip(*combined) if combined else ([], [])
+            tick_times, tick_colors = list(tick_times), list(tick_colors)
+        else:
+            # No cheap boundaries, just use regular ticks
+            tick_times = regular_ticks
+            tick_colors = [AXIS_LABEL_COLOR] * len(tick_times)
+
+    ylim = ax.get_ylim()
+    xlab_effects = [pe.withStroke(linewidth=2, foreground=BACKGROUND_COLOR)] if LABEL_STROKE else None
+
+    # Enable X-ticks at the tick positions if configured
+    if SHOW_X_AXIS_TICK_MARKS_OPT:
+        ax.set_xticks(tick_times)
+        ax.tick_params(axis="x", which="both", bottom=True, top=False, labelbottom=False, color=TICK_COLOR)
+
+    # Prepare separate row mode: identify ticks in cheap ranges and filter cheap-only ticks
+    matching_ticks = set()
+    cheap_only_ticks = []
+
+    if CHEAP_LABELS_IN_SEPARATE_ROW_OPT and show_cheap_boundaries:
+        # Identify regular ticks that fall within cheap ranges (will be colored green on row one)
+        matching_ticks = set(tt for tt in tick_times if _is_in_cheap_range(tt))
+
+        # Filter cheap boundary ticks that don't match regular ticks to avoid labels too close together
+        sorted_cheap_ticks = sorted(ct for ct in cheap_tick_times if ct not in tick_times)
+
+        if sorted_cheap_ticks:
+            cheap_only_ticks.append(sorted_cheap_ticks[0])
+            for cheap_tick in sorted_cheap_ticks[1:]:
+                if (cheap_tick - cheap_only_ticks[-1]).total_seconds() >= boundary_threshold_seconds:
+                    cheap_only_ticks.append(cheap_tick)
+
+    # Determine if second row is needed
+    need_second_row = bool(CHEAP_LABELS_IN_SEPARATE_ROW_OPT and cheap_only_ticks)
+
+    # Draw time labels (and optionally vertical grid lines if show_vertical_grid is enabled)
+    for tt, tick_color in zip(tick_times, tick_colors):
+        # Draw vertical grid lines only if show_vertical_grid is enabled
+        if SHOW_VERTICAL_GRID_OPT:
+            ax.vlines([tt], ymin=ylim[0], ymax=ylim[1], colors=GRID_COLOR, linewidth=1.0, alpha=GRID_ALPHA, zorder=2)
+
+        # Determine label color: green if in cheap range, otherwise use default tick color
+        label_color = LABEL_COLOR_MIN if tt in matching_ticks else tick_color
+        _draw_x_label(ax, tt, X_AXIS_LABEL_Y_OFFSET, label_color, xlab_effects)
+
+    # Handle bottom margin and optional separate row for cheap labels
+    adjusted_bottom_margin = BOTTOM_MARGIN_OPT
+
+    # If we need a second row, draw cheap-only labels below the regular ones
+    if need_second_row:
+        # Calculate offset for cheap period labels (below regular labels)
+        # Scale the offset based on font size to prevent overlap with larger fonts
+        # Base offset (0.05) works for font size 11-13; scale up for larger fonts
+        font_scale = max(1.0, LABEL_FONT_SIZE_OPT / 12)
+        cheap_label_y_offset = X_AXIS_LABEL_Y_OFFSET * 2.5 * font_scale
+
+        # Adjust bottom margin to maintain same spacing from bottom of image
+        # Use smaller multiplier for larger fonts: 0.7 for small fonts, 0.5 for large fonts
+        margin_multiplier = max(0.5, 0.7 - (font_scale - 1.0) * 0.3)
+        extra_offset = (cheap_label_y_offset - X_AXIS_LABEL_Y_OFFSET) * margin_multiplier
+        adjusted_bottom_margin = BOTTOM_MARGIN_OPT + extra_offset
+
+        # Draw cheap-only labels on second row
+        for tt in cheap_only_ticks:
+            _draw_x_label(ax, tt, cheap_label_y_offset, LABEL_COLOR_MIN, xlab_effects)
 
     # Finalize plot layout and save
     ax.margins(x=0)
-    fig.subplots_adjust(bottom=BOTTOM_MARGIN_OPT, left=LEFT_MARGIN_OPT, right=1-LEFT_MARGIN_OPT)
+    fig.subplots_adjust(bottom=adjusted_bottom_margin, left=LEFT_MARGIN_OPT, right=1-LEFT_MARGIN_OPT)
 
     # Use temporary file to prevent corrupting the existing image on render failure
     import tempfile

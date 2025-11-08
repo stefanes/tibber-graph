@@ -21,6 +21,8 @@ from .migration import (
     migrate_start_graph_at_option,
     migrate_dark_black_theme,
     migrate_label_current_option,
+    migrate_show_x_ticks_option,
+    migrate_show_y_axis_ticks_option,
 )
 from .const import (
     DOMAIN,
@@ -34,7 +36,7 @@ from .const import (
     CONF_CANVAS_HEIGHT,
     CONF_FORCE_FIXED_SIZE,
     # X-axis config keys
-    CONF_SHOW_X_TICKS,
+    CONF_SHOW_X_AXIS_TICK_MARKS,
     CONF_CHEAP_PRICE_ON_X_AXIS,
     CONF_START_GRAPH_AT,
     CONF_X_TICK_STEP_HOURS,
@@ -42,7 +44,7 @@ from .const import (
     CONF_SHOW_VERTICAL_GRID,
     # Y-axis config keys
     CONF_SHOW_Y_AXIS,
-    CONF_SHOW_Y_AXIS_TICKS,
+    CONF_SHOW_Y_AXIS_TICK_MARKS,
     CONF_SHOW_HORIZONTAL_GRID,
     CONF_SHOW_AVERAGE_PRICE_LINE,
     CONF_CHEAP_PRICE_POINTS,
@@ -78,14 +80,14 @@ from .const import (
     DEFAULT_CANVAS_WIDTH,
     DEFAULT_CANVAS_HEIGHT,
     DEFAULT_FORCE_FIXED_SIZE,
-    DEFAULT_SHOW_X_TICKS,
+    DEFAULT_SHOW_X_AXIS_TICK_MARKS,
     DEFAULT_CHEAP_PRICE_ON_X_AXIS,
     DEFAULT_START_GRAPH_AT,
     DEFAULT_X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW,
     DEFAULT_SHOW_VERTICAL_GRID,
     DEFAULT_SHOW_Y_AXIS,
-    DEFAULT_SHOW_Y_AXIS_TICKS,
+    DEFAULT_SHOW_Y_AXIS_TICK_MARKS,
     DEFAULT_SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE,
     DEFAULT_CHEAP_PRICE_POINTS,
@@ -195,6 +197,8 @@ class TibberCam(LocalFile):
         self._options = migrate_start_graph_at_option(self.hass, self._entry, self._options, self._name)
         self._options = migrate_dark_black_theme(self.hass, self._entry, self._options, self._name)
         self._options = migrate_label_current_option(self.hass, self._entry, self._options, self._name)
+        self._options = migrate_show_x_ticks_option(self.hass, self._entry, self._options, self._name)
+        self._options = migrate_show_y_axis_ticks_option(self.hass, self._entry, self._options, self._name)
 
     def _get_option(self, key: str, fallback: Any) -> Any:
         """Get an option value with fallback to defaults."""
@@ -677,7 +681,7 @@ class TibberCam(LocalFile):
             "bottom_margin": DEFAULT_BOTTOM_MARGIN,
             "left_margin": DEFAULT_LEFT_MARGIN,
             # X-axis settings
-            "show_x_ticks": self._get_option(CONF_SHOW_X_TICKS, DEFAULT_SHOW_X_TICKS),
+            "show_x_axis_tick_marks": self._get_option(CONF_SHOW_X_AXIS_TICK_MARKS, DEFAULT_SHOW_X_AXIS_TICK_MARKS),
             "cheap_price_on_x_axis": self._get_option(CONF_CHEAP_PRICE_ON_X_AXIS, DEFAULT_CHEAP_PRICE_ON_X_AXIS),
             "start_graph_at": self._get_option(CONF_START_GRAPH_AT, DEFAULT_START_GRAPH_AT),
             "x_axis_label_y_offset": DEFAULT_X_AXIS_LABEL_Y_OFFSET,
@@ -686,7 +690,7 @@ class TibberCam(LocalFile):
             "show_vertical_grid": self._get_option(CONF_SHOW_VERTICAL_GRID, DEFAULT_SHOW_VERTICAL_GRID),
             # Y-axis settings
             "show_y_axis": self._get_option(CONF_SHOW_Y_AXIS, DEFAULT_SHOW_Y_AXIS),
-            "show_y_axis_ticks": self._get_option(CONF_SHOW_Y_AXIS_TICKS, DEFAULT_SHOW_Y_AXIS_TICKS),
+            "show_y_axis_tick_marks": self._get_option(CONF_SHOW_Y_AXIS_TICK_MARKS, DEFAULT_SHOW_Y_AXIS_TICK_MARKS),
             "show_horizontal_grid": self._get_option(CONF_SHOW_HORIZONTAL_GRID, DEFAULT_SHOW_HORIZONTAL_GRID),
             "show_average_price_line": self._get_option(CONF_SHOW_AVERAGE_PRICE_LINE, DEFAULT_SHOW_AVERAGE_PRICE_LINE),
             "cheap_price_points": self._get_option(CONF_CHEAP_PRICE_POINTS, DEFAULT_CHEAP_PRICE_POINTS),
