@@ -502,13 +502,13 @@ attributes:
     - {"start_time"|"start"|"startsAt"}: datetime # datetime string in ISO 8601 format
       {"price"|"price_per_kwh"|"total"}: float    # price per kWh
     - ...
-  currency: string                                # optional currency string (e.g., "€", "SEK", "öre")
+  currency: string                                # optional currency string
 ```
 
 ## Example Graphs
 
 > [!TIP]
-> Use the configuration snippets below together with the [`tibber_graph.set_option` action](README.md#tibber_graphset_option) to reproduce the example graphs.
+> Use the configuration snippets below together with the [`tibber_graph.set_option` action](#tibber_graphset_option) to reproduce the example graphs.
 
 <details>
 <summary>Graph rendered with <a href="https://github.com/stefanes/tibber-graph/releases/tag/v0.2.1">version 0.2.1</a> defaults:</summary>

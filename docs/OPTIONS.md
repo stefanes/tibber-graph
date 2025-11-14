@@ -23,7 +23,7 @@ Create multiple independent camera entities with different configurations.
 Optional sensor entity containing price data. Leave blank to use Tibber integration.
 
 > [!TIP]
-> The data source can be changed using the [`tibber_graph.set_data_source` action](/README.md#tibber_graphset_data_source) (see [README.md](/README.md#actions)).
+> The data source can be changed using the [`tibber_graph.set_data_source` action](/README.md#tibber_graphset_data_source).
 
 ### Entity Name
 
@@ -275,7 +275,7 @@ Control when the graph is refreshed:
 - `system` (default): Updated by system only
 - `system_interval`: Updated by system & on interval
 - `interval`: Updated on interval only (every 15 minutes for 15-min pricing, every hour for hourly pricing)
-- `manual`: Manual updates using [`tibber_graph.render` action](/README.md#actions) only (no automatic refresh)
+- `manual`: Manual updates using [`tibber_graph.render` action](/README.md#tibber_graphrender) only (no automatic refresh)
 
 | Mode              | Update on interval | Updated by system | Manual update |
 | ----------------- | ------------------ | ----------------- | ------------- |
@@ -297,4 +297,4 @@ Reset specific options to defaults:
 
 ### Using Actions
 
-Use the [`tibber_graph.reset_option` action](/README.md#actions) to reset options programmatically.
+Use the [`tibber_graph.reset_option` action](/README.md#tibber_graphreset_option) to reset options programmatically.

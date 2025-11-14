@@ -1,13 +1,9 @@
 # Custom Theme Action
 
-The `set_custom_theme` action allows you to dynamically set a custom color scheme for your Tibber Graph entity. This provides complete control over the visual appearance of your graph.
+The [`set_custom_theme` action](/README.md#tibber_graphset_custom_theme) allows you to dynamically set a custom color scheme for your Tibber Graph entity. This provides complete control over the visual appearance of your graph.
 
 > [!TIP]
 > Please do not hesitate to share your custom themes with the community by opening a pull request to get it added to the list of [built-in themes](/custom_components/tibber_graph/themes.json).
-
-## Usage
-
-See [README.md](/README.md#actions) for how to use.
 
 ## Theme Properties
 

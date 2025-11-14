@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- 🖼️ **Image sensor**: `image.tibber_graph_{entity_name}` exposing the rendered graph as an [image entity](https://www.home-assistant.io/integrations/image/).
+- 🖼️ **Image entity**: `image.tibber_graph_{entity_name}` exposing the rendered graph as an [image entity](https://www.home-assistant.io/integrations/image/).
 - 🎬 **New actions** (see [README.md](README.md#actions) for usage examples):
   - `tibber_graph.create_graph` to create entries programmatically with specified configuration, including options and custom themes.
   - `tibber_graph.delete_graph` to delete entries programmatically.
