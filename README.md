@@ -3,12 +3,12 @@
 
 # ![Tibber Graph icon](docs/assets/icon.png) Tibber Graph
 
-[![HACS Badge](https://img.shields.io/badge/HACS-Default-1ED0E7.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
-![Version](https://img.shields.io/github/v/release/stefanes/tibber-graph?style=for-the-badge)
-[![Downloads](https://img.shields.io/github/downloads/stefanes/tibber-graph/total?style=for-the-badge)](https://tooomm.github.io/github-release-stats/?username=stefanes&repository=tibber-graph)
-[![Open Issues](https://img.shields.io/github/issues/stefanes/tibber-graph?style=for-the-badge&label=Open%20Issues)](https://github.com/stefanes/tibber-graph/issues)
+[![HACS](https://img.shields.io/badge/HACS-Default-1ed0e7.svg?style=for-the-badge&logoColor=ccc&logo=homeassistantcommunitystore)](https://github.com/hacs/default)
+[![Release](https://img.shields.io/github/v/release/stefanes/tibber-graph?style=for-the-badge&color=1ed0e7&logoColor=ccc&logo=refinedgithub)](https://github.com/stefanes/tibber-graph/releases)
+[![Downloads](https://img.shields.io/github/downloads/stefanes/tibber-graph/latest/total?style=for-the-badge&color=1ed0e7&logoColor=ccc&logo=githubsponsors&label=Downloads)](https://tooomm.github.io/github-release-stats/?username=stefanes&repository=tibber-graph)
+[![Issues](https://img.shields.io/github/issues/stefanes/tibber-graph?style=for-the-badge&color=1ed0e7&logoColor=ccc&logo=github)](https://github.com/stefanes/tibber-graph/issues)
 
-Display future (and past) electricity prices as a graph in Home Assistant. **Tibber Graph** was built for the official [Tibber integration](https://www.home-assistant.io/integrations/tibber/), but supports any compatible price sensor as a data source such as [Nord Pool](https://www.home-assistant.io/integrations/nordpool) (see example [below](#nord-pool-official-integration)) or [EPEX Spot](https://github.com/mampfes/ha_epex_spot).
+Display past and future electricity prices as a graph in Home Assistant, as an out-of-the-box alternative to [Apex Charts](https://github.com/RomRider/apexcharts-card). **Tibber Graph** was originally built for the official [Tibber integration](https://www.home-assistant.io/integrations/tibber/), but supports any compatible price sensor as a data source such as [Nord Pool](https://www.home-assistant.io/integrations/nordpool) (see example [below](#nord-pool-official-integration)) or [EPEX Spot](https://github.com/mampfes/ha_epex_spot).
 
 ![Graph with only defaults](docs/assets/defaults-only.png)
 
@@ -24,7 +24,7 @@ Display future (and past) electricity prices as a graph in Home Assistant. **Tib
 
 ### Manual Installation
 
-1. Copy the `custom_components/tibber_graph` folder into `config/custom_components`
+1. Copy the contents of the `custom_components/tibber_graph` folder into `config/custom_components/tibber_graph`
 2. Restart Home Assistant
 
 ## Configuration
@@ -37,13 +37,13 @@ Configure the **Tibber Graph** integration:
 
 Or:
 
-1. Go to **Settings** → **Integrations**
-2. Click **Add Integration**
+1. Go to **[Settings → Devices & services](https://my.home-assistant.io/redirect/integrations/)**
+2. Click **Add integration**
 3. Search for "**Tibber Graph**"
 
-You will now have a `camera.tibber_graph_{entity_name}` entity that displays the electricity prices as a graph, see [Provided entities](#provided-entities) below for details.
+You will now have camera and image entities that displays the electricity prices as a graph, see [Provided entities](#provided-entities) below for details.
 
-The integration will appear in **Settings → Devices & services → Tibber Graph** with the entity name you provided during setup (or your Tibber home name if no entity name was specified).
+The integration will appear in **[Settings → Devices & services → Tibber Graph](https://my.home-assistant.io/redirect/integration/?domain=tibber_graph)** with the entity name you provided during setup (or your Tibber home name if no entity name was specified).
 
 ![Add entry](docs/assets/add-entry.png)
 
@@ -55,11 +55,12 @@ You can configure Tibber Graph to get price data from either:
 
 2. **Custom Entity**: Provide any Home Assistant sensor entity that contains price data in its attributes. The entity must have either a `prices` or `data` attribute containing a list of prices with `start_time`|`start`|`startsAt` and `price`|`price_per_kwh`|`total` fields (see [examples](#custom-data-source) and [schema](#schema) below).
 
-The price data source can be changed at any time using the `tibber_graph.set_data_source` action (see [Actions](#actions) section below).
+> [!TIP]
+> The price data source can be changed at any time using the [`tibber_graph.set_data_source` action](#tibber_graphset_data_source).
 
 ### Advanced Customization
 
-All configurable options are available through the Home Assistant UI (**Settings → Devices & services → Tibber Graph → [Entity Name] ⚙**).
+All configurable options are available through the Home Assistant UI (**[Settings → Devices & services → Tibber Graph](https://my.home-assistant.io/redirect/integration/?domain=tibber_graph) → [Entity Name] ⚙**).
 
 Key features include:
 
@@ -76,7 +77,7 @@ For a complete list of available options, their descriptions, and default values
 
 #### Reconfiguration
 
-You can reconfigure an existing Tibber Graph integration instance to reset specific settings back to their defaults by navigating to **Settings → Devices & services → Tibber Graph → [Entity Name] ⋮ → Reconfigure**
+You can reconfigure an existing Tibber Graph integration instance to reset specific settings back to their defaults by navigating to **[Settings → Devices & services → Tibber Graph](https://my.home-assistant.io/redirect/integration/?domain=tibber_graph) → [Entity Name] ⋮ → Reconfigure**
 
 The reconfigure dialog allows you to:
 
@@ -89,10 +90,17 @@ Tibber Graph provides the following entities:
 
 #### `camera.tibber_graph_{entity_name}`
 
-This entity displays the electricity prices as a graph. It also generates an image available here:
+This entity displays the electricity prices as a [camera image](https://www.home-assistant.io/integrations/camera/). It also generates a `.png` image available here:
 
 - <http://homeassistant.local:8123/local/tibber_graph_{entity_name}.png>
 - `/config/www/tibber_graph_{entity_name}.png`
+
+#### `image.tibber_graph_{entity_name}`
+
+This entity exposes the generated graph as an [image](https://www.home-assistant.io/integrations/image/).
+
+> [!NOTE]
+> For the graph to update you will need to either access the camera entity, enable [refresh on interval](docs/OPTIONS.md#refresh-mode), or call the [`tibber_graph.render` action](#tibber_graphrender).
 
 #### `sensor.tibber_graph_{entity_name}_last_update`
 
@@ -104,8 +112,8 @@ This sensor provides the timestamp of the last successful image render for the c
 - `data_source_friendly_name`: The friendly name of the data source entity (or "Tibber Integration" if using Tibber integration)
 - `triggered_by`: The source that triggered the rendering. Possible values:
   - `camera_access`: Graph was rendered when the camera entity was accessed
-  - `action`: Graph was rendered via the `tibber_graph.render` action
-  - `auto_refresh`: Graph was rendered by the automatic refresh mechanism
+  - `action`: Graph was rendered via the [`tibber_graph.render` action](#tibber_graphrender)
+  - `interval_refresh`: Graph was rendered by the interval refresh mechanism
 
 ### Actions
 
@@ -118,7 +126,7 @@ Update one or more configuration options for an entity. The entity will be reloa
 | Data attribute | Required | Description                                                                                                                                                                                            |
 | -------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `entity_id`    | Yes      | The entity ID of the camera to update                                                                                                                                                                  |
-| `options`      | Yes      | Dictionary of options to update, where keys are option names (as defined in [OPTIONS.md](docs/OPTIONS.md)) and values are the new values                                                                    |
+| `options`      | Yes      | Dictionary of options to update, where keys are option names (as defined in [OPTIONS.md](docs/OPTIONS.md)) and values are the new values                                                               |
 | `overwrite`    | No       | When `true`, all options **not** provided in the `options` dictionary will be reset to their default values. When `false` (default), only provided options are updated, existing options are preserved |
 
 **Examples:**
@@ -163,9 +171,9 @@ data:
 
 Reset one or more configuration options to their default values for an entity. The entity will be reloaded automatically after the options are reset.
 
-| Data attribute | Required | Description                                                                                                                              |
-| -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `entity_id`    | Yes      | The entity ID of the camera to reset options for                                                                                         |
+| Data attribute | Required | Description                                                                                                                                   |
+| -------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entity_id`    | Yes      | The entity ID of the camera to reset options for                                                                                              |
 | `options`      | No       | List of option names to reset (as defined in [OPTIONS.md](docs/OPTIONS.md)). Leave empty or omit to reset all options to their default values |
 
 **Examples:**
@@ -225,14 +233,7 @@ Render the graph for an entity. If `entity_id` is not provided, renders all Tibb
 **Examples:**
 
 ```yaml
-# Force render a specific entity
-action: tibber_graph.render
-data:
-  entity_id: camera.tibber_graph_nord_pool_price
-```
-
-```yaml
-# Force render multiple entities
+# Force render entities
 action: tibber_graph.render
 data:
   entity_id:
@@ -295,12 +296,102 @@ data:
   entity_id: camera.tibber_graph_nord_pool_price
 ```
 
+> [!TIP]
+> Please do not hesitate to share your [custom themes](docs/CUSTOM_THEME.md) with the community by opening a pull request to get it added to the list of [built-in themes](custom_components/tibber_graph/themes.json).
+
+#### `tibber_graph.create_graph`
+
+Create a new Tibber Graph camera entity programmatically. This action allows you to create entities without using the UI, making it easy to set up multiple graphs with similar configurations.
+
+| Data attribute    | Required | Description                                                                                                                                                                                          |
+| ----------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entity_name`     | No       | The name of the new entity. Must be unique. If not provided, auto-generated from the price entity friendly name or Tibber home name. Will be prefixed with "Tibber Graph" for the camera entity name |
+| `price_entity_id` | No       | The entity ID of a sensor containing price data. If not provided, the Tibber integration will be used                                                                                                |
+| `options`         | No       | Dictionary of options to set for the new entity. Keys should be option names (as defined in [OPTIONS.md](docs/OPTIONS.md))                                                                           |
+| `custom_theme`    | No       | Dictionary defining a custom theme. Keys should be theme property names (as defined in [CUSTOM_THEME.md](docs/CUSTOM_THEME.md))                                                                      |
+| `recreate`        | No       | If `true`, recreate the entity if it already exists. If `false` (default), an error will be raised if an entity with the same name exists                                                            |
+
+The action returns the entity ID of the created camera entity.
+
+**Examples:**
+
+```yaml
+# Create a basic entity using Tibber integration (auto-generated name)
+action: tibber_graph.create_graph
+```
+
+```yaml
+# Re-create an entity with custom data source and specific options
+action: tibber_graph.create_graph
+data:
+  entity_name: "Living Room Display"
+  price_entity_id: sensor.nord_pool_price
+  options:
+    theme: light
+    canvas_width: 1920
+    canvas_height: 1080
+    transparent_background: true
+    show_average_price_line: true
+    cheap_price_points: 3
+  recreate: true
+```
+
+```yaml
+# Create an entity with custom theme
+action: tibber_graph.create_graph
+data:
+  entity_name: "Purple Graph"
+  price_entity_id: sensor.nord_pool_price
+  custom_theme:
+    axis_label_color: "#d8b9ff"
+    background_color: "#1a0f2e"
+    cheap_price_color: "#2d3d5a"
+    fill_alpha: 0.2
+    fill_color: "#9d7cff"
+    grid_alpha: 0.4
+    grid_color: "#3d2f50"
+    label_color: "#f0e6ff"
+    label_color_avg: "#ffb347"
+    label_color_max: "#ff6b9d"
+    label_color_min: "#7cffb3"
+    label_stroke: true
+    nowline_alpha: 0.6
+    nowline_color: "#ff6b9d"
+    plot_linewidth: 1.2
+    price_line_color: "#9d7cff"
+    price_line_color_above_avg: "#ff6b9d"
+    price_line_color_below_avg: "#9d7cff"
+    price_line_color_near_avg: "#ffb347"
+    spine_color: "#503d70"
+    tick_color: "#d8b9ff"
+    tickline_color: "#2e1f45"
+```
+
+#### `tibber_graph.delete_graph`
+
+Delete a Tibber Graph camera entity programmatically. This action removes the entity from Home Assistant.
+
+| Data attribute | Required | Description                                        |
+| -------------- | -------- | -------------------------------------------------- |
+| `entity_id`    | Yes      | The entity ID of the Tibber Graph camera to delete |
+
+The action validates that the entity exists before deleting it and returns a confirmation message upon success.
+
+**Examples:**
+
+```yaml
+# Delete a specific entity
+action: tibber_graph.delete_graph
+data:
+  entity_id: camera.tibber_graph_nord_pool_price
+```
+
 ## Custom Data Source
 
 Examples of custom data sources that can be used with Tibber Graph (see [schema](#schema) below).
 
 > [!TIP]
-> See the [`home-assistant-config`](https://github.com/stefanes/home-assistant-config) repo for more complete examples.
+> See the [`home-assistant-config` repo](https://github.com/stefanes/home-assistant-config) for more complete examples.
 
 ### Tibber
 
@@ -346,7 +437,7 @@ template:
 Install and configure the official [Nord Pool integration](https://www.home-assistant.io/integrations/nordpool) and create a template sensor:
 
 > [!IMPORTANT]
-> Replace `{nord_pool_config_entry_id}` and `{nord_pool_area}` area below with your Nord Pool config entry ID and area. You can get the `config_entry_id` by navigating to **Settings → Devices & services → Entities**, selecting one of the entities belonging to the integration, selecting **⋮ → Related → Integration** and copying the last part of the URL (`.../config/integrations/integration/nordpool#config_entry={nord_pool_config_entry_id}`).
+> Replace `{nord_pool_config_entry_id}` and `{nord_pool_area}` area below with your Nord Pool config entry ID and area. You can get the `config_entry_id` by navigating to **[Settings → Devices & services → Entities](https://my.home-assistant.io/redirect/entities/)**, selecting one of the entities belonging to the integration, selecting **⋮ → Related → Integration** and copying the last part of the URL (`.../config/integrations/integration/nordpool#config_entry={nord_pool_config_entry_id}`).
 
 ```yaml
 template:
@@ -396,11 +487,12 @@ template:
                 {% set ns.prices = ns.prices + [{'start': time.isoformat(), 'price_per_kwh': price | round(3, default=0)}] %}
             {% endfor %}
             {{ ns.prices }}
+          currency: "kr" # overrides currency from "unit_of_measurement"
 ```
 
 ### EPEX Spot
 
-Install and configure the [EPEX Spot integration](https://github.com/mampfes/ha_epex_spot). The price sensors provided by this integration can be used directly as the data source for Tibber Graph, as they already expose the [required `data` attribute](https://github.com/mampfes/ha_epex_spot?tab=readme-ov-file#2-market-price-sensor).
+Install and configure the [EPEX Spot integration](https://github.com/mampfes/ha_epex_spot). The price sensors provided by this integration can be used directly as the data source for Tibber Graph, as they already expose the required [`data` attribute](https://github.com/mampfes/ha_epex_spot?tab=readme-ov-file#2-market-price-sensor).
 
 ### Schema
 
@@ -410,22 +502,26 @@ attributes:
     - {"start_time"|"start"|"startsAt"}: datetime # datetime string in ISO 8601 format
       {"price"|"price_per_kwh"|"total"}: float    # price per kWh
     - ...
+  currency: string                                # optional currency string (e.g., "€", "SEK", "öre")
 ```
 
 ## Example Graphs
 
 > [!TIP]
-> Use the configuration snippets below together with the `tibber_graph.set_option` action to reproduce the example graphs.
+> Use the configuration snippets below together with the [`tibber_graph.set_option` action](README.md#tibber_graphset_option) to reproduce the example graphs.
 
 <details>
-<summary>Graph rendered with old (v0.2.1) defaults:</summary>
+<summary>Graph rendered with <a href="https://github.com/stefanes/tibber-graph/releases/tag/v0.2.1">version 0.2.1</a> defaults:</summary>
 
 ```yaml
+# General settings
 canvas_width: 1200
 canvas_height: 700
-show_y_axis_tick_marks: true
-label_current_in_header: false
 color_price_line_by_average: false
+# Price labels
+label_current: on_in_graph
+# Y-axis settings
+show_y_axis: on_with_tick_marks
 ```
 
 </details>
@@ -433,28 +529,34 @@ color_price_line_by_average: false
 ![Graph with old defaults](docs/assets/old-defaults.png)
 
 <details>
-<summary>Graph rendered with my Wear OS configuration:</summary>
+<summary>Graph rendered with my personal <a href="https://companion.home-assistant.io/docs/wear-os/#tiles">Wear OS camera tile</a> configuration:</summary>
 
 ```yaml
+# General settings
 theme: dark
 transparent_background: true
 canvas_width: 1280
 canvas_height: 720
-show_x_axis_tick_marks: true
-cheap_price_on_x_axis: true
+label_font_size: 17
 start_graph_at: current_hour
-show_y_axis_tick_marks: true
-y_axis_label_rotation_deg: 270
-y_axis_side: right
-y_tick_count: 2
-y_tick_use_colors: true
 cheap_price_points: 5
+cheap_price_threshold: 0.5
+# Price labels
 use_hourly_prices: true
 use_cents: true
 currency_override: öre
-label_current_in_header_more: false
-label_font_size: 17
-label_minmax_show_price: false
+label_current: on_current_price_only
+label_min: on_no_price
+label_max: on_no_price
+# X-axis settings
+show_x_axis: on_with_tick_marks
+cheap_periods_on_x_axis: on_comfy
+# Y-axis settings
+show_y_axis: on_with_tick_marks
+y_tick_count: 2
+y_axis_label_rotation_deg: 270
+y_axis_side: right
+y_tick_use_colors: true
 ```
 
 </details>
@@ -465,18 +567,23 @@ label_minmax_show_price: false
 <summary>Graph rendered with random price data and light mode:</summary>
 
 ```yaml
+# General settings
 theme: light
-show_x_axis_tick_marks: true
-show_vertical_grid: false
-y_tick_count: 3
-y_tick_use_colors: true
 cheap_price_points: 5
 cheap_price_threshold: 1.0
-use_hourly_prices: true
-label_min: false
-label_max: false
-label_current_in_header: false
 color_price_line_by_average: false
+# Price labels
+use_hourly_prices: true
+label_current: on_in_graph
+label_min: off
+label_max: off
+# X-axis settings
+show_x_axis: on_with_tick_marks
+cheap_periods_on_x_axis: on
+show_vertical_grid: false
+# Y-axis settings
+y_tick_count: 3
+y_tick_use_colors: true
 ```
 
 </details>

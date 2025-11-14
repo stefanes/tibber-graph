@@ -13,16 +13,22 @@ from homeassistant.components.local_file.camera import LocalFile
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers import translation
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
 
 from .migration import (
     migrate_start_graph_at_option,
     migrate_dark_black_theme,
     migrate_label_current_option,
-    migrate_show_x_ticks_option,
-    migrate_show_y_axis_ticks_option,
+    migrate_show_x_axis_tick_marks_option,
+    migrate_label_current_and_header_merge,
+    migrate_label_max_and_show_price_merge,
+    migrate_label_min_and_show_price_merge,
+    migrate_show_y_axis_and_tick_marks_merge,
+    migrate_cheap_periods_on_x_axis_merge,
+    migrate_refresh_mode_option,
 )
 from .const import (
     DOMAIN,
@@ -36,15 +42,14 @@ from .const import (
     CONF_CANVAS_HEIGHT,
     CONF_FORCE_FIXED_SIZE,
     # X-axis config keys
-    CONF_SHOW_X_AXIS_TICK_MARKS,
-    CONF_CHEAP_PRICE_ON_X_AXIS,
+    CONF_SHOW_X_AXIS,
+    CONF_CHEAP_PERIODS_ON_X_AXIS,
     CONF_START_GRAPH_AT,
     CONF_X_TICK_STEP_HOURS,
     CONF_HOURS_TO_SHOW,
     CONF_SHOW_VERTICAL_GRID,
     # Y-axis config keys
     CONF_SHOW_Y_AXIS,
-    CONF_SHOW_Y_AXIS_TICK_MARKS,
     CONF_SHOW_HORIZONTAL_GRID,
     CONF_SHOW_AVERAGE_PRICE_LINE,
     CONF_CHEAP_PRICE_POINTS,
@@ -58,18 +63,15 @@ from .const import (
     CONF_USE_CENTS,
     CONF_CURRENCY_OVERRIDE,
     CONF_LABEL_CURRENT,
-    CONF_LABEL_CURRENT_IN_HEADER,
-    CONF_LABEL_CURRENT_IN_HEADER_MORE,
     CONF_LABEL_FONT_SIZE,
     CONF_LABEL_MAX,
     CONF_LABEL_MIN,
-    CONF_LABEL_MINMAX_SHOW_PRICE,
     CONF_LABEL_SHOW_CURRENCY,
     CONF_LABEL_USE_COLORS,
     CONF_PRICE_DECIMALS,
     CONF_COLOR_PRICE_LINE_BY_AVERAGE,
     # Refresh config keys
-    CONF_AUTO_REFRESH_ENABLED,
+    CONF_REFRESH_MODE,
     # Start graph at options
     START_GRAPH_AT_MIDNIGHT,
     START_GRAPH_AT_CURRENT_HOUR,
@@ -80,14 +82,13 @@ from .const import (
     DEFAULT_CANVAS_WIDTH,
     DEFAULT_CANVAS_HEIGHT,
     DEFAULT_FORCE_FIXED_SIZE,
-    DEFAULT_SHOW_X_AXIS_TICK_MARKS,
-    DEFAULT_CHEAP_PRICE_ON_X_AXIS,
+    DEFAULT_SHOW_X_AXIS,
+    DEFAULT_CHEAP_PERIODS_ON_X_AXIS,
     DEFAULT_START_GRAPH_AT,
     DEFAULT_X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW,
     DEFAULT_SHOW_VERTICAL_GRID,
     DEFAULT_SHOW_Y_AXIS,
-    DEFAULT_SHOW_Y_AXIS_TICK_MARKS,
     DEFAULT_SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE,
     DEFAULT_CHEAP_PRICE_POINTS,
@@ -100,17 +101,24 @@ from .const import (
     DEFAULT_USE_CENTS,
     DEFAULT_CURRENCY_OVERRIDE,
     DEFAULT_LABEL_CURRENT,
-    DEFAULT_LABEL_CURRENT_IN_HEADER,
-    DEFAULT_LABEL_CURRENT_IN_HEADER_MORE,
     DEFAULT_LABEL_FONT_SIZE,
     DEFAULT_LABEL_MAX,
     DEFAULT_LABEL_MIN,
-    DEFAULT_LABEL_MINMAX_SHOW_PRICE,
+    LABEL_MAX_ON,
+    LABEL_MAX_ON_NO_PRICE,
+    LABEL_MAX_OFF,
+    LABEL_MIN_ON,
+    LABEL_MIN_ON_NO_PRICE,
+    LABEL_MIN_OFF,
     DEFAULT_LABEL_SHOW_CURRENCY,
     DEFAULT_LABEL_USE_COLORS,
     DEFAULT_PRICE_DECIMALS,
     DEFAULT_COLOR_PRICE_LINE_BY_AVERAGE,
-    DEFAULT_AUTO_REFRESH_ENABLED,
+    DEFAULT_REFRESH_MODE,
+    REFRESH_MODE_SYSTEM,
+    REFRESH_MODE_SYSTEM_INTERVAL,
+    REFRESH_MODE_INTERVAL,
+    REFRESH_MODE_MANUAL,
     # Non-configurable defaults (not exposed in options flow)
     DEFAULT_BOTTOM_MARGIN,
     DEFAULT_LEFT_MARGIN,
@@ -122,9 +130,11 @@ from .const import (
     DEFAULT_LABEL_MAX_BELOW_POINT,
     DEFAULT_MIN_REDRAW_INTERVAL_SECONDS,
     DEFAULT_RENDER_STAGGER_MAX_SECONDS,
+    DEFAULT_REFRESH_INTERVAL_DELAY_SECONDS,
 )
 
 from .renderer import render_plot_to_path
+from .helpers import get_graph_file_path, get_unique_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -176,12 +186,8 @@ class TibberCam(LocalFile):
         """Initialize the Tibber Graph camera."""
         # Always prefix entity name with "Tibber Graph"
         self._name = f"Tibber Graph {entity_name}"
-        # Create a sanitized version for file paths and unique IDs
-        name_sanitized = entity_name.lower().replace(" ", "_").replace("-", "_")
-        # Add entry_id to ensure uniqueness in Home Assistant's unique_id system
-        unique_suffix = entry.entry_id.split("-")[0] if entry else "default"
-        # Filename only uses entity_name since entity names are unique per instance
-        self._path = hass.config.path(f"www/tibber_graph_{name_sanitized}.png")
+        # Use helper function to generate file path
+        self._path = get_graph_file_path(hass, entity_name)
         self._home = home
         self._price_entity_id = price_entity_id
         self.hass = hass
@@ -189,16 +195,33 @@ class TibberCam(LocalFile):
         self._options = options
         self._last_update = dt_util.now() - datetime.timedelta(hours=1)
         self._render_lock = asyncio.Lock()
-        self._uniqueid = f"camera_tibber_graph_{name_sanitized}_{unique_suffix}"
+        # Use helper function to generate unique ID
+        self._uniqueid = get_unique_id("camera", entity_name, entry.entry_id if entry else "default")
         self._refresh_unsub = None
+        self._refresh_interval_hourly = None  # Track detected interval for sensor attribute
+
+        # Set up device info to group camera and sensor together
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}")},
+            name=f"Tibber Graph {entity_name}",
+            manufacturer="stefanes",
+            model="Tibber Graph",
+            entry_type=None,
+        )
+
         super().__init__(self._name, self._path, self._uniqueid)
 
         # Run migrations for deprecated configuration options
         self._options = migrate_start_graph_at_option(self.hass, self._entry, self._options, self._name)
         self._options = migrate_dark_black_theme(self.hass, self._entry, self._options, self._name)
         self._options = migrate_label_current_option(self.hass, self._entry, self._options, self._name)
-        self._options = migrate_show_x_ticks_option(self.hass, self._entry, self._options, self._name)
-        self._options = migrate_show_y_axis_ticks_option(self.hass, self._entry, self._options, self._name)
+        self._options = migrate_show_x_axis_tick_marks_option(self.hass, self._entry, self._options, self._name)
+        self._options = migrate_label_current_and_header_merge(self.hass, self._entry, self._options, self._name)
+        self._options = migrate_label_max_and_show_price_merge(self.hass, self._entry, self._options, self._name)
+        self._options = migrate_label_min_and_show_price_merge(self.hass, self._entry, self._options, self._name)
+        self._options = migrate_show_y_axis_and_tick_marks_merge(self.hass, self._entry, self._options, self._name)
+        self._options = migrate_cheap_periods_on_x_axis_merge(self.hass, self._entry, self._options, self._name)
+        self._options = migrate_refresh_mode_option(self.hass, self._entry, self._options, self._name)
 
     def _get_option(self, key: str, fallback: Any) -> Any:
         """Get an option value with fallback to defaults."""
@@ -218,77 +241,135 @@ class TibberCam(LocalFile):
         return fallback
 
     async def async_added_to_hass(self) -> None:
-        """Run when entity is added to hass - start auto-refresh if enabled."""
+        """Run when entity is added to hass - start interval refresh if enabled."""
         await super().async_added_to_hass()
 
-        # Start auto-refresh if enabled (uses Home Assistant's event system instead of blocking tasks)
-        auto_refresh = self._get_option(CONF_AUTO_REFRESH_ENABLED, DEFAULT_AUTO_REFRESH_ENABLED)
-        if auto_refresh:
+        # Check refresh mode for startup handling
+        refresh_mode = self._get_option(CONF_REFRESH_MODE, DEFAULT_REFRESH_MODE)
+
+        # For system and system_interval modes, trigger initial render on Home Assistant startup
+        if refresh_mode in [REFRESH_MODE_SYSTEM, REFRESH_MODE_SYSTEM_INTERVAL]:
+            async_at_started(self.hass, self._async_startup_render)
+            _LOGGER.debug("Registered startup render for %s with mode %s", self._name, refresh_mode)
+
+        # Start interval refresh if enabled (uses Home Assistant's event system instead of blocking tasks)
+        if refresh_mode in [REFRESH_MODE_SYSTEM_INTERVAL, REFRESH_MODE_INTERVAL]:
             # Schedule next refresh based on pricing interval
             await self._schedule_next_refresh()
-            _LOGGER.debug("Started auto-refresh for %s", self._name)
+            _LOGGER.debug("Started interval refresh for %s with mode %s", self._name, refresh_mode)
 
     async def async_will_remove_from_hass(self):
-        """Cancel the auto-refresh and clean up PNG file when entity is removed."""
+        """Cancel the interval refresh when entity is removed or reloaded."""
         if self._refresh_unsub:
             self._refresh_unsub()
             self._refresh_unsub = None
 
-        # Only delete the PNG file if the config entry is being removed (not just reloaded)
-        from .const import DOMAIN
-        is_being_removed = self.hass.data.get(DOMAIN, {}).get(f"{self._entry.entry_id}_removing", False)
+    def _detect_hourly_pricing(self) -> bool:
+        """Detect whether the pricing data is hourly or 15-minute based on source data.
 
-        if is_being_removed:
-            try:
-                if Path(self._path).exists():
-                    await self.hass.async_add_executor_job(Path(self._path).unlink)
-                    _LOGGER.info("Deleted PNG file for %s: %s", self._name, self._path)
-            except Exception as err:
-                _LOGGER.warning("Failed to delete PNG file for %s: %s", self._name, err)
-        else:
-            _LOGGER.debug("Preserving PNG file for %s during reload: %s", self._name, self._path)
+        Returns:
+            bool: True if hourly pricing should be used, False for 15-minute pricing
+        """
+        # First check if use_hourly_prices is explicitly enabled
+        use_hourly_config = self._get_option(CONF_USE_HOURLY_PRICES, DEFAULT_USE_HOURLY_PRICES)
+        if use_hourly_config:
+            return True
+
+        # Try to detect from actual price data
+        try:
+            dates, _ = self._parse_price_data()
+            if dates and len(dates) >= 2:
+                # Check the interval between first two data points
+                time_diff = (dates[1] - dates[0]).total_seconds() / 60  # in minutes
+                # If interval is less than 60 minutes, it's quarterly (15-minute) data
+                # Otherwise it's hourly data
+                if time_diff < 60:
+                    _LOGGER.debug(
+                        "Detected 15-minute pricing data for %s (interval: %.1f minutes)",
+                        self._name, time_diff
+                    )
+                    return False
+                else:
+                    _LOGGER.debug(
+                        "Detected hourly pricing data for %s (interval: %.1f minutes)",
+                        self._name, time_diff
+                    )
+                    return True
+        except Exception as err:
+            _LOGGER.debug(
+                "Could not detect pricing interval for %s, defaulting based on configuration: %s",
+                self._name, err
+            )
+
+        # Fallback to configuration
+        return use_hourly_config
 
     async def _schedule_next_refresh(self) -> None:
-        """Schedule the next auto-refresh based on pricing interval.
+        """Schedule the next interval refresh based on pricing interval.
 
-        Refreshes 1 minute into each pricing interval:
-        - For 15-minute pricing: 1 minute into every 15-minute interval (e.g., 00:01, 00:16, 00:31, 00:46)
-        - For hourly pricing: 1 minute into every hour (e.g., 00:01, 01:01, 02:01)
+        Refreshes at a configurable delay after each pricing interval boundary:
+        - For 15-minute pricing: delay after every 15-minute interval (e.g., with 30s delay: 00:00:30, 00:15:30, 00:30:30, 00:45:30)
+        - For hourly pricing: delay after every hour (e.g., with 30s delay: 00:00:30, 01:00:30, 02:00:30)
         """
         # Cancel existing timer if any
         if self._refresh_unsub:
             self._refresh_unsub()
             self._refresh_unsub = None
 
-        # Determine pricing interval from configuration
-        use_hourly = self._get_option(CONF_USE_HOURLY_PRICES, DEFAULT_USE_HOURLY_PRICES)
+        # Determine pricing interval from source data or configuration
+        use_hourly = self._detect_hourly_pricing()
+        self._refresh_interval_hourly = use_hourly  # Store for sensor attribute
+
+        # Get the delay in seconds from configuration
+        delay_seconds = DEFAULT_REFRESH_INTERVAL_DELAY_SECONDS
 
         now = dt_util.now()
         now_local = dt_util.as_local(now)
 
+        # Convert current time to total seconds since midnight for easier calculation
+        current_seconds = now_local.hour * 3600 + now_local.minute * 60 + now_local.second
+
         if use_hourly:
-            # Schedule for 1 minute past the next hour
-            next_refresh = now_local.replace(minute=1, second=0, microsecond=0)
-            if next_refresh <= now_local:
-                # If we're past minute 1, go to next hour
-                next_refresh = next_refresh + datetime.timedelta(hours=1)
+            # Hourly intervals: calculate next hour boundary + delay
+            interval_seconds = 3600  # 1 hour
             interval_name = "hourly"
         else:
-            # Schedule for 1 minute into the next 15-minute interval
-            # 15-minute intervals start at :00, :15, :30, :45
-            current_minute = now_local.minute
-
-            # Calculate next interval: round up to next 15-min boundary, then add 1 minute
-            next_interval_start = ((current_minute // 15) + 1) * 15
-            next_minute = (next_interval_start % 60) + 1
-
-            next_refresh = now_local.replace(minute=next_minute % 60, second=0, microsecond=0)
-
-            # If we rolled over to next hour, add an hour
-            if next_interval_start >= 60:
-                next_refresh = next_refresh + datetime.timedelta(hours=1)
-
+            # 15-minute intervals: calculate next 15-min boundary + delay
+            interval_seconds = 900  # 15 minutes
             interval_name = "15-minute"
+
+        # Calculate the next interval boundary + delay
+        # Find how many complete intervals have passed
+        intervals_passed = current_seconds // interval_seconds
+
+        # Calculate the target time for the current interval
+        current_interval_target = intervals_passed * interval_seconds + delay_seconds
+
+        # If we've already passed this interval's target time, move to the next interval
+        if current_seconds >= current_interval_target:
+            next_interval_target = (intervals_passed + 1) * interval_seconds + delay_seconds
+        else:
+            next_interval_target = current_interval_target
+
+        # Convert back to time
+        target_seconds = next_interval_target % 86400  # Wrap around at midnight
+        target_hour = target_seconds // 3600
+        target_minute = (target_seconds % 3600) // 60
+        target_second = target_seconds % 60
+
+        # Create the next refresh time
+        next_refresh = now_local.replace(hour=target_hour, minute=target_minute, second=target_second, microsecond=0)
+
+        # If we wrapped around past midnight, add a day
+        if next_interval_target >= 86400:
+            next_refresh = next_refresh + datetime.timedelta(days=1)
+
+        # Ensure next_refresh is always in the future (handle edge cases)
+        while next_refresh <= now_local:
+            if use_hourly:
+                next_refresh = next_refresh + datetime.timedelta(hours=1)
+            else:
+                next_refresh = next_refresh + datetime.timedelta(minutes=15)
 
         # Calculate the delay until next refresh
         delay = (next_refresh - now_local).total_seconds()
@@ -309,29 +390,55 @@ class TibberCam(LocalFile):
             self._async_auto_refresh_callback
         )
 
+    async def _async_startup_render(self, hass: HomeAssistant) -> None:
+        """Callback triggered when Home Assistant has started.
+
+        This provides an initial graph render on startup for system and system_interval modes.
+        """
+        try:
+            _LOGGER.debug("Home Assistant startup render triggered for %s", self._name)
+            await self.async_render_image(width=None, height=None, force_render=True, triggered_by="home_assistant_startup")
+        except Exception as err:
+            _LOGGER.error("Failed to render on Home Assistant startup for %s: %s", self._name, err, exc_info=True)
+
     async def _async_auto_refresh_callback(self, now: datetime.datetime) -> None:
-        """Callback triggered by Home Assistant's event system for periodic auto-refresh.
+        """Callback triggered by Home Assistant's event system for periodic interval refresh.
 
         This is called at the scheduled time and does not block Home Assistant startup
         or other integrations. After rendering, it schedules the next refresh.
         """
         try:
-            _LOGGER.debug("Auto-refresh triggered for %s", self._name)
-            await self.async_render_image(width=None, height=None, force_render=False, triggered_by="auto_refresh")
+            _LOGGER.debug("Interval refresh triggered for %s", self._name)
+            await self.async_render_image(width=None, height=None, force_render=False, triggered_by="interval_refresh")
 
             # Schedule the next refresh after completing this one
             await self._schedule_next_refresh()
         except Exception as err:
-            _LOGGER.error("Failed to auto-refresh %s: %s", self._name, err, exc_info=True)
+            _LOGGER.error("Failed to interval refresh %s: %s", self._name, err, exc_info=True)
             # Try to reschedule even if this refresh failed
             try:
                 await self._schedule_next_refresh()
             except Exception as schedule_err:
-                _LOGGER.error("Failed to reschedule auto-refresh for %s: %s", self._name, schedule_err)
+                _LOGGER.error("Failed to reschedule interval refresh for %s: %s", self._name, schedule_err)
 
     async def async_camera_image(self, width=None, height=None):
-        """Render the graph if needed and return its bytes."""
-        await self.async_render_image(width=width, height=height, force_render=False, triggered_by="camera_access")
+        """Render the graph if needed and return its bytes.
+
+        Respects refresh_mode setting:
+        - system/system_interval: Updates on camera refresh
+        - interval: Only updates on interval, not on camera refresh
+        - manual: Only updates on explicit actions
+        """
+        # Check refresh mode to determine if we should update on camera access
+        refresh_mode = self._get_option(CONF_REFRESH_MODE, DEFAULT_REFRESH_MODE)
+
+        # For 'interval' and 'manual' modes, don't trigger render on camera access
+        # For 'system' and 'system_interval' modes, allow render on camera access
+        should_render = refresh_mode in [REFRESH_MODE_SYSTEM, REFRESH_MODE_SYSTEM_INTERVAL]
+
+        if should_render:
+            await self.async_render_image(width=width, height=height, force_render=False, triggered_by="camera_access")
+
         return await self.hass.async_add_executor_job(self.camera_image)
 
     async def async_render_image(self, width=None, height=None, force_render=True, triggered_by="unknown"):
@@ -341,7 +448,7 @@ class TibberCam(LocalFile):
             width: Optional width override for the image
             height: Optional height override for the image
             force_render: If True, bypasses throttling to force immediate render
-            triggered_by: Source that triggered the render (action, camera_access, auto_refresh, unknown)
+            triggered_by: Source that triggered the render (action, camera_access, interval_refresh, unknown)
         """
         force_fixed = self._get_option(CONF_FORCE_FIXED_SIZE, DEFAULT_FORCE_FIXED_SIZE)
         canvas_width = self._get_option(CONF_CANVAS_WIDTH, DEFAULT_CANVAS_WIDTH)
@@ -542,6 +649,62 @@ class TibberCam(LocalFile):
 
         return sorted_hours, hourly_prices
 
+    def _get_currency_with_source(self) -> tuple[str, str]:
+        """Determine the currency symbol and its source.
+
+        Returns:
+            tuple: (currency_symbol, currency_source) where currency_source is one of:
+                   'currency_override', 'tibber_integration', 'currency_attribute',
+                   'unit_of_measurement', or 'default'
+        """
+        use_cents = self._get_option(CONF_USE_CENTS, DEFAULT_USE_CENTS)
+        currency_override = self._get_option(CONF_CURRENCY_OVERRIDE, DEFAULT_CURRENCY_OVERRIDE)
+
+        # Handle use_cents mode
+        if use_cents:
+            # If use_cents is true and currency_override is set, use the override
+            if currency_override:
+                return (currency_override, "currency_override")
+            # Otherwise use the cent symbol
+            return ("¢", "default")
+
+        # use_cents is false - use standard currency determination logic
+        # 1. Check if user has set currency_override
+        if currency_override:
+            return (currency_override, "currency_override")
+
+        # 2. If data source is Tibber integration, use Tibber's currency
+        if self._home:
+            currency = getattr(self._home, "currency", None)
+            if currency:
+                return (currency, "tibber_integration")
+
+        # 3. If data source is custom sensor, check attributes
+        if self._price_entity_id:
+            state = self.hass.states.get(self._price_entity_id)
+            if state:
+                # 3a. Check for 'currency' attribute
+                currency_attr = state.attributes.get("currency")
+                if currency_attr:
+                    return (str(currency_attr), "currency_attribute")
+
+                # 3b. Check for 'unit_of_measurement' attribute
+                unit_of_measurement = state.attributes.get("unit_of_measurement")
+                if unit_of_measurement:
+                    # Extract currency symbol from unit_of_measurement
+                    # Handle cases like "€/kWh", "SEK/kWh", "$/kWh", etc.
+                    unit_str = str(unit_of_measurement)
+                    # Split by common separators and take the first part
+                    if "/" in unit_str:
+                        currency = unit_str.split("/")[0].strip()
+                    else:
+                        currency = unit_str.strip()
+                    if currency:
+                        return (currency, "unit_of_measurement")
+
+        # 4. Default to € if no currency could be determined
+        return ("€", "default")
+
     async def _generate_fig(self, width, height, triggered_by="unknown"):
         """Throttle and trigger figure rendering in background.
 
@@ -589,17 +752,8 @@ class TibberCam(LocalFile):
             idx = bisect_right(dates, now_local) - 1
             idx = max(0, min(idx, len(prices) - 1))
 
-            # Determine currency to display: override if configured, otherwise auto-select based on cents mode
-            currency_override = self._get_option(CONF_CURRENCY_OVERRIDE, DEFAULT_CURRENCY_OVERRIDE)
-            use_cents = self._get_option(CONF_USE_CENTS, DEFAULT_USE_CENTS)
-
-            if currency_override:
-                currency = currency_override
-            elif use_cents:
-                currency = "¢"
-            else:
-                # Get currency from Tibber home if available, otherwise empty string
-                currency = self._home.currency if self._home else ""
+            # Determine currency to display using the new helper method
+            currency, currency_source = self._get_currency_with_source()
 
             # Collect rendering options to pass to renderer
             render_options = self._get_render_options()
@@ -681,8 +835,8 @@ class TibberCam(LocalFile):
             "bottom_margin": DEFAULT_BOTTOM_MARGIN,
             "left_margin": DEFAULT_LEFT_MARGIN,
             # X-axis settings
-            "show_x_axis_tick_marks": self._get_option(CONF_SHOW_X_AXIS_TICK_MARKS, DEFAULT_SHOW_X_AXIS_TICK_MARKS),
-            "cheap_price_on_x_axis": self._get_option(CONF_CHEAP_PRICE_ON_X_AXIS, DEFAULT_CHEAP_PRICE_ON_X_AXIS),
+            "show_x_axis": self._get_option(CONF_SHOW_X_AXIS, DEFAULT_SHOW_X_AXIS),
+            "cheap_periods_on_x_axis": self._get_option(CONF_CHEAP_PERIODS_ON_X_AXIS, DEFAULT_CHEAP_PERIODS_ON_X_AXIS),
             "start_graph_at": self._get_option(CONF_START_GRAPH_AT, DEFAULT_START_GRAPH_AT),
             "x_axis_label_y_offset": DEFAULT_X_AXIS_LABEL_Y_OFFSET,
             "x_tick_step_hours": self._get_option(CONF_X_TICK_STEP_HOURS, DEFAULT_X_TICK_STEP_HOURS),
@@ -690,7 +844,6 @@ class TibberCam(LocalFile):
             "show_vertical_grid": self._get_option(CONF_SHOW_VERTICAL_GRID, DEFAULT_SHOW_VERTICAL_GRID),
             # Y-axis settings
             "show_y_axis": self._get_option(CONF_SHOW_Y_AXIS, DEFAULT_SHOW_Y_AXIS),
-            "show_y_axis_tick_marks": self._get_option(CONF_SHOW_Y_AXIS_TICK_MARKS, DEFAULT_SHOW_Y_AXIS_TICK_MARKS),
             "show_horizontal_grid": self._get_option(CONF_SHOW_HORIZONTAL_GRID, DEFAULT_SHOW_HORIZONTAL_GRID),
             "show_average_price_line": self._get_option(CONF_SHOW_AVERAGE_PRICE_LINE, DEFAULT_SHOW_AVERAGE_PRICE_LINE),
             "cheap_price_points": self._get_option(CONF_CHEAP_PRICE_POINTS, DEFAULT_CHEAP_PRICE_POINTS),
@@ -705,8 +858,6 @@ class TibberCam(LocalFile):
             "use_cents": self._get_option(CONF_USE_CENTS, DEFAULT_USE_CENTS),
             "currency_override": self._get_option(CONF_CURRENCY_OVERRIDE, DEFAULT_CURRENCY_OVERRIDE),
             "label_current": self._get_option(CONF_LABEL_CURRENT, DEFAULT_LABEL_CURRENT),
-            "label_current_in_header": self._get_option(CONF_LABEL_CURRENT_IN_HEADER, DEFAULT_LABEL_CURRENT_IN_HEADER),
-            "label_current_in_header_more": self._get_option(CONF_LABEL_CURRENT_IN_HEADER_MORE, DEFAULT_LABEL_CURRENT_IN_HEADER_MORE),
             "label_current_in_header_font_weight": DEFAULT_LABEL_CURRENT_IN_HEADER_FONT_WEIGHT,
             "label_current_in_header_padding": DEFAULT_LABEL_CURRENT_IN_HEADER_PADDING,
             "label_font_size": self._get_option(CONF_LABEL_FONT_SIZE, DEFAULT_LABEL_FONT_SIZE),
@@ -714,7 +865,6 @@ class TibberCam(LocalFile):
             "label_max": self._get_option(CONF_LABEL_MAX, DEFAULT_LABEL_MAX),
             "label_max_below_point": DEFAULT_LABEL_MAX_BELOW_POINT,
             "label_min": self._get_option(CONF_LABEL_MIN, DEFAULT_LABEL_MIN),
-            "label_minmax_show_price": self._get_option(CONF_LABEL_MINMAX_SHOW_PRICE, DEFAULT_LABEL_MINMAX_SHOW_PRICE),
             "label_show_currency": self._get_option(CONF_LABEL_SHOW_CURRENCY, DEFAULT_LABEL_SHOW_CURRENCY),
             "label_use_colors": self._get_option(CONF_LABEL_USE_COLORS, DEFAULT_LABEL_USE_COLORS),
             "price_decimals": self._get_option(CONF_PRICE_DECIMALS, DEFAULT_PRICE_DECIMALS),

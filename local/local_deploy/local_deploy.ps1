@@ -18,15 +18,23 @@
 .PARAMETER y
     Skip restart confirmation prompt and automatically restart Home Assistant.
 
+.PARAMETER z
+    Deploy from tibber_graph.zip instead of the source directory.
+    The zip file should be located in custom_components/tibber_graph/tibber_graph.zip.
+
 .EXAMPLE
     .\local_deploy.ps1
 
 .EXAMPLE
     .\local_deploy.ps1 -y
+
+.EXAMPLE
+    .\local_deploy.ps1 -z -y
 #>
 
 param(
-    [switch]$y
+    [switch]$y,
+    [switch]$z
 )
 
 $ErrorActionPreference = "Stop"
@@ -54,7 +62,50 @@ if (-not $Destination) {
 }
 
 # Get the source directory
-$Source = Join-Path $PSScriptRoot "..\..\custom_components\tibber_graph" -Resolve
+if ($z) {
+    # Deploy from zip file
+    $zipPath = Join-Path $PSScriptRoot "tibber_graph.zip" -Resolve
+
+    if (-not (Test-Path $zipPath)) {
+        Write-Error "Zip file not found: $zipPath"
+        exit 1
+    }
+
+    # Create temporary directory for extraction
+    $tempDir = Join-Path $env:TEMP "tibber_graph_deploy_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+    New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+
+    Write-Host "Extracting tibber_graph.zip to temporary location..." -ForegroundColor Cyan
+    Write-Host "  Zip: $zipPath" -ForegroundColor Gray
+    Write-Host "  Temp: $tempDir" -ForegroundColor Gray
+
+    try {
+        Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
+
+        # The zip structure should be: version_folder/manifest.json, __init__.py, etc.
+        # Find the directory containing manifest.json
+        $manifestPath = Get-ChildItem -Path $tempDir -Filter "manifest.json" -Recurse -File | Select-Object -First 1
+        if ($manifestPath) {
+            $Source = $manifestPath.Directory.FullName
+            Write-Host "✓ Extraction complete" -ForegroundColor Green
+        }
+        else {
+            Write-Error "Could not find manifest.json in extracted zip"
+            Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+            exit 1
+        }
+        Write-Host ""
+    }
+    catch {
+        Write-Error "Failed to extract zip file: $_"
+        Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        exit 1
+    }
+}
+else {
+    # Deploy from source directory
+    $Source = Join-Path $PSScriptRoot "..\..\custom_components\tibber_graph" -Resolve
+}
 
 # Verify source exists
 if (-not (Test-Path $Source)) {
@@ -106,16 +157,16 @@ Write-Host "Deployment complete!" -ForegroundColor Green
 Write-Host "Files copied: $copied" -ForegroundColor Gray
 Write-Host "Files skipped: $skipped" -ForegroundColor Gray
 
-# Update manifest.json version at destination to X.Y.HHMM
+# Update manifest.json version at destination to 'lHHmm'
 $destManifestPath = Join-Path $Destination "manifest.json"
-if (Test-Path $destManifestPath) {
+if (-Not $z.IsPresent -And (Test-Path $destManifestPath)) {
     try {
         $manifest = Get-Content $destManifestPath -Raw | ConvertFrom-Json
         $originalVersion = $manifest.version
         # Extract major.minor from original version and append HHMM
         if ($originalVersion -match '^(\d+\.\d+)') {
             $timestamp = Get-Date -Format "HHmm"
-            $newVersion = "$originalVersion-$timestamp"
+            $newVersion = "$originalVersion-l$timestamp"
             $manifest.version = $newVersion
             $manifest | ConvertTo-Json -Depth 10 | Set-Content $destManifestPath
             Write-Host ""
@@ -177,4 +228,11 @@ if ($HomeAssistantUrl -and $AccessToken) {
 else {
     Write-Host "Remember to restart Home Assistant to load the changes." -ForegroundColor Yellow
     Write-Host "Tip: Add 'host' and 'token' to local_deploy.json for automatic restart." -ForegroundColor Gray
+}
+
+# Clean up temporary directory if created
+if ($z -and $tempDir -and (Test-Path $tempDir)) {
+    Write-Host ""
+    Write-Host "Cleaning up temporary files..." -ForegroundColor Gray
+    Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 }

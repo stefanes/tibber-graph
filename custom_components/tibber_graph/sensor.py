@@ -9,9 +9,18 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, CONF_ENTITY_NAME, CONF_PRICE_ENTITY_ID
+from .const import (
+    DOMAIN,
+    CONF_ENTITY_NAME,
+    CONF_PRICE_ENTITY_ID,
+    CONF_REFRESH_MODE,
+    REFRESH_MODE_SYSTEM_INTERVAL,
+    REFRESH_MODE_INTERVAL,
+)
+from .helpers import get_unique_id
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -28,10 +37,7 @@ async def async_setup_entry(
     entity_name = entry.data.get(CONF_ENTITY_NAME, entry.title or "Tibber Graph")
 
     # Get the camera entity's unique ID to link the sensor
-    # The camera uses format: camera_tibber_graph_{name_sanitized}_{unique_suffix}
-    name_sanitized = entity_name.lower().replace(" ", "_").replace("-", "_")
-    unique_suffix = entry.entry_id.split("-")[0]
-    camera_unique_id = f"camera_tibber_graph_{name_sanitized}_{unique_suffix}"
+    camera_unique_id = get_unique_id("camera", f"{entity_name}", entry.entry_id)
 
     _LOGGER.info("Setting up Tibber Graph last update sensor for %s", entity_name)
     async_add_entities([TibberGraphLastUpdateSensor(hass, entry, entity_name, camera_unique_id)])
@@ -51,18 +57,23 @@ class TibberGraphLastUpdateSensor(SensorEntity):
         self._camera_unique_id = camera_unique_id
         self._triggered_by = None  # Track triggered_by separately
 
-        # Create a sanitized version for unique IDs
-        name_sanitized = entity_name.lower().replace(" ", "_").replace("-", "_")
-        unique_suffix = entry.entry_id.split("-")[0]
-
         self._attr_name = f"Tibber Graph {entity_name} Last Update"
-        self._attr_unique_id = f"sensor_tibber_graph_{name_sanitized}_last_update_{unique_suffix}"
+        self._attr_unique_id = get_unique_id("sensor", f"{entity_name}_last_update", entry.entry_id)
         self._attr_native_value = None
         self._camera_entity_id = None
 
         # Get price entity ID from config (None if using Tibber integration)
         self._price_entity_id = entry.data.get(CONF_PRICE_ENTITY_ID)
         self._attr_extra_state_attributes = self._build_attributes()
+
+        # Set up device info to group camera and sensor together
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}")},
+            name=f"Tibber Graph {entity_name}",
+            manufacturer="stefanes",
+            model="Tibber Graph",
+            entry_type=None,
+        )
 
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
@@ -165,5 +176,36 @@ class TibberGraphLastUpdateSensor(SensorEntity):
         # Add triggered_by if available
         if self._triggered_by:
             attributes["triggered_by"] = self._triggered_by
+
+        # Add currency information from camera entity
+        if self._camera_entity_id:
+            entity_comp = self.hass.data.get("entity_components", {}).get("camera")
+            if entity_comp:
+                camera_entity = entity_comp.get_entity(self._camera_entity_id)
+                if camera_entity and hasattr(camera_entity, "_get_currency_with_source"):
+                    currency_symbol, currency_source = camera_entity._get_currency_with_source()
+                    attributes["currency_symbol"] = currency_symbol
+                    attributes["currency_source"] = currency_source
+
+        # Add refresh_mode from entry options
+        refresh_mode = self._entry.options.get(CONF_REFRESH_MODE)
+        if refresh_mode:
+            attributes["refresh_mode"] = refresh_mode
+
+            # Add refresh_interval if mode is system_interval or interval
+            if refresh_mode in [REFRESH_MODE_SYSTEM_INTERVAL,
+            REFRESH_MODE_INTERVAL]:
+                # Get camera entity component to access detected interval
+                if self._camera_entity_id:
+                    entity_comp = self.hass.data.get("entity_components", {}).get("camera")
+                    if entity_comp:
+                        camera_entity = entity_comp.get_entity(self._camera_entity_id)
+                        if camera_entity and hasattr(camera_entity, "_refresh_interval_hourly"):
+                            if camera_entity._refresh_interval_hourly is not None:
+                                # Convert boolean to text representation
+                                if camera_entity._refresh_interval_hourly:
+                                    attributes["refresh_interval"] = "60 minutes"
+                                else:
+                                    attributes["refresh_interval"] = "15 minutes"
 
         return attributes

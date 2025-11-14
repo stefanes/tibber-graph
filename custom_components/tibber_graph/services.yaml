@@ -107,3 +107,60 @@ set_custom_theme:
       example: '{"axis_label_color": "#cfd6e6", "background_color": "#1c1c1c", "cheap_price_color": "#2d5a3d", "fill_alpha": 0.18, "fill_color": "#7dc3ff", "grid_alpha": 0.45, "grid_color": "#2a2f36", "label_color": "#e6edf3", "label_color_avg": "#eab308", "label_color_max": "#fb7185", "label_color_min": "#34d399", "label_stroke": true, "nowline_alpha": 0.5, "nowline_color": "#ff6b6b", "plot_linewidth": 1.0, "price_line_color": "#7dc3ff", "price_line_color_above_avg": "#fb7185", "price_line_color_below_avg": "#7dc3ff", "price_line_color_near_avg": "#eab308", "spine_color": "#3a4250", "tick_color": "#cfd6e6", "tickline_color": "#1f2530"}'
       selector:
         object:
+
+create_graph:
+  name: Create graph
+  description: Create a new Tibber Graph camera entity programmatically with specified configuration.
+  fields:
+    entity_name:
+      name: Entity name
+      description: The name of the new entity. Must be unique. If not provided, the name will be auto-generated from the price entity friendly name or Tibber home name. This will be prefixed with "Tibber Graph" for the camera entity name.
+      required: false
+      example: "Nord Pool Price"
+      selector:
+        text:
+    price_entity_id:
+      name: Price entity
+      description: The entity ID of a sensor containing price data (see README.md for details). If not provided, the Tibber integration will be used.
+      required: false
+      example: "sensor.nord_pool_price"
+      selector:
+        entity:
+          domain: sensor
+    options:
+      name: Options
+      description: Dictionary of options to set for the new entity. Keys should be option names (as defined in OPTIONS.md), values should be the corresponding option values. All values will be validated before applying.
+      required: false
+      example: '{"theme": "light", "canvas_width": 1920, "show_average_price_line": true}'
+      selector:
+        object:
+    custom_theme:
+      name: Custom theme
+      description: Dictionary defining a custom theme to apply to the new entity. Keys should be theme property names (as defined in CUSTOM_THEME.md), values should be the corresponding color values. Must include all required theme fields.
+      required: false
+      example: '{"axis_label_color": "#d8b9ff", "background_color": "#1a0f2e", "cheap_price_color": "#2d3d5a", "fill_alpha": 0.2, "fill_color": "#9d7cff", "grid_alpha": 0.4, "grid_color": "#3d2f50", "label_color": "#f0e6ff", "label_color_avg": "#ffb347", "label_color_max": "#ff6b9d", "label_color_min": "#7cffb3", "label_stroke": true, "nowline_alpha": 0.6, "nowline_color": "#ff6b9d", "plot_linewidth": 1.2, "price_line_color": "#9d7cff", "price_line_color_above_avg": "#ff6b9d", "price_line_color_below_avg": "#9d7cff", "price_line_color_near_avg": "#ffb347", "spine_color": "#503d70", "tick_color": "#d8b9ff", "tickline_color": "#2e1f45"}'
+      selector:
+        object:
+    recreate:
+      name: Recreate
+      description: If true, recreate the entity if it already exists. If false (default), an error will be raised if an entity with the same name already exists.
+      required: false
+      default: false
+      example: false
+      selector:
+        boolean:
+
+delete_graph:
+  name: Delete graph
+  description: Delete one or more Tibber Graph camera entities programmatically.
+  fields:
+    entity_id:
+      name: Entity ID
+      description: The entity ID (or list of entity IDs) of the Tibber Graph camera to delete.
+      required: true
+      example: "camera.tibber_graph_nord_pool_price"
+      selector:
+        entity:
+          integration: tibber_graph
+          domain: camera
+          multiple: true

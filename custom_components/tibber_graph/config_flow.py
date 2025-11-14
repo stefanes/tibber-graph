@@ -20,6 +20,27 @@ from .const import (
     START_GRAPH_AT_MIDNIGHT,
     START_GRAPH_AT_CURRENT_HOUR,
     START_GRAPH_AT_SHOW_ALL,
+    # Label current options
+    LABEL_CURRENT_ON,
+    LABEL_CURRENT_ON_CURRENT_PRICE_ONLY,
+    LABEL_CURRENT_ON_IN_GRAPH,
+    LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE,
+    LABEL_CURRENT_OFF,
+    # Show X-axis options
+    SHOW_X_AXIS_ON,
+    SHOW_X_AXIS_ON_WITH_TICK_MARKS,
+    SHOW_X_AXIS_OFF,
+    # Show Y-axis options
+    SHOW_Y_AXIS_ON,
+    SHOW_Y_AXIS_ON_WITH_TICK_MARKS,
+    SHOW_Y_AXIS_OFF,
+    # Label max/min options
+    LABEL_MAX_ON,
+    LABEL_MAX_ON_NO_PRICE,
+    LABEL_MAX_OFF,
+    LABEL_MIN_ON,
+    LABEL_MIN_ON_NO_PRICE,
+    LABEL_MIN_OFF,
     # General config keys
     CONF_THEME,
     CONF_TRANSPARENT_BACKGROUND,
@@ -29,15 +50,19 @@ from .const import (
     CONF_CHEAP_PRICE_POINTS,
     CONF_CHEAP_PRICE_THRESHOLD,
     # X-axis config keys
-    CONF_SHOW_X_AXIS_TICK_MARKS,
-    CONF_CHEAP_PRICE_ON_X_AXIS,
+    CONF_SHOW_X_AXIS,
+    CONF_CHEAP_PERIODS_ON_X_AXIS,
     CONF_START_GRAPH_AT,
     CONF_X_TICK_STEP_HOURS,
     CONF_HOURS_TO_SHOW,
     CONF_SHOW_VERTICAL_GRID,
+    # Cheap periods on X-axis options
+    CHEAP_PERIODS_ON_X_AXIS_ON,
+    CHEAP_PERIODS_ON_X_AXIS_ON_COMFY,
+    CHEAP_PERIODS_ON_X_AXIS_ON_COMPACT,
+    CHEAP_PERIODS_ON_X_AXIS_OFF,
     # Y-axis config keys
     CONF_SHOW_Y_AXIS,
-    CONF_SHOW_Y_AXIS_TICK_MARKS,
     CONF_SHOW_HORIZONTAL_GRID,
     CONF_SHOW_AVERAGE_PRICE_LINE,
     CONF_Y_AXIS_LABEL_ROTATION_DEG,
@@ -49,18 +74,15 @@ from .const import (
     CONF_USE_CENTS,
     CONF_CURRENCY_OVERRIDE,
     CONF_LABEL_CURRENT,
-    CONF_LABEL_CURRENT_IN_HEADER,
-    CONF_LABEL_CURRENT_IN_HEADER_MORE,
     CONF_LABEL_FONT_SIZE,
     CONF_LABEL_MAX,
     CONF_LABEL_MIN,
-    CONF_LABEL_MINMAX_SHOW_PRICE,
     CONF_LABEL_SHOW_CURRENCY,
     CONF_LABEL_USE_COLORS,
     CONF_PRICE_DECIMALS,
     CONF_COLOR_PRICE_LINE_BY_AVERAGE,
     # Refresh config keys
-    CONF_AUTO_REFRESH_ENABLED,
+    CONF_REFRESH_MODE,
     DEFAULT_ENTITY_NAME,
     # General defaults
     DEFAULT_THEME,
@@ -71,15 +93,14 @@ from .const import (
     DEFAULT_CHEAP_PRICE_POINTS,
     DEFAULT_CHEAP_PRICE_THRESHOLD,
     # X-axis defaults
-    DEFAULT_SHOW_X_AXIS_TICK_MARKS,
-    DEFAULT_CHEAP_PRICE_ON_X_AXIS,
+    DEFAULT_SHOW_X_AXIS,
+    DEFAULT_CHEAP_PERIODS_ON_X_AXIS,
     DEFAULT_START_GRAPH_AT,
     DEFAULT_X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW,
     DEFAULT_SHOW_VERTICAL_GRID,
     # Y-axis defaults
     DEFAULT_SHOW_Y_AXIS,
-    DEFAULT_SHOW_Y_AXIS_TICK_MARKS,
     DEFAULT_SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE,
     DEFAULT_Y_AXIS_LABEL_ROTATION_DEG,
@@ -91,18 +112,20 @@ from .const import (
     DEFAULT_USE_CENTS,
     DEFAULT_CURRENCY_OVERRIDE,
     DEFAULT_LABEL_CURRENT,
-    DEFAULT_LABEL_CURRENT_IN_HEADER,
-    DEFAULT_LABEL_CURRENT_IN_HEADER_MORE,
     DEFAULT_LABEL_FONT_SIZE,
     DEFAULT_LABEL_MAX,
     DEFAULT_LABEL_MIN,
-    DEFAULT_LABEL_MINMAX_SHOW_PRICE,
     DEFAULT_LABEL_SHOW_CURRENCY,
     DEFAULT_LABEL_USE_COLORS,
     DEFAULT_PRICE_DECIMALS,
     DEFAULT_COLOR_PRICE_LINE_BY_AVERAGE,
     # Refresh defaults
-    DEFAULT_AUTO_REFRESH_ENABLED,
+    DEFAULT_REFRESH_MODE,
+    # Refresh mode options
+    REFRESH_MODE_SYSTEM,
+    REFRESH_MODE_SYSTEM_INTERVAL,
+    REFRESH_MODE_INTERVAL,
+    REFRESH_MODE_MANUAL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -122,6 +145,69 @@ START_GRAPH_AT_SELECTOR = selector.SelectSelector(
         options=[START_GRAPH_AT_MIDNIGHT, START_GRAPH_AT_CURRENT_HOUR, START_GRAPH_AT_SHOW_ALL],
         mode=selector.SelectSelectorMode.DROPDOWN,
         translation_key="start_graph_at",
+    )
+)
+
+# Label current selector configuration
+LABEL_CURRENT_SELECTOR = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[LABEL_CURRENT_ON, LABEL_CURRENT_ON_CURRENT_PRICE_ONLY, LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE, LABEL_CURRENT_OFF],
+        mode=selector.SelectSelectorMode.DROPDOWN,
+        translation_key="label_current",
+    )
+)
+
+# Show X-axis selector configuration
+SHOW_X_AXIS_SELECTOR = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[SHOW_X_AXIS_ON, SHOW_X_AXIS_ON_WITH_TICK_MARKS, SHOW_X_AXIS_OFF],
+        mode=selector.SelectSelectorMode.DROPDOWN,
+        translation_key="show_x_axis",
+    )
+)
+
+# Show Y-axis selector configuration
+SHOW_Y_AXIS_SELECTOR = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[SHOW_Y_AXIS_ON, SHOW_Y_AXIS_ON_WITH_TICK_MARKS, SHOW_Y_AXIS_OFF],
+        mode=selector.SelectSelectorMode.DROPDOWN,
+        translation_key="show_y_axis",
+    )
+)
+
+# Label max selector configuration
+LABEL_MAX_SELECTOR = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[LABEL_MAX_ON, LABEL_MAX_ON_NO_PRICE, LABEL_MAX_OFF],
+        mode=selector.SelectSelectorMode.DROPDOWN,
+        translation_key="label_max",
+    )
+)
+
+# Label min selector configuration
+LABEL_MIN_SELECTOR = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[LABEL_MIN_ON, LABEL_MIN_ON_NO_PRICE, LABEL_MIN_OFF],
+        mode=selector.SelectSelectorMode.DROPDOWN,
+        translation_key="label_min",
+    )
+)
+
+# Cheap periods on X-axis selector configuration
+CHEAP_PERIODS_ON_X_AXIS_SELECTOR = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[CHEAP_PERIODS_ON_X_AXIS_ON, CHEAP_PERIODS_ON_X_AXIS_ON_COMFY, CHEAP_PERIODS_ON_X_AXIS_ON_COMPACT, CHEAP_PERIODS_ON_X_AXIS_OFF],
+        mode=selector.SelectSelectorMode.DROPDOWN,
+        translation_key="cheap_periods_on_x_axis",
+    )
+)
+
+# Refresh mode selector configuration
+REFRESH_MODE_SELECTOR = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[REFRESH_MODE_SYSTEM, REFRESH_MODE_SYSTEM_INTERVAL, REFRESH_MODE_INTERVAL, REFRESH_MODE_MANUAL],
+        mode=selector.SelectSelectorMode.DROPDOWN,
+        translation_key="refresh_mode",
     )
 )
 
@@ -350,6 +436,18 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                     default=options.get(CONF_FORCE_FIXED_SIZE, DEFAULT_FORCE_FIXED_SIZE),
                 ): cv.boolean,
                 vol.Optional(
+                    CONF_LABEL_FONT_SIZE,
+                    default=options.get(CONF_LABEL_FONT_SIZE, DEFAULT_LABEL_FONT_SIZE),
+                ): cv.positive_int,
+                vol.Optional(
+                    CONF_START_GRAPH_AT,
+                    default=options.get(CONF_START_GRAPH_AT, data.get(CONF_START_GRAPH_AT, DEFAULT_START_GRAPH_AT)),
+                ): START_GRAPH_AT_SELECTOR,
+                vol.Optional(
+                    CONF_HOURS_TO_SHOW,
+                    default=options.get(CONF_HOURS_TO_SHOW, DEFAULT_HOURS_TO_SHOW),
+                ): vol.Any(None, cv.positive_int),
+                vol.Optional(
                     CONF_CHEAP_PRICE_POINTS,
                     default=options.get(CONF_CHEAP_PRICE_POINTS, DEFAULT_CHEAP_PRICE_POINTS),
                 ): cv.positive_int,
@@ -357,27 +455,64 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                     CONF_CHEAP_PRICE_THRESHOLD,
                     default=options.get(CONF_CHEAP_PRICE_THRESHOLD, DEFAULT_CHEAP_PRICE_THRESHOLD),
                 ): vol.Coerce(float),
+                vol.Optional(
+                    CONF_SHOW_AVERAGE_PRICE_LINE,
+                    default=options.get(CONF_SHOW_AVERAGE_PRICE_LINE, DEFAULT_SHOW_AVERAGE_PRICE_LINE),
+                ): cv.boolean,
+                vol.Optional(
+                    CONF_COLOR_PRICE_LINE_BY_AVERAGE,
+                    default=options.get(CONF_COLOR_PRICE_LINE_BY_AVERAGE, DEFAULT_COLOR_PRICE_LINE_BY_AVERAGE),
+                ): cv.boolean,
+                # Price labels
+                vol.Optional(
+                    CONF_PRICE_DECIMALS,
+                    default=options.get(CONF_PRICE_DECIMALS, DEFAULT_PRICE_DECIMALS),
+                ): vol.Any(None, cv.positive_int),
+                vol.Optional(
+                    CONF_USE_HOURLY_PRICES,
+                    default=options.get(CONF_USE_HOURLY_PRICES, DEFAULT_USE_HOURLY_PRICES),
+                ): cv.boolean,
+                vol.Optional(
+                    CONF_USE_CENTS,
+                    default=options.get(CONF_USE_CENTS, DEFAULT_USE_CENTS),
+                ): cv.boolean,
+                vol.Optional(
+                    CONF_CURRENCY_OVERRIDE,
+                    default=options.get(CONF_CURRENCY_OVERRIDE, DEFAULT_CURRENCY_OVERRIDE or ""),
+                ): cv.string,
+                vol.Optional(
+                    CONF_LABEL_SHOW_CURRENCY,
+                    default=options.get(CONF_LABEL_SHOW_CURRENCY, DEFAULT_LABEL_SHOW_CURRENCY),
+                ): cv.boolean,
+                vol.Optional(
+                    CONF_LABEL_CURRENT,
+                    default=options.get(CONF_LABEL_CURRENT, DEFAULT_LABEL_CURRENT),
+                ): LABEL_CURRENT_SELECTOR,
+                vol.Optional(
+                    CONF_LABEL_MIN,
+                    default=options.get(CONF_LABEL_MIN, DEFAULT_LABEL_MIN),
+                ): LABEL_MIN_SELECTOR,
+                vol.Optional(
+                    CONF_LABEL_MAX,
+                    default=options.get(CONF_LABEL_MAX, DEFAULT_LABEL_MAX),
+                ): LABEL_MAX_SELECTOR,
+                vol.Optional(
+                    CONF_LABEL_USE_COLORS,
+                    default=options.get(CONF_LABEL_USE_COLORS, DEFAULT_LABEL_USE_COLORS),
+                ): cv.boolean,
                 # X-axis settings
                 vol.Optional(
-                    CONF_SHOW_X_AXIS_TICK_MARKS,
-                    default=options.get(CONF_SHOW_X_AXIS_TICK_MARKS, DEFAULT_SHOW_X_AXIS_TICK_MARKS),
-                ): cv.boolean,
-                vol.Optional(
-                    CONF_CHEAP_PRICE_ON_X_AXIS,
-                    default=options.get(CONF_CHEAP_PRICE_ON_X_AXIS, DEFAULT_CHEAP_PRICE_ON_X_AXIS),
-                ): cv.boolean,
-                vol.Optional(
-                    CONF_START_GRAPH_AT,
-                    default=options.get(CONF_START_GRAPH_AT, data.get(CONF_START_GRAPH_AT, DEFAULT_START_GRAPH_AT)),
-                ): START_GRAPH_AT_SELECTOR,
+                    CONF_SHOW_X_AXIS,
+                    default=options.get(CONF_SHOW_X_AXIS, DEFAULT_SHOW_X_AXIS),
+                ): SHOW_X_AXIS_SELECTOR,
                 vol.Optional(
                     CONF_X_TICK_STEP_HOURS,
                     default=options.get(CONF_X_TICK_STEP_HOURS, DEFAULT_X_TICK_STEP_HOURS),
                 ): cv.positive_int,
                 vol.Optional(
-                    CONF_HOURS_TO_SHOW,
-                    default=options.get(CONF_HOURS_TO_SHOW, DEFAULT_HOURS_TO_SHOW),
-                ): vol.Any(None, cv.positive_int),
+                    CONF_CHEAP_PERIODS_ON_X_AXIS,
+                    default=options.get(CONF_CHEAP_PERIODS_ON_X_AXIS, DEFAULT_CHEAP_PERIODS_ON_X_AXIS),
+                ): CHEAP_PERIODS_ON_X_AXIS_SELECTOR,
                 vol.Optional(
                     CONF_SHOW_VERTICAL_GRID,
                     default=options.get(CONF_SHOW_VERTICAL_GRID, DEFAULT_SHOW_VERTICAL_GRID),
@@ -386,19 +521,11 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                 vol.Optional(
                     CONF_SHOW_Y_AXIS,
                     default=options.get(CONF_SHOW_Y_AXIS, DEFAULT_SHOW_Y_AXIS),
-                ): cv.boolean,
+                ): SHOW_Y_AXIS_SELECTOR,
                 vol.Optional(
-                    CONF_SHOW_Y_AXIS_TICK_MARKS,
-                    default=options.get(CONF_SHOW_Y_AXIS_TICK_MARKS, DEFAULT_SHOW_Y_AXIS_TICK_MARKS),
-                ): cv.boolean,
-                vol.Optional(
-                    CONF_SHOW_HORIZONTAL_GRID,
-                    default=options.get(CONF_SHOW_HORIZONTAL_GRID, DEFAULT_SHOW_HORIZONTAL_GRID),
-                ): cv.boolean,
-                vol.Optional(
-                    CONF_SHOW_AVERAGE_PRICE_LINE,
-                    default=options.get(CONF_SHOW_AVERAGE_PRICE_LINE, DEFAULT_SHOW_AVERAGE_PRICE_LINE),
-                ): cv.boolean,
+                    CONF_Y_TICK_COUNT,
+                    default=options.get(CONF_Y_TICK_COUNT, DEFAULT_Y_TICK_COUNT),
+                ): vol.Any(None, cv.positive_int),
                 vol.Optional(
                     CONF_Y_AXIS_LABEL_ROTATION_DEG,
                     default=options.get(CONF_Y_AXIS_LABEL_ROTATION_DEG, DEFAULT_Y_AXIS_LABEL_ROTATION_DEG),
@@ -414,74 +541,17 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                     )
                 ),
                 vol.Optional(
-                    CONF_Y_TICK_COUNT,
-                    default=options.get(CONF_Y_TICK_COUNT, DEFAULT_Y_TICK_COUNT),
-                ): vol.Any(None, cv.positive_int),
-                vol.Optional(
                     CONF_Y_TICK_USE_COLORS,
                     default=options.get(CONF_Y_TICK_USE_COLORS, DEFAULT_Y_TICK_USE_COLORS),
                 ): cv.boolean,
-                # Price labels
                 vol.Optional(
-                    CONF_USE_HOURLY_PRICES,
-                    default=options.get(CONF_USE_HOURLY_PRICES, DEFAULT_USE_HOURLY_PRICES),
-                ): cv.boolean,
-                vol.Optional(
-                    CONF_USE_CENTS,
-                    default=options.get(CONF_USE_CENTS, DEFAULT_USE_CENTS),
-                ): cv.boolean,
-                vol.Optional(
-                    CONF_CURRENCY_OVERRIDE,
-                    default=options.get(CONF_CURRENCY_OVERRIDE, DEFAULT_CURRENCY_OVERRIDE or ""),
-                ): cv.string,
-                vol.Optional(
-                    CONF_LABEL_CURRENT,
-                    default=options.get(CONF_LABEL_CURRENT, DEFAULT_LABEL_CURRENT),
-                ): cv.boolean,
-                vol.Optional(
-                    CONF_LABEL_CURRENT_IN_HEADER,
-                    default=options.get(CONF_LABEL_CURRENT_IN_HEADER, DEFAULT_LABEL_CURRENT_IN_HEADER),
-                ): cv.boolean,
-                vol.Optional(
-                    CONF_LABEL_CURRENT_IN_HEADER_MORE,
-                    default=options.get(CONF_LABEL_CURRENT_IN_HEADER_MORE, DEFAULT_LABEL_CURRENT_IN_HEADER_MORE),
-                ): cv.boolean,
-                vol.Optional(
-                    CONF_LABEL_FONT_SIZE,
-                    default=options.get(CONF_LABEL_FONT_SIZE, DEFAULT_LABEL_FONT_SIZE),
-                ): cv.positive_int,
-                vol.Optional(
-                    CONF_LABEL_MAX,
-                    default=options.get(CONF_LABEL_MAX, DEFAULT_LABEL_MAX),
-                ): cv.boolean,
-                vol.Optional(
-                    CONF_LABEL_MIN,
-                    default=options.get(CONF_LABEL_MIN, DEFAULT_LABEL_MIN),
-                ): cv.boolean,
-                vol.Optional(
-                    CONF_LABEL_MINMAX_SHOW_PRICE,
-                    default=options.get(CONF_LABEL_MINMAX_SHOW_PRICE, DEFAULT_LABEL_MINMAX_SHOW_PRICE),
-                ): cv.boolean,
-                vol.Optional(
-                    CONF_LABEL_SHOW_CURRENCY,
-                    default=options.get(CONF_LABEL_SHOW_CURRENCY, DEFAULT_LABEL_SHOW_CURRENCY),
-                ): cv.boolean,
-                vol.Optional(
-                    CONF_LABEL_USE_COLORS,
-                    default=options.get(CONF_LABEL_USE_COLORS, DEFAULT_LABEL_USE_COLORS),
-                ): cv.boolean,
-                vol.Optional(
-                    CONF_PRICE_DECIMALS,
-                    default=options.get(CONF_PRICE_DECIMALS, DEFAULT_PRICE_DECIMALS),
-                ): vol.Any(None, cv.positive_int),
-                vol.Optional(
-                    CONF_COLOR_PRICE_LINE_BY_AVERAGE,
-                    default=options.get(CONF_COLOR_PRICE_LINE_BY_AVERAGE, DEFAULT_COLOR_PRICE_LINE_BY_AVERAGE),
+                    CONF_SHOW_HORIZONTAL_GRID,
+                    default=options.get(CONF_SHOW_HORIZONTAL_GRID, DEFAULT_SHOW_HORIZONTAL_GRID),
                 ): cv.boolean,
                 # Refresh settings
                 vol.Optional(
-                    CONF_AUTO_REFRESH_ENABLED,
-                    default=options.get(CONF_AUTO_REFRESH_ENABLED, DEFAULT_AUTO_REFRESH_ENABLED),
-                ): cv.boolean,
+                    CONF_REFRESH_MODE,
+                    default=options.get(CONF_REFRESH_MODE, DEFAULT_REFRESH_MODE),
+                ): REFRESH_MODE_SELECTOR,
             }
         )

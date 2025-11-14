@@ -19,16 +19,14 @@ from .const import (
     DEFAULT_BOTTOM_MARGIN as BOTTOM_MARGIN,
     DEFAULT_LEFT_MARGIN as LEFT_MARGIN,
     DEFAULT_X_AXIS_LABEL_Y_OFFSET as X_AXIS_LABEL_Y_OFFSET,
-    DEFAULT_SHOW_X_AXIS_TICK_MARKS as SHOW_X_AXIS_TICK_MARKS,
-    DEFAULT_CHEAP_PRICE_ON_X_AXIS as CHEAP_PRICE_ON_X_AXIS,
+    DEFAULT_SHOW_X_AXIS as SHOW_X_AXIS,
+    DEFAULT_CHEAP_PERIODS_ON_X_AXIS as CHEAP_PERIODS_ON_X_AXIS,
     DEFAULT_START_GRAPH_AT as START_GRAPH_AT,
     DEFAULT_X_TICK_STEP_HOURS as X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW as HOURS_TO_SHOW,
     DEFAULT_SHOW_VERTICAL_GRID as SHOW_VERTICAL_GRID,
     DEFAULT_CHEAP_PERIOD_BOUNDARY_HOURS as CHEAP_PERIOD_BOUNDARY_HOURS,
-    DEFAULT_CHEAP_LABELS_IN_SEPARATE_ROW as CHEAP_LABELS_IN_SEPARATE_ROW,
     DEFAULT_SHOW_Y_AXIS as SHOW_Y_AXIS,
-    DEFAULT_SHOW_Y_AXIS_TICK_MARKS as SHOW_Y_AXIS_TICK_MARKS,
     DEFAULT_SHOW_HORIZONTAL_GRID as SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE as SHOW_AVERAGE_PRICE_LINE,
     DEFAULT_Y_AXIS_LABEL_ROTATION_DEG as Y_AXIS_LABEL_ROTATION_DEG,
@@ -39,8 +37,6 @@ from .const import (
     DEFAULT_USE_CENTS as USE_CENTS,
     DEFAULT_CURRENCY_OVERRIDE as CURRENCY_OVERRIDE,
     DEFAULT_LABEL_CURRENT as LABEL_CURRENT,
-    DEFAULT_LABEL_CURRENT_IN_HEADER as LABEL_CURRENT_IN_HEADER,
-    DEFAULT_LABEL_CURRENT_IN_HEADER_MORE as LABEL_CURRENT_IN_HEADER_MORE,
     DEFAULT_LABEL_CURRENT_IN_HEADER_FONT_WEIGHT as LABEL_CURRENT_IN_HEADER_FONT_WEIGHT,
     DEFAULT_LABEL_CURRENT_IN_HEADER_PADDING as LABEL_CURRENT_IN_HEADER_PADDING,
     DEFAULT_LABEL_FONT_SIZE as LABEL_FONT_SIZE,
@@ -48,7 +44,6 @@ from .const import (
     DEFAULT_LABEL_MAX as LABEL_MAX,
     DEFAULT_LABEL_MAX_BELOW_POINT as LABEL_MAX_BELOW_POINT,
     DEFAULT_LABEL_MIN as LABEL_MIN,
-    DEFAULT_LABEL_MINMAX_SHOW_PRICE as LABEL_MINMAX_SHOW_PRICE,
     DEFAULT_LABEL_SHOW_CURRENCY as LABEL_SHOW_CURRENCY,
     DEFAULT_LABEL_USE_COLORS as LABEL_USE_COLORS,
     DEFAULT_PRICE_DECIMALS as PRICE_DECIMALS,
@@ -57,6 +52,27 @@ from .const import (
     START_GRAPH_AT_MIDNIGHT,
     START_GRAPH_AT_CURRENT_HOUR,
     START_GRAPH_AT_SHOW_ALL,
+    LABEL_CURRENT_ON,
+    LABEL_CURRENT_ON_CURRENT_PRICE_ONLY,
+    LABEL_CURRENT_ON_IN_GRAPH,
+    LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE,
+    LABEL_CURRENT_OFF,
+    SHOW_X_AXIS_ON,
+    SHOW_X_AXIS_ON_WITH_TICK_MARKS,
+    SHOW_X_AXIS_OFF,
+    SHOW_Y_AXIS_ON,
+    SHOW_Y_AXIS_ON_WITH_TICK_MARKS,
+    SHOW_Y_AXIS_OFF,
+    LABEL_MAX_ON,
+    LABEL_MAX_ON_NO_PRICE,
+    LABEL_MAX_OFF,
+    LABEL_MIN_ON,
+    LABEL_MIN_ON_NO_PRICE,
+    LABEL_MIN_OFF,
+    CHEAP_PERIODS_ON_X_AXIS_ON,
+    CHEAP_PERIODS_ON_X_AXIS_ON_COMFY,
+    CHEAP_PERIODS_ON_X_AXIS_ON_COMPACT,
+    CHEAP_PERIODS_ON_X_AXIS_OFF,
 )
 
 # Import theme loader for dynamic theme selection
@@ -273,7 +289,7 @@ def render_plot_to_path(
         prices_raw: Original list of prices (raw data)
         now_local: Current local time as datetime
         idx: Index of current price in raw data
-        currency: Currency code string (e.g., "EUR", "SEK", "öre")
+        currency: Currency code string (e.g., "€", "SEK", "öre")
         out_path: Output file path for the rendered image
         render_options: Optional dict of rendering options to override defaults.py values
         translations: Optional dict of translated strings for rendered labels (e.g., {"label_at": "at"})
@@ -307,16 +323,14 @@ def render_plot_to_path(
     BOTTOM_MARGIN_OPT = get_opt("bottom_margin", BOTTOM_MARGIN)
     LEFT_MARGIN_OPT = get_opt("left_margin", LEFT_MARGIN)
     # X-axis settings
-    SHOW_X_AXIS_TICK_MARKS_OPT = get_opt("show_x_axis_tick_marks", SHOW_X_AXIS_TICK_MARKS)
-    CHEAP_PRICE_ON_X_AXIS_OPT = get_opt("cheap_price_on_x_axis", CHEAP_PRICE_ON_X_AXIS)
+    SHOW_X_AXIS_OPT = get_opt("show_x_axis", SHOW_X_AXIS)
+    CHEAP_PERIODS_ON_X_AXIS_OPT = get_opt("cheap_periods_on_x_axis", CHEAP_PERIODS_ON_X_AXIS)
     START_GRAPH_AT_OPT = get_opt("start_graph_at", START_GRAPH_AT)
     X_TICK_STEP_HOURS_OPT = get_opt("x_tick_step_hours", X_TICK_STEP_HOURS)
     HOURS_TO_SHOW_OPT = get_opt("hours_to_show", HOURS_TO_SHOW)
     SHOW_VERTICAL_GRID_OPT = get_opt("show_vertical_grid", SHOW_VERTICAL_GRID)
-    CHEAP_LABELS_IN_SEPARATE_ROW_OPT = get_opt("cheap_labels_in_separate_row", CHEAP_LABELS_IN_SEPARATE_ROW)
     # Y-axis settings
     SHOW_Y_AXIS_OPT = get_opt("show_y_axis", SHOW_Y_AXIS)
-    SHOW_Y_AXIS_TICK_MARKS_OPT = get_opt("show_y_axis_tick_marks", SHOW_Y_AXIS_TICK_MARKS)
     SHOW_HORIZONTAL_GRID_OPT = get_opt("show_horizontal_grid", SHOW_HORIZONTAL_GRID)
     SHOW_AVERAGE_PRICE_LINE_OPT = get_opt("show_average_price_line", SHOW_AVERAGE_PRICE_LINE)
     Y_AXIS_LABEL_ROTATION_DEG_OPT = get_opt("y_axis_label_rotation_deg", Y_AXIS_LABEL_ROTATION_DEG)
@@ -328,8 +342,6 @@ def render_plot_to_path(
     USE_CENTS_OPT = get_opt("use_cents", USE_CENTS)
     CURRENCY_OVERRIDE_OPT = get_opt("currency_override", CURRENCY_OVERRIDE)
     LABEL_CURRENT_OPT = get_opt("label_current", LABEL_CURRENT)
-    LABEL_CURRENT_IN_HEADER_OPT = get_opt("label_current_in_header", LABEL_CURRENT_IN_HEADER)
-    LABEL_CURRENT_IN_HEADER_MORE_OPT = get_opt("label_current_in_header_more", LABEL_CURRENT_IN_HEADER_MORE)
     LABEL_CURRENT_IN_HEADER_FONT_WEIGHT_OPT = get_opt("label_current_in_header_font_weight", LABEL_CURRENT_IN_HEADER_FONT_WEIGHT)
     LABEL_CURRENT_IN_HEADER_PADDING_OPT = get_opt("label_current_in_header_padding", LABEL_CURRENT_IN_HEADER_PADDING)
     LABEL_FONT_SIZE_OPT = get_opt("label_font_size", LABEL_FONT_SIZE)
@@ -337,7 +349,6 @@ def render_plot_to_path(
     LABEL_MAX_OPT = get_opt("label_max", LABEL_MAX)
     LABEL_MAX_BELOW_POINT_OPT = get_opt("label_max_below_point", LABEL_MAX_BELOW_POINT)
     LABEL_MIN_OPT = get_opt("label_min", LABEL_MIN)
-    LABEL_MINMAX_SHOW_PRICE_OPT = get_opt("label_minmax_show_price", LABEL_MINMAX_SHOW_PRICE)
     LABEL_SHOW_CURRENCY_OPT = get_opt("label_show_currency", LABEL_SHOW_CURRENCY)
     LABEL_USE_COLORS_OPT = get_opt("label_use_colors", LABEL_USE_COLORS)
     PRICE_DECIMALS_OPT = get_opt("price_decimals", PRICE_DECIMALS)
@@ -410,12 +421,16 @@ def render_plot_to_path(
     # Set background color after clearing
     ax.set_facecolor(BACKGROUND_COLOR)
 
+    # Determine Y-axis visibility and tick marks from dropdown option
+    show_y_axis_visible = SHOW_Y_AXIS_OPT != SHOW_Y_AXIS_OFF
+    show_y_axis_tick_marks = SHOW_Y_AXIS_OPT == SHOW_Y_AXIS_ON_WITH_TICK_MARKS
+
     # Style spines and tick colors and place Y axis on configured side
     for name, spine in ax.spines.items():
         spine.set_edgecolor(SPINE_COLOR)
         # Control visibility of left/right spines based on configured side
         if name in ("left", "right"):
-            if not SHOW_Y_AXIS_OPT:
+            if not show_y_axis_visible:
                 spine.set_visible(False)
             else:
                 # Show only the configured side and hide the opposite
@@ -425,7 +440,7 @@ def render_plot_to_path(
                     spine.set_visible(False)
 
     # Configure Y ticks on chosen side
-    if SHOW_Y_AXIS_OPT:
+    if show_y_axis_visible:
         if Y_AXIS_SIDE_OPT == "left":
             ax.yaxis.tick_left()
         else:
@@ -442,10 +457,10 @@ def render_plot_to_path(
     ax.tick_params(
         axis="y",
         colors=TICK_COLOR,
-        labelleft=SHOW_Y_AXIS_OPT and Y_AXIS_SIDE_OPT == "left",
-        labelright=SHOW_Y_AXIS_OPT and Y_AXIS_SIDE_OPT == "right",
-        left=SHOW_Y_AXIS_OPT and SHOW_Y_AXIS_TICK_MARKS_OPT and Y_AXIS_SIDE_OPT == "left",
-        right=SHOW_Y_AXIS_OPT and SHOW_Y_AXIS_TICK_MARKS_OPT and Y_AXIS_SIDE_OPT == "right",
+        labelleft=show_y_axis_visible and Y_AXIS_SIDE_OPT == "left",
+        labelright=show_y_axis_visible and Y_AXIS_SIDE_OPT == "right",
+        left=show_y_axis_visible and show_y_axis_tick_marks and Y_AXIS_SIDE_OPT == "left",
+        right=show_y_axis_visible and show_y_axis_tick_marks and Y_AXIS_SIDE_OPT == "right",
         labelsize=(LABEL_FONT_SIZE_OPT),
         rotation=y_rotation,
         pad=y_padding,
@@ -728,9 +743,9 @@ def render_plot_to_path(
             ax.axvline(now_local, color=NOWLINE_COLOR, alpha=NOWLINE_ALPHA, linestyle="-", zorder=5)
 
     # Draw glowing point at intersection of now line and price line
-    # This applies regardless of where the current price label is shown
+    # This applies regardless of where the current price label is shown (except when off)
     # The glow effect is always rendered to highlight the current price on the graph
-    if LABEL_CURRENT_OPT and now_is_visible and idx < len(prices_raw):
+    if LABEL_CURRENT_OPT != LABEL_CURRENT_OFF and now_is_visible and idx < len(prices_raw):
         current_price = prices_raw[idx]
         # Draw multiple overlapping circles with decreasing alpha for glow effect
         for size_factor, alpha_factor in [(3.0, 0.15), (2.0, 0.3), (1.0, 0.8)]:
@@ -768,17 +783,17 @@ def render_plot_to_path(
         current_idx = idx if idx in visible_indices else None
 
         # Build set of indices to label, avoiding duplicates
-        if LABEL_CURRENT_OPT and current_idx is not None:
+        if LABEL_CURRENT_OPT in (LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE) and current_idx is not None:
             chosen.add(current_idx)
             # Don't label min/max if they coincide with current
-            if LABEL_MIN_OPT and min_idx is not None and min_idx != current_idx:
+            if LABEL_MIN_OPT != LABEL_MIN_OFF and min_idx is not None and min_idx != current_idx:
                 chosen.add(min_idx)
-            if LABEL_MAX_OPT and max_idx is not None and max_idx != current_idx:
+            if LABEL_MAX_OPT != LABEL_MAX_OFF and max_idx is not None and max_idx != current_idx:
                 chosen.add(max_idx)
         else:
-            if LABEL_MIN_OPT and min_idx is not None:
+            if LABEL_MIN_OPT != LABEL_MIN_OFF and min_idx is not None:
                 chosen.add(min_idx)
-            if LABEL_MAX_OPT and max_idx is not None:
+            if LABEL_MAX_OPT != LABEL_MAX_OFF and max_idx is not None:
                 chosen.add(max_idx)
 
     # Pre-calculate label settings once to avoid repeated calculations
@@ -790,7 +805,9 @@ def render_plot_to_path(
     # Draw labels for chosen data points (min, max, current)
     for i in sorted(chosen):
         # Skip current label here if it will be drawn in the header
-        if LABEL_CURRENT_OPT and i == current_idx and LABEL_CURRENT_IN_HEADER_OPT:
+        # (current_idx is only in chosen if LABEL_CURRENT_OPT in (LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE))
+        # So this check is technically redundant, but kept for clarity
+        if i == current_idx and LABEL_CURRENT_OPT not in (LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE):
             continue
 
         # Classify this point to determine styling
@@ -798,8 +815,10 @@ def render_plot_to_path(
         is_max = (max_idx is not None and i == max_idx)
         is_current = (current_idx is not None and i == current_idx)
 
-        # Determine if price should be shown (can be disabled for min/max)
-        show_price = not ((is_min or is_max) and not LABEL_MINMAX_SHOW_PRICE_OPT)
+        # Determine if price should be shown (can be disabled for min/max with no_price option or for current with no_price option)
+        show_price_min = is_min and LABEL_MIN_OPT == LABEL_MIN_ON_NO_PRICE
+        show_price_max = is_max and LABEL_MAX_OPT == LABEL_MAX_ON_NO_PRICE
+        show_price = not (show_price_min or show_price_max) and not (is_current and LABEL_CURRENT_OPT == LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE)
 
         # Build label text: price + time or just time
         # For current price, show minutes; for min/max, show only hour
@@ -812,11 +831,11 @@ def render_plot_to_path(
 
         # Set vertical alignment:
         # - Current labels always use "bottom" (above point) for in-graph labels
-        # - Max labels use "top" (below point) if LABEL_MAX_BELOW_POINT or LABEL_CURRENT_IN_HEADER is enabled
+        # - Max labels use "top" (below point) if LABEL_MAX_BELOW_POINT or current label is not shown in graph
         # - Min labels always use "bottom" (above point)
         if is_current:
             vertical_align = "bottom"
-        elif is_max and (LABEL_MAX_BELOW_POINT_OPT or LABEL_CURRENT_IN_HEADER_OPT):
+        elif is_max and (LABEL_MAX_BELOW_POINT_OPT or LABEL_CURRENT_OPT not in (LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE)):
             vertical_align = "top"
         else:
             vertical_align = "bottom"
@@ -892,7 +911,7 @@ def render_plot_to_path(
                    zorder=5)
 
     # Draw current price label at fixed position (centered at top above graph) if enabled
-    if LABEL_CURRENT_OPT and current_idx is not None and LABEL_CURRENT_IN_HEADER_OPT:
+    if current_idx is not None and LABEL_CURRENT_OPT in (LABEL_CURRENT_ON, LABEL_CURRENT_ON_CURRENT_PRICE_ONLY):
         price_display = prices_raw[current_idx] * price_multiplier
         now_time = now_local.strftime("%H:%M")
         ax_pos = ax.get_position()
@@ -901,8 +920,8 @@ def render_plot_to_path(
         # Padding now counts from bottom of text (va="bottom")
         label_y = 1.0 - LABEL_CURRENT_IN_HEADER_PADDING_OPT
 
-        # Build header text
-        if LABEL_CURRENT_IN_HEADER_MORE_OPT and calc_prices and len(calc_prices) > 0:
+        # Build header text - show additional info if mode is "on", only current price if "on_current_price_only"
+        if LABEL_CURRENT_OPT == LABEL_CURRENT_ON and calc_prices and len(calc_prices) > 0:
             # Calculate average price from calculation data (filtered based on display options)
             average_price = sum(calc_prices) / len(calc_prices)
             avg_display = average_price * price_multiplier
@@ -1006,7 +1025,7 @@ def render_plot_to_path(
         y_max_tick = y_max
 
     # Configure Y-axis formatting and ticks (only when Y axis is visible)
-    if SHOW_Y_AXIS_OPT:
+    if show_y_axis_visible:
         # Format Y-axis labels: multiply by 100 if showing cents
         decimals_axis = PRICE_DECIMALS_OPT
         if USE_CENTS_OPT:
@@ -1090,7 +1109,7 @@ def render_plot_to_path(
     future_cheap_periods = []
     has_cheap_periods = (CHEAP_PRICE_POINTS_OPT > 0 or CHEAP_PRICE_THRESHOLD_OPT > 0) and 'cheap_indices_all_days' in locals()
 
-    if has_cheap_periods and CHEAP_PRICE_ON_X_AXIS_OPT:
+    if has_cheap_periods and CHEAP_PERIODS_ON_X_AXIS_OPT != CHEAP_PERIODS_ON_X_AXIS_OFF:
         # Filter for future cheap periods only
         for cheap_idx in cheap_indices_all_days:
             period_start = dates_raw[cheap_idx]
@@ -1153,7 +1172,7 @@ def render_plot_to_path(
     boundary_threshold_seconds = (CHEAP_PERIOD_BOUNDARY_HOURS if CHEAP_PERIOD_BOUNDARY_HOURS > 0 else X_TICK_STEP_HOURS_OPT) * 3600
 
     # Determine if we should show cheap period boundaries on x-axis
-    show_cheap_boundaries = cheap_ranges and CHEAP_PRICE_ON_X_AXIS_OPT
+    show_cheap_boundaries = cheap_ranges and CHEAP_PERIODS_ON_X_AXIS_OPT != CHEAP_PERIODS_ON_X_AXIS_OFF
 
     # Helper functions for tick time processing
     def _get_tick_time(dt):
@@ -1217,20 +1236,30 @@ def render_plot_to_path(
                 cheap_tick_times.append(tick_end)
 
     # Choose tick generation strategy based on configuration
-    if CHEAP_LABELS_IN_SEPARATE_ROW_OPT:
-        # Mode 1 (new default): Show all regular ticks, add cheap period labels in separate row below
+    if CHEAP_PERIODS_ON_X_AXIS_OPT in (CHEAP_PERIODS_ON_X_AXIS_ON, CHEAP_PERIODS_ON_X_AXIS_ON_COMFY):
+        # Mode 1: Show all regular ticks, add cheap period labels in separate row below (for "on_comfy")
+        # or just highlight existing ticks (for "on")
         tick_times = regular_ticks
         tick_colors = [AXIS_LABEL_COLOR] * len(tick_times)
     else:
-        # Mode 2 (original): Make room on same row by removing regular ticks that conflict with cheap labels
+        # Mode 2 (on_compact): Show regular ticks that are not too close to boundaries, add cheap boundary labels
+        tick_times = []
+        tick_colors = []
+
         if show_cheap_boundaries:
             # Keep only regular ticks that are far enough from cheap period boundaries
             for regular_tick in regular_ticks:
-                if all(abs((regular_tick - ct).total_seconds()) >= boundary_threshold_seconds for ct in cheap_tick_times):
-                    tick_times.append(regular_tick)
-                    tick_colors.append(AXIS_LABEL_COLOR)
+                is_far_enough = all(abs((regular_tick - ct).total_seconds()) >= boundary_threshold_seconds for ct in cheap_tick_times)
 
-            # Add cheap ticks with their own color
+                if is_far_enough:
+                    tick_times.append(regular_tick)
+                    # Color if in cheap range, otherwise default color
+                    if _is_in_cheap_range(regular_tick):
+                        tick_colors.append(LABEL_COLOR_MIN)
+                    else:
+                        tick_colors.append(AXIS_LABEL_COLOR)
+
+            # Always add cheap boundary ticks
             tick_times.extend(cheap_tick_times)
             tick_colors.extend([LABEL_COLOR_MIN] * len(cheap_tick_times))
 
@@ -1239,15 +1268,18 @@ def render_plot_to_path(
             tick_times, tick_colors = zip(*combined) if combined else ([], [])
             tick_times, tick_colors = list(tick_times), list(tick_colors)
         else:
-            # No cheap boundaries, just use regular ticks
+            # No cheap boundaries, just use regular ticks with default color
             tick_times = regular_ticks
             tick_colors = [AXIS_LABEL_COLOR] * len(tick_times)
 
     ylim = ax.get_ylim()
     xlab_effects = [pe.withStroke(linewidth=2, foreground=BACKGROUND_COLOR)] if LABEL_STROKE else None
 
-    # Enable X-ticks at the tick positions if configured
-    if SHOW_X_AXIS_TICK_MARKS_OPT:
+    # Check if X-axis should be shown (off = hide completely)
+    show_x_axis = SHOW_X_AXIS_OPT != SHOW_X_AXIS_OFF
+
+    # Enable X-ticks at the tick positions if configured to show tick marks
+    if show_x_axis and SHOW_X_AXIS_OPT == SHOW_X_AXIS_ON_WITH_TICK_MARKS:
         ax.set_xticks(tick_times)
         ax.tick_params(axis="x", which="both", bottom=True, top=False, labelbottom=False, color=TICK_COLOR)
 
@@ -1255,37 +1287,40 @@ def render_plot_to_path(
     matching_ticks = set()
     cheap_only_ticks = []
 
-    if CHEAP_LABELS_IN_SEPARATE_ROW_OPT and show_cheap_boundaries:
-        # Identify regular ticks that fall within cheap ranges (will be colored green on row one)
+    if CHEAP_PERIODS_ON_X_AXIS_OPT in (CHEAP_PERIODS_ON_X_AXIS_ON, CHEAP_PERIODS_ON_X_AXIS_ON_COMFY) and show_cheap_boundaries:
+        # Identify regular ticks that fall within cheap ranges (will be colored on row one)
         matching_ticks = set(tt for tt in tick_times if _is_in_cheap_range(tt))
 
-        # Filter cheap boundary ticks that don't match regular ticks to avoid labels too close together
-        sorted_cheap_ticks = sorted(ct for ct in cheap_tick_times if ct not in tick_times)
+        # For "on_comfy" mode, filter cheap boundary ticks that don't match regular ticks
+        # to avoid labels too close together (second row)
+        if CHEAP_PERIODS_ON_X_AXIS_OPT == CHEAP_PERIODS_ON_X_AXIS_ON_COMFY:
+            sorted_cheap_ticks = sorted(ct for ct in cheap_tick_times if ct not in tick_times)
 
-        if sorted_cheap_ticks:
-            cheap_only_ticks.append(sorted_cheap_ticks[0])
-            for cheap_tick in sorted_cheap_ticks[1:]:
-                if (cheap_tick - cheap_only_ticks[-1]).total_seconds() >= boundary_threshold_seconds:
-                    cheap_only_ticks.append(cheap_tick)
+            if sorted_cheap_ticks:
+                cheap_only_ticks.append(sorted_cheap_ticks[0])
+                for cheap_tick in sorted_cheap_ticks[1:]:
+                    if (cheap_tick - cheap_only_ticks[-1]).total_seconds() >= boundary_threshold_seconds:
+                        cheap_only_ticks.append(cheap_tick)
 
-    # Determine if second row is needed
-    need_second_row = bool(CHEAP_LABELS_IN_SEPARATE_ROW_OPT and cheap_only_ticks)
+    # Determine if second row is needed (only for "on_comfy" mode)
+    need_second_row = bool(CHEAP_PERIODS_ON_X_AXIS_OPT == CHEAP_PERIODS_ON_X_AXIS_ON_COMFY and cheap_only_ticks)
 
-    # Draw time labels (and optionally vertical grid lines if show_vertical_grid is enabled)
-    for tt, tick_color in zip(tick_times, tick_colors):
-        # Draw vertical grid lines only if show_vertical_grid is enabled
-        if SHOW_VERTICAL_GRID_OPT:
-            ax.vlines([tt], ymin=ylim[0], ymax=ylim[1], colors=GRID_COLOR, linewidth=1.0, alpha=GRID_ALPHA, zorder=2)
+    # Draw time labels (and optionally vertical grid lines) only if X-axis is shown
+    if show_x_axis:
+        for tt, tick_color in zip(tick_times, tick_colors):
+            # Draw vertical grid lines only if show_vertical_grid is enabled
+            if SHOW_VERTICAL_GRID_OPT:
+                ax.vlines([tt], ymin=ylim[0], ymax=ylim[1], colors=GRID_COLOR, linewidth=1.0, alpha=GRID_ALPHA, zorder=2)
 
-        # Determine label color: green if in cheap range, otherwise use default tick color
-        label_color = LABEL_COLOR_MIN if tt in matching_ticks else tick_color
-        _draw_x_label(ax, tt, X_AXIS_LABEL_Y_OFFSET, label_color, xlab_effects)
+            # Determine label color: 'label_color_min' if in cheap range, otherwise use default tick color
+            label_color = LABEL_COLOR_MIN if tt in matching_ticks else tick_color
+            _draw_x_label(ax, tt, X_AXIS_LABEL_Y_OFFSET, label_color, xlab_effects)
 
     # Handle bottom margin and optional separate row for cheap labels
     adjusted_bottom_margin = BOTTOM_MARGIN_OPT
 
-    # If we need a second row, draw cheap-only labels below the regular ones
-    if need_second_row:
+    # If we need a second row, draw cheap-only labels below the regular ones (only if X-axis is shown)
+    if show_x_axis and need_second_row:
         # Calculate offset for cheap period labels (below regular labels)
         # Scale the offset based on font size to prevent overlap with larger fonts
         # Base offset (0.05) works for font size 11-13; scale up for larger fonts

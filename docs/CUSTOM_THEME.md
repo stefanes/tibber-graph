@@ -7,41 +7,41 @@ The `set_custom_theme` action allows you to dynamically set a custom color schem
 
 ## Usage
 
-See [README.md](README.md#actions) for how to use.
+See [README.md](/README.md#actions) for how to use.
 
 ## Theme Properties
 
 All properties must be included when setting a custom theme:
 
-| Property                     | Type    | Description                                | Example     |
-| ---------------------------- | ------- | ------------------------------------------ | ----------- |
-| `axis_label_color`           | string  | Color for axis labels (hex)                | `"#cfd6e6"` |
-| `background_color`           | string  | Graph background color (hex)               | `"#1c1c1c"` |
-| `cheap_price_color`          | string  | Color for cheap price highlights (hex)     | `"#2d5a3d"` |
-| `fill_alpha`                 | float   | Opacity of the area fill (0.0-1.0)         | `0.18`      |
-| `fill_color`                 | string  | Color for area fill (hex)                  | `"#7dc3ff"` |
-| `grid_alpha`                 | float   | Opacity of grid lines (0.0-1.0)            | `0.45`      |
-| `grid_color`                 | string  | Color for grid lines (hex)                 | `"#2a2f36"` |
-| `label_color`                | string  | Color for price labels (hex)               | `"#e6edf3"` |
-| `label_color_avg`            | string  | Color for average price label (hex)        | `"#eab308"` |
-| `label_color_max`            | string  | Color for maximum price label (hex)        | `"#fb7185"` |
-| `label_color_min`            | string  | Color for minimum price label (hex)        | `"#34d399"` |
-| `label_stroke`               | boolean | Whether labels have an outline             | `true`      |
-| `nowline_alpha`              | float   | Opacity of the current time line (0.0-1.0) | `0.5`       |
-| `nowline_color`              | string  | Color for current time line (hex)          | `"#ff6b6b"` |
-| `plot_linewidth`             | float   | Width of the price line                    | `1.0`       |
-| `price_line_color`           | string  | Default price line color (hex)             | `"#7dc3ff"` |
-| `price_line_color_above_avg` | string  | Color when price is above average (hex)    | `"#fb7185"` |
-| `price_line_color_below_avg` | string  | Color when price is below average (hex)    | `"#7dc3ff"` |
-| `price_line_color_near_avg`  | string  | Color when price is near average (hex)     | `"#eab308"` |
-| `spine_color`                | string  | Color for chart border (hex)               | `"#3a4250"` |
-| `tick_color`                 | string  | Color for axis ticks (hex)                 | `"#cfd6e6"` |
-| `tickline_color`             | string  | Color for tick lines (hex)                 | `"#1f2530"` |
-
-> [!NOTE]
-> The is the configuration for the built-in dark theme.
+| Property                     | Type    | Description                                | Example (`dark` theme) |
+| ---------------------------- | ------- | ------------------------------------------ | ---------------------- |
+| `axis_label_color`           | string  | Color for axis labels (hex)                | `"#cfd6e6"`            |
+| `background_color`           | string  | Graph background color (hex)               | `"#1c1c1c"`            |
+| `cheap_price_color`          | string  | Color for cheap price highlights (hex)     | `"#2d5a3d"`            |
+| `fill_alpha`                 | float   | Opacity of the area fill (0.0-1.0)         | `0.18`                 |
+| `fill_color`                 | string  | Color for area fill (hex)                  | `"#7dc3ff"`            |
+| `grid_alpha`                 | float   | Opacity of grid lines (0.0-1.0)            | `0.45`                 |
+| `grid_color`                 | string  | Color for grid lines (hex)                 | `"#2a2f36"`            |
+| `label_color`                | string  | Color for price labels (hex)               | `"#e6edf3"`            |
+| `label_color_avg`            | string  | Color for average price label (hex)        | `"#eab308"`            |
+| `label_color_max`            | string  | Color for maximum price label (hex)        | `"#fb7185"`            |
+| `label_color_min`            | string  | Color for minimum price label (hex)        | `"#34d399"`            |
+| `label_stroke`               | boolean | Whether labels have an outline             | `true`                 |
+| `nowline_alpha`              | float   | Opacity of the current time line (0.0-1.0) | `0.5`                  |
+| `nowline_color`              | string  | Color for current time line (hex)          | `"#ff6b6b"`            |
+| `plot_linewidth`             | float   | Width of the price line                    | `1.0`                  |
+| `price_line_color`           | string  | Default price line color (hex)             | `"#7dc3ff"`            |
+| `price_line_color_above_avg` | string  | Color when price is above average (hex)    | `"#fb7185"`            |
+| `price_line_color_below_avg` | string  | Color when price is below average (hex)    | `"#7dc3ff"`            |
+| `price_line_color_near_avg`  | string  | Color when price is near average (hex)     | `"#eab308"`            |
+| `spine_color`                | string  | Color for chart border (hex)               | `"#3a4250"`            |
+| `tick_color`                 | string  | Color for axis ticks (hex)                 | `"#cfd6e6"`            |
+| `tickline_color`             | string  | Color for tick lines (hex)                 | `"#1f2530"`            |
 
 ## Examples
+
+> [!TIP]
+> Use `background_color: none` for transparent background.
 
 ### Themes
 

@@ -18,8 +18,8 @@ body {
     --input-background: #2a2a2a;
     --shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     --shadow-hover: 0 4px 8px rgba(0, 0, 0, 0.4);
-    --image-background: #1c1c1c;
-    --image-border: #343434;
+    --image-background: #111111;
+    --image-border: #3d3d3d;
 }
 
 /* Light theme */

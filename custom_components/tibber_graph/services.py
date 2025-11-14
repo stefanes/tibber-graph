@@ -12,9 +12,11 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 
 from .themes import get_theme_names, validate_custom_theme
+from .helpers import get_config_entry_for_device_entity
 from .const import (
     DOMAIN,
     # Config entry keys
+    CONF_ENTITY_NAME,
     CONF_PRICE_ENTITY_ID,
     # General config keys
     CONF_THEME,
@@ -24,15 +26,19 @@ from .const import (
     CONF_CANVAS_HEIGHT,
     CONF_FORCE_FIXED_SIZE,
     # X-axis config keys
-    CONF_SHOW_X_AXIS_TICK_MARKS,
-    CONF_CHEAP_PRICE_ON_X_AXIS,
+    CONF_SHOW_X_AXIS,
+    CONF_CHEAP_PERIODS_ON_X_AXIS,
     CONF_START_GRAPH_AT,
     CONF_X_TICK_STEP_HOURS,
     CONF_HOURS_TO_SHOW,
     CONF_SHOW_VERTICAL_GRID,
+    # Cheap periods on X-axis options
+    CHEAP_PERIODS_ON_X_AXIS_ON,
+    CHEAP_PERIODS_ON_X_AXIS_ON_COMFY,
+    CHEAP_PERIODS_ON_X_AXIS_ON_COMPACT,
+    CHEAP_PERIODS_ON_X_AXIS_OFF,
     # Y-axis config keys
     CONF_SHOW_Y_AXIS,
-    CONF_SHOW_Y_AXIS_TICK_MARKS,
     CONF_SHOW_HORIZONTAL_GRID,
     CONF_SHOW_AVERAGE_PRICE_LINE,
     CONF_CHEAP_PRICE_POINTS,
@@ -46,22 +52,51 @@ from .const import (
     CONF_USE_CENTS,
     CONF_CURRENCY_OVERRIDE,
     CONF_LABEL_CURRENT,
-    CONF_LABEL_CURRENT_IN_HEADER,
-    CONF_LABEL_CURRENT_IN_HEADER_MORE,
     CONF_LABEL_FONT_SIZE,
     CONF_LABEL_MAX,
     CONF_LABEL_MIN,
-    CONF_LABEL_MINMAX_SHOW_PRICE,
     CONF_LABEL_SHOW_CURRENCY,
     CONF_LABEL_USE_COLORS,
     CONF_PRICE_DECIMALS,
     CONF_COLOR_PRICE_LINE_BY_AVERAGE,
     # Refresh config keys
-    CONF_AUTO_REFRESH_ENABLED,
+    CONF_REFRESH_MODE,
     # Start graph at options
     START_GRAPH_AT_MIDNIGHT,
     START_GRAPH_AT_CURRENT_HOUR,
     START_GRAPH_AT_SHOW_ALL,
+    # Label current options
+    LABEL_CURRENT_ON,
+    LABEL_CURRENT_ON_CURRENT_PRICE_ONLY,
+    LABEL_CURRENT_ON_IN_GRAPH,
+    LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE,
+    LABEL_CURRENT_OFF,
+    # Show X-axis options
+    SHOW_X_AXIS_ON,
+    SHOW_X_AXIS_ON_WITH_TICK_MARKS,
+    SHOW_X_AXIS_OFF,
+    # Show Y-axis options
+    SHOW_Y_AXIS_ON,
+    SHOW_Y_AXIS_ON_WITH_TICK_MARKS,
+    SHOW_Y_AXIS_OFF,
+    # Label max/min options
+    LABEL_MAX_ON,
+    LABEL_MAX_ON_NO_PRICE,
+    LABEL_MAX_OFF,
+    LABEL_MIN_ON,
+    LABEL_MIN_ON_NO_PRICE,
+    LABEL_MIN_OFF,
+    # Y-axis side options
+    Y_AXIS_SIDE_LEFT,
+    Y_AXIS_SIDE_RIGHT,
+    # Refresh mode options
+    REFRESH_MODE_SYSTEM,
+    REFRESH_MODE_SYSTEM_INTERVAL,
+    REFRESH_MODE_INTERVAL,
+    REFRESH_MODE_MANUAL,
+    # External domain constants
+    SENSOR_DOMAIN,
+    TIBBER_DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -72,6 +107,8 @@ SERVICE_RESET_OPTION = "reset_option"
 SERVICE_SET_DATA_SOURCE = "set_data_source"
 SERVICE_RENDER = "render"
 SERVICE_SET_CUSTOM_THEME = "set_custom_theme"
+SERVICE_CREATE_GRAPH = "create_graph"
+SERVICE_DELETE_GRAPH = "delete_graph"
 
 # Service schema for set_option
 SERVICE_SET_OPTION_SCHEMA = vol.Schema(
@@ -113,6 +150,24 @@ SERVICE_SET_CUSTOM_THEME_SCHEMA = vol.Schema(
     }
 )
 
+# Service schema for create_graph
+SERVICE_CREATE_GRAPH_SCHEMA = vol.Schema(
+    {
+        vol.Optional("entity_name"): cv.string,
+        vol.Optional("price_entity_id"): vol.Any(None, cv.entity_id),
+        vol.Optional("options"): dict,
+        vol.Optional("custom_theme"): dict,
+        vol.Optional("recreate", default=False): cv.boolean,
+    }
+)
+
+# Service schema for delete_graph
+SERVICE_DELETE_GRAPH_SCHEMA = vol.Schema(
+    {
+        vol.Required("entity_id"): cv.entity_ids,
+    }
+)
+
 # Valid option keys and their validators - theme options loaded dynamically
 VALID_OPTIONS = {
     # General settings
@@ -122,40 +177,36 @@ VALID_OPTIONS = {
     CONF_CANVAS_HEIGHT: cv.positive_int,
     CONF_FORCE_FIXED_SIZE: cv.boolean,
     # X-axis settings
-    CONF_SHOW_X_AXIS_TICK_MARKS: cv.boolean,
-    CONF_CHEAP_PRICE_ON_X_AXIS: cv.boolean,
+    CONF_SHOW_X_AXIS: vol.In([SHOW_X_AXIS_ON, SHOW_X_AXIS_ON_WITH_TICK_MARKS, SHOW_X_AXIS_OFF]),
+    CONF_CHEAP_PERIODS_ON_X_AXIS: vol.In([CHEAP_PERIODS_ON_X_AXIS_ON, CHEAP_PERIODS_ON_X_AXIS_ON_COMFY, CHEAP_PERIODS_ON_X_AXIS_ON_COMPACT, CHEAP_PERIODS_ON_X_AXIS_OFF]),
     CONF_START_GRAPH_AT: vol.In([START_GRAPH_AT_MIDNIGHT, START_GRAPH_AT_CURRENT_HOUR, START_GRAPH_AT_SHOW_ALL]),
     CONF_X_TICK_STEP_HOURS: cv.positive_int,
     CONF_HOURS_TO_SHOW: vol.Any(None, cv.positive_int),
     CONF_SHOW_VERTICAL_GRID: cv.boolean,
     # Y-axis settings
-    CONF_SHOW_Y_AXIS: cv.boolean,
-    CONF_SHOW_Y_AXIS_TICK_MARKS: cv.boolean,
+    CONF_SHOW_Y_AXIS: vol.In([SHOW_Y_AXIS_ON, SHOW_Y_AXIS_ON_WITH_TICK_MARKS, SHOW_Y_AXIS_OFF]),
     CONF_SHOW_HORIZONTAL_GRID: cv.boolean,
     CONF_SHOW_AVERAGE_PRICE_LINE: cv.boolean,
     CONF_CHEAP_PRICE_POINTS: cv.positive_int,
     CONF_CHEAP_PRICE_THRESHOLD: vol.Coerce(float),
     CONF_Y_AXIS_LABEL_ROTATION_DEG: cv.positive_int,
-    CONF_Y_AXIS_SIDE: vol.In(["left", "right"]),
+    CONF_Y_AXIS_SIDE: vol.In([Y_AXIS_SIDE_LEFT, Y_AXIS_SIDE_RIGHT]),
     CONF_Y_TICK_COUNT: vol.Any(None, cv.positive_int),
     CONF_Y_TICK_USE_COLORS: cv.boolean,
     # Price label settings
     CONF_USE_HOURLY_PRICES: cv.boolean,
     CONF_USE_CENTS: cv.boolean,
     CONF_CURRENCY_OVERRIDE: vol.Any(None, str),
-    CONF_LABEL_CURRENT: cv.boolean,
-    CONF_LABEL_CURRENT_IN_HEADER: cv.boolean,
-    CONF_LABEL_CURRENT_IN_HEADER_MORE: cv.boolean,
+    CONF_LABEL_CURRENT: vol.In([LABEL_CURRENT_ON, LABEL_CURRENT_ON_CURRENT_PRICE_ONLY, LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE, LABEL_CURRENT_OFF]),
     CONF_LABEL_FONT_SIZE: cv.positive_int,
-    CONF_LABEL_MAX: cv.boolean,
-    CONF_LABEL_MIN: cv.boolean,
-    CONF_LABEL_MINMAX_SHOW_PRICE: cv.boolean,
+    CONF_LABEL_MAX: vol.In([LABEL_MAX_ON, LABEL_MAX_ON_NO_PRICE, LABEL_MAX_OFF]),
+    CONF_LABEL_MIN: vol.In([LABEL_MIN_ON, LABEL_MIN_ON_NO_PRICE, LABEL_MIN_OFF]),
     CONF_LABEL_SHOW_CURRENCY: cv.boolean,
     CONF_LABEL_USE_COLORS: cv.boolean,
     CONF_PRICE_DECIMALS: vol.Any(None, cv.positive_int),
     CONF_COLOR_PRICE_LINE_BY_AVERAGE: cv.boolean,
     # Refresh settings
-    CONF_AUTO_REFRESH_ENABLED: cv.boolean,
+    CONF_REFRESH_MODE: vol.In([REFRESH_MODE_SYSTEM, REFRESH_MODE_SYSTEM_INTERVAL, REFRESH_MODE_INTERVAL, REFRESH_MODE_MANUAL]),
 }
 
 
@@ -196,6 +247,20 @@ async def async_register_services(hass: HomeAssistant) -> None:
         schema=SERVICE_SET_CUSTOM_THEME_SCHEMA,
     )
 
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_CREATE_GRAPH,
+        async_handle_create_graph,
+        schema=SERVICE_CREATE_GRAPH_SCHEMA,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_DELETE_GRAPH,
+        async_handle_delete_graph,
+        schema=SERVICE_DELETE_GRAPH_SCHEMA,
+    )
+
 
 async def async_unregister_services(hass: HomeAssistant) -> None:
     """Unregister services for Tibber Graph integration."""
@@ -204,6 +269,8 @@ async def async_unregister_services(hass: HomeAssistant) -> None:
     hass.services.async_remove(DOMAIN, SERVICE_SET_DATA_SOURCE)
     hass.services.async_remove(DOMAIN, SERVICE_RENDER)
     hass.services.async_remove(DOMAIN, SERVICE_SET_CUSTOM_THEME)
+    hass.services.async_remove(DOMAIN, SERVICE_CREATE_GRAPH)
+    hass.services.async_remove(DOMAIN, SERVICE_DELETE_GRAPH)
 
 
 async def async_handle_set_option(call: ServiceCall) -> None:
@@ -213,8 +280,8 @@ async def async_handle_set_option(call: ServiceCall) -> None:
     options = call.data["options"]
     overwrite = call.data.get("overwrite", False)
 
-    # Get the config entry for this entity
-    config_entry = await _get_config_entry_for_entity(hass, entity_id)
+    # Get the config entry for this entity (works with camera, image, or sensor)
+    config_entry = await get_config_entry_for_device_entity(hass, entity_id, DOMAIN)
     if not config_entry:
         raise HomeAssistantError(f"Entity {entity_id} not found or is not a Tibber Graph entity")
 
@@ -260,8 +327,8 @@ async def async_handle_reset_option(call: ServiceCall) -> None:
     entity_id = call.data["entity_id"]
     options_to_reset = call.data.get("options", [])
 
-    # Get the config entry for this entity
-    config_entry = await _get_config_entry_for_entity(hass, entity_id)
+    # Get the config entry for this entity (works with camera, image, or sensor)
+    config_entry = await get_config_entry_for_device_entity(hass, entity_id, DOMAIN)
     if not config_entry:
         raise HomeAssistantError(f"Entity {entity_id} not found or is not a Tibber Graph entity")
 
@@ -292,17 +359,17 @@ async def async_handle_render(call: ServiceCall) -> None:
     # Get the entity registry
     entity_registry = er.async_get(hass)
 
-    # If no entity_id provided, render all Tibber Graph entities
+    # If no entity_id provided, render all Tibber Graph camera entities
     if not entity_ids:
         # Filter for camera entities that belong to tibber_graph platform
         all_entities = [
             entry for entry in entity_registry.entities.values()
-            if entry.platform == DOMAIN
+            if entry.platform == DOMAIN and entry.domain == "camera"
         ]
         entity_ids = [entry.entity_id for entry in all_entities]
         if not entity_ids:
             raise HomeAssistantError("No Tibber Graph entities found")
-        _LOGGER.info("Rendering all Tibber Graph entities: %s", entity_ids)
+        _LOGGER.info("Rendering all Tibber Graph camera entities: %s", entity_ids)
     elif isinstance(entity_ids, str):
         entity_ids = [entity_ids]
 
@@ -311,23 +378,36 @@ async def async_handle_render(call: ServiceCall) -> None:
     if not entity_comp:
         raise HomeAssistantError("Camera component not loaded")
 
-    # Render each entity
+    # Render each entity (resolve to camera if needed)
     rendered_count = 0
     for entity_id in entity_ids:
-        # Validate entity belongs to this integration
-        entity_entry = entity_registry.async_get(entity_id)
-        if not entity_entry or entity_entry.platform != DOMAIN:
+        # Get the config entry for this entity (works with camera, image, or sensor)
+        config_entry = await get_config_entry_for_device_entity(hass, entity_id, DOMAIN)
+        if not config_entry:
             _LOGGER.warning("Skipping %s: not found or is not a Tibber Graph entity", entity_id)
             continue
 
-        # Get the entity object and call render method
-        entity_obj = entity_comp.get_entity(entity_id)
-        if entity_obj and hasattr(entity_obj, "async_render_image"):
-            await entity_obj.async_render_image(triggered_by="action")
+        # Find the camera entity for this device
+        camera_entity_id = None
+        for entry in entity_registry.entities.values():
+            if (entry.config_entry_id == config_entry.entry_id and
+                entry.platform == DOMAIN and
+                entry.domain == "camera"):
+                camera_entity_id = entry.entity_id
+                break
+
+        if not camera_entity_id:
+            _LOGGER.warning("Skipping %s: no camera entity found for this device", entity_id)
+            continue
+
+        # Get the camera entity object and call render method
+        camera_obj = entity_comp.get_entity(camera_entity_id)
+        if camera_obj and hasattr(camera_obj, "async_render_image"):
+            await camera_obj.async_render_image(triggered_by="action")
             rendered_count += 1
-            _LOGGER.info("Triggered render for %s", entity_id)
+            _LOGGER.info("Triggered render for %s via %s", camera_entity_id, entity_id)
         else:
-            _LOGGER.warning("Skipping %s: does not support rendering", entity_id)
+            _LOGGER.warning("Skipping %s: camera entity does not support rendering", camera_entity_id)
 
     if rendered_count == 0:
         raise HomeAssistantError("No valid Tibber Graph entities were rendered")
@@ -345,8 +425,8 @@ async def async_handle_set_data_source(call: ServiceCall) -> None:
     if isinstance(price_entity_id, str):
         price_entity_id = price_entity_id.strip() or None
 
-    # Get the config entry for this entity
-    config_entry = await _get_config_entry_for_entity(hass, entity_id)
+    # Get the config entry for this entity (works with camera, image, or sensor)
+    config_entry = await get_config_entry_for_device_entity(hass, entity_id, DOMAIN)
     if not config_entry:
         raise HomeAssistantError(f"Entity {entity_id} not found or is not a Tibber Graph entity")
 
@@ -386,8 +466,8 @@ async def async_handle_set_custom_theme(call: ServiceCall) -> None:
     entity_id = call.data["entity_id"]
     theme_config = call.data.get("theme_config")
 
-    # Get the config entry for this entity
-    config_entry = await _get_config_entry_for_entity(hass, entity_id)
+    # Get the config entry for this entity (works with camera, image, or sensor)
+    config_entry = await get_config_entry_for_device_entity(hass, entity_id, DOMAIN)
     if not config_entry:
         raise HomeAssistantError(f"Entity {entity_id} not found or is not a Tibber Graph entity")
 
@@ -412,18 +492,167 @@ async def async_handle_set_custom_theme(call: ServiceCall) -> None:
     _LOGGER.info("Set custom theme for %s", entity_id)
 
 
-async def _get_config_entry_for_entity(hass: HomeAssistant, entity_id: str) -> ConfigEntry | None:
-    """Get the config entry for a given entity ID."""
-    entity_registry = er.async_get(hass)
-    entity_entry = entity_registry.async_get(entity_id)
+async def async_handle_create_graph(call: ServiceCall) -> dict[str, str]:
+    """Handle create_graph service call."""
+    hass = call.hass
+    entity_name = call.data.get("entity_name", "").strip() if call.data.get("entity_name") else ""
+    price_entity_id = call.data.get("price_entity_id")
+    options = call.data.get("options", {})
+    custom_theme = call.data.get("custom_theme")
+    recreate = call.data.get("recreate", False)
 
-    if not entity_entry:
-        return None
+    # Strip price_entity_id if it's a string
+    if isinstance(price_entity_id, str):
+        price_entity_id = price_entity_id.strip() or None
 
-    # Check if the entity belongs to this integration
-    if entity_entry.platform != DOMAIN:
-        return None
+    # Validate price entity if provided
+    if price_entity_id:
+        entity_registry = er.async_get(hass)
+        entity_entry = entity_registry.async_get(price_entity_id)
 
-    # Get the config entry
-    config_entry = hass.config_entries.async_get_entry(entity_entry.config_entry_id)
-    return config_entry
+        if not entity_entry:
+            # Try to get the state to check if entity exists
+            state = hass.states.get(price_entity_id)
+            if not state:
+                raise HomeAssistantError(f"Entity {price_entity_id} not found")
+            elif not price_entity_id.startswith(f"{SENSOR_DOMAIN}."):
+                raise HomeAssistantError(f"Entity {price_entity_id} is not a sensor")
+        elif entity_entry.domain != SENSOR_DOMAIN:
+            raise HomeAssistantError(f"Entity {price_entity_id} is not a sensor")
+    else:
+        # No entity provided, check if Tibber integration is available
+        if TIBBER_DOMAIN not in hass.config.components:
+            raise HomeAssistantError("Either a price entity must be provided or the Tibber integration must be configured")
+
+    # Generate entity name if not provided (same logic as config_flow)
+    if not entity_name:
+        if price_entity_id:
+            # Use the friendly name of the price entity
+            state = hass.states.get(price_entity_id)
+            if state and state.attributes.get("friendly_name"):
+                entity_name = state.attributes["friendly_name"]
+            else:
+                entity_name = price_entity_id.split(".")[-1].replace("_", " ").title()
+        else:
+            # Auto-generate entity name based on Tibber home
+            try:
+                homes = hass.data["tibber"].get_homes(only_active=True)
+                if homes:
+                    home = homes[0]
+                    if not home.info:
+                        await home.update_info()
+                    entity_name = home.info['viewer']['home']['appNickname'] or home.info['viewer']['home']['address'].get('address1', 'Tibber Graph')
+            except Exception:
+                entity_name = "Tibber Graph"
+
+    # Check if entity with this name already exists
+    existing_entries = hass.config_entries.async_entries(DOMAIN)
+    existing_entry = None
+    for entry in existing_entries:
+        if entry.data.get(CONF_ENTITY_NAME) == entity_name:
+            existing_entry = entry
+            break
+
+    if existing_entry:
+        if not recreate:
+            raise HomeAssistantError(f"Entity with name '{entity_name}' already exists. Set recreate=true to replace it.")
+
+        # Remove existing entry
+        _LOGGER.info("Recreating existing entity: %s", entity_name)
+        await hass.config_entries.async_remove(existing_entry.entry_id)
+
+    # Validate options if provided
+    validated_options = {}
+    if options:
+        for key, value in options.items():
+            if key not in VALID_OPTIONS:
+                raise HomeAssistantError(f"Invalid option: {key}")
+
+            # Clean string values
+            if isinstance(value, str):
+                value = value.strip()
+                # Convert empty strings to None for nullable fields
+                if value == "" and key in [CONF_HOURS_TO_SHOW, CONF_Y_TICK_COUNT, CONF_PRICE_DECIMALS, CONF_CURRENCY_OVERRIDE]:
+                    value = None
+
+            # Validate the value
+            try:
+                validated_value = VALID_OPTIONS[key](value)
+                validated_options[key] = validated_value
+            except (vol.Invalid, ValueError) as err:
+                raise HomeAssistantError(f"Invalid value for option '{key}': {value}. Error: {err}") from err
+
+    # Validate custom theme if provided
+    if custom_theme:
+        is_valid, error_message = validate_custom_theme(custom_theme)
+        if not is_valid:
+            raise HomeAssistantError(f"Invalid custom theme: {error_message}")
+        # Add custom theme to options
+        validated_options[CONF_CUSTOM_THEME] = custom_theme
+
+    # Create config entry data
+    entry_data = {
+        CONF_ENTITY_NAME: entity_name,
+        CONF_PRICE_ENTITY_ID: price_entity_id,
+    }
+
+    # Create the config entry
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": "user"},
+        data=entry_data,
+    )
+
+    if result["type"] != "create_entry":
+        raise HomeAssistantError(f"Failed to create entity: {result.get('reason', 'Unknown error')}")
+
+    # Get the newly created entry
+    entry_id = result["result"].entry_id
+    config_entry = hass.config_entries.async_get_entry(entry_id)
+
+    if not config_entry:
+        raise HomeAssistantError("Failed to retrieve created config entry")
+
+    # Update options if provided
+    if validated_options:
+        hass.config_entries.async_update_entry(config_entry, options=validated_options)
+        await hass.config_entries.async_reload(entry_id)
+
+    # Generate the expected camera entity ID
+    name_sanitized = entity_name.lower().replace(" ", "_").replace("-", "_")
+    camera_entity_id = f"camera.tibber_graph_{name_sanitized}"
+
+    _LOGGER.info("Successfully created Tibber Graph entity: %s (camera: %s)", entity_name, camera_entity_id)
+
+    return {"entity_id": camera_entity_id}
+
+
+async def async_handle_delete_graph(call: ServiceCall) -> None:
+    """Handle delete_graph service call."""
+    hass = call.hass
+    entity_ids = call.data.get("entity_id")
+
+    # Convert single entity ID to list
+    if isinstance(entity_ids, str):
+        entity_ids = [entity_ids]
+
+    # Process each entity
+    for entity_id in entity_ids:
+        try:
+            # Get the config entry for this entity (works with camera, image, or sensor)
+            config_entry = await get_config_entry_for_device_entity(hass, entity_id, DOMAIN)
+            if not config_entry:
+                _LOGGER.warning("Skipping %s: not found or is not a Tibber Graph entity", entity_id)
+                continue
+
+            # Get entity name for logging
+            entity_name = config_entry.data.get(CONF_ENTITY_NAME, "Unknown")
+
+            # Remove the config entry
+            _LOGGER.info("Deleting Tibber Graph entity: %s (camera: %s)", entity_name, entity_id)
+            await hass.config_entries.async_remove(config_entry.entry_id)
+
+            _LOGGER.info("Successfully deleted Tibber Graph entity: %s", entity_id)
+
+        except Exception as err:
+            _LOGGER.error("Failed to delete entity %s: %s", entity_id, err)

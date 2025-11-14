@@ -53,31 +53,8 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="cheap_price_points">Cheap Price Points (0 = none)</label>
-                            <input type="number" id="cheap_price_points" name="cheap_price_points" value="{{ defaults.cheap_price_points }}" min="0" max="96">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="cheap_price_threshold">Cheap Price Threshold (0 = disabled, e.g., 0.5)</label>
-                            <input type="number" id="cheap_price_threshold" name="cheap_price_threshold" value="{{ defaults.cheap_price_threshold }}" min="0" step="0.01">
-                        </div>
-                    </div>
-
-                    <div class="section">
-                        <h2>X-Axis Settings</h2>
-
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="show_x_axis_tick_marks" name="show_x_axis_tick_marks" {% if defaults.show_x_axis_tick_marks %}checked{% endif %}>
-                                <span>Show X-axis Tick Marks</span>
-                            </label>
-                        </div>
-
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="cheap_price_on_x_axis" name="cheap_price_on_x_axis" {% if defaults.cheap_price_on_x_axis %}checked{% endif %}>
-                                <span>Show Cheap Periods on X-axis</span>
-                            </label>
+                            <label for="label_font_size">Label Font Size</label>
+                            <input type="number" id="label_font_size" name="label_font_size" value="{{ defaults.label_font_size }}" min="8" max="32">
                         </div>
 
                         <div class="form-group">
@@ -90,45 +67,18 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="x_tick_step_hours">Tick Step (hours)</label>
-                            <input type="number" id="x_tick_step_hours" name="x_tick_step_hours" value="{{ defaults.x_tick_step_hours }}" min="1" max="24">
-                        </div>
-
-                        <div class="form-group">
                             <label for="hours_to_show">Hours to Show (leave empty for all)</label>
                             <input type="number" id="hours_to_show" name="hours_to_show" value="{{ defaults.hours_to_show }}" min="1" max="48">
                         </div>
 
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="show_vertical_grid" name="show_vertical_grid" {% if defaults.show_vertical_grid %}checked{% endif %}>
-                                <span>Show Vertical Grid</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="section">
-                        <h2>Y-Axis Settings</h2>
-
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="show_y_axis" name="show_y_axis" {% if defaults.show_y_axis %}checked{% endif %}>
-                                <span>Show Y-axis</span>
-                            </label>
+                        <div class="form-group">
+                            <label for="cheap_price_points">Cheap Price Points (0 = none)</label>
+                            <input type="number" id="cheap_price_points" name="cheap_price_points" value="{{ defaults.cheap_price_points }}" min="0" max="96">
                         </div>
 
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="show_y_axis_tick_marks" name="show_y_axis_tick_marks" {% if defaults.show_y_axis_tick_marks %}checked{% endif %}>
-                                <span>Show Y-axis Tick Marks</span>
-                            </label>
-                        </div>
-
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="show_horizontal_grid" name="show_horizontal_grid" {% if defaults.show_horizontal_grid %}checked{% endif %}>
-                                <span>Show Horizontal Grid</span>
-                            </label>
+                        <div class="form-group">
+                            <label for="cheap_price_threshold">Cheap Price Threshold (0 = disabled, e.g., 0.5)</label>
+                            <input type="number" id="cheap_price_threshold" name="cheap_price_threshold" value="{{ defaults.cheap_price_threshold }}" min="0" step="0.01">
                         </div>
 
                         <div class="form-group checkbox">
@@ -138,34 +88,21 @@
                             </label>
                         </div>
 
-                        <div class="form-group">
-                            <label for="y_axis_label_rotation_deg">Label Rotation (degrees)</label>
-                            <input type="number" id="y_axis_label_rotation_deg" name="y_axis_label_rotation_deg" value="{{ defaults.y_axis_label_rotation_deg }}" min="0" max="360">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="y_axis_side">Y-axis Side</label>
-                            <select id="y_axis_side" name="y_axis_side">
-                                <option value="left" {% if defaults.y_axis_side == 'left' %}selected{% endif %}>Left</option>
-                                <option value="right" {% if defaults.y_axis_side == 'right' %}selected{% endif %}>Right</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="y_tick_count">Tick Count (leave empty for auto)</label>
-                            <input type="number" id="y_tick_count" name="y_tick_count" value="{{ defaults.y_tick_count }}" min="1" max="20">
-                        </div>
-
                         <div class="form-group checkbox">
                             <label>
-                                <input type="checkbox" id="y_tick_use_colors" name="y_tick_use_colors" {% if defaults.y_tick_use_colors %}checked{% endif %}>
-                                <span>Use Colors for Y-axis Ticks</span>
+                                <input type="checkbox" id="color_price_line_by_average" name="color_price_line_by_average" {% if defaults.color_price_line_by_average %}checked{% endif %}>
+                                <span>Color Price Line by Average</span>
                             </label>
                         </div>
                     </div>
 
                     <div class="section">
-                        <h2>Price Label Settings</h2>
+                        <h2>Price Labels</h2>
+
+                        <div class="form-group">
+                            <label for="price_decimals">Price Decimals</label>
+                            <input type="number" id="price_decimals" name="price_decimals" value="{{ defaults.price_decimals }}" min="0" max="4">
+                        </div>
 
                         <div class="form-group checkbox">
                             <label>
@@ -188,56 +125,38 @@
 
                         <div class="form-group checkbox">
                             <label>
-                                <input type="checkbox" id="label_current" name="label_current" {% if defaults.label_current %}checked{% endif %}>
-                                <span>Show Current Price Label</span>
-                            </label>
-                        </div>
-
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="label_current_in_header" name="label_current_in_header" {% if defaults.label_current_in_header %}checked{% endif %}>
-                                <span>Show Current Price in Header</span>
-                            </label>
-                        </div>
-
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="label_current_in_header_more" name="label_current_in_header_more" {% if defaults.label_current_in_header_more %}checked{% endif %}>
-                                <span>Show Additional Info in Header</span>
+                                <input type="checkbox" id="label_show_currency" name="label_show_currency" {% if defaults.label_show_currency %}checked{% endif %}>
+                                <span>Show Currency Symbol</span>
                             </label>
                         </div>
 
                         <div class="form-group">
-                            <label for="label_font_size">Label Font Size</label>
-                            <input type="number" id="label_font_size" name="label_font_size" value="{{ defaults.label_font_size }}" min="8" max="32">
+                            <label for="label_current">Show Current Price</label>
+                            <select id="label_current" name="label_current">
+                                <option value="on" {% if defaults.label_current == 'on' %}selected{% endif %}>On</option>
+                                <option value="on_current_price_only" {% if defaults.label_current == 'on_current_price_only' %}selected{% endif %}>On (current price only)</option>
+                                <option value="on_in_graph" {% if defaults.label_current == 'on_in_graph' %}selected{% endif %}>On (in graph)</option>
+                                <option value="on_in_graph_no_price" {% if defaults.label_current == 'on_in_graph_no_price' %}selected{% endif %}>On (in graph, no price)</option>
+                                <option value="off" {% if defaults.label_current == 'off' %}selected{% endif %}>Off</option>
+                            </select>
                         </div>
 
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="label_max" name="label_max" {% if defaults.label_max %}checked{% endif %}>
-                                <span>Show Max Price Label</span>
-                            </label>
+                        <div class="form-group">
+                            <label for="label_min">Show Min Price</label>
+                            <select id="label_min" name="label_min">
+                                <option value="on" {% if defaults.label_min == 'on' %}selected{% endif %}>On</option>
+                                <option value="on_no_price" {% if defaults.label_min == 'on_no_price' %}selected{% endif %}>On (no price)</option>
+                                <option value="off" {% if defaults.label_min == 'off' %}selected{% endif %}>Off</option>
+                            </select>
                         </div>
 
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="label_min" name="label_min" {% if defaults.label_min %}checked{% endif %}>
-                                <span>Show Min Price Label</span>
-                            </label>
-                        </div>
-
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="label_minmax_show_price" name="label_minmax_show_price" {% if defaults.label_minmax_show_price %}checked{% endif %}>
-                                <span>Show Price on Min/Max Labels</span>
-                            </label>
-                        </div>
-
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="label_show_currency" name="label_show_currency" {% if defaults.label_show_currency %}checked{% endif %}>
-                                <span>Show Currency Symbol</span>
-                            </label>
+                        <div class="form-group">
+                            <label for="label_max">Show Max Price</label>
+                            <select id="label_max" name="label_max">
+                                <option value="on" {% if defaults.label_max == 'on' %}selected{% endif %}>On</option>
+                                <option value="on_no_price" {% if defaults.label_max == 'on_no_price' %}selected{% endif %}>On (no price)</option>
+                                <option value="off" {% if defaults.label_max == 'off' %}selected{% endif %}>Off</option>
+                            </select>
                         </div>
 
                         <div class="form-group checkbox">
@@ -246,28 +165,99 @@
                                 <span>Use Colors for Labels</span>
                             </label>
                         </div>
+                    </div>
+
+                    <div class="section">
+                        <h2>X-Axis Settings</h2>
 
                         <div class="form-group">
-                            <label for="price_decimals">Price Decimals</label>
-                            <input type="number" id="price_decimals" name="price_decimals" value="{{ defaults.price_decimals }}" min="0" max="4">
+                            <label for="show_x_axis">Show X-axis</label>
+                            <select id="show_x_axis" name="show_x_axis">
+                                <option value="on" {% if defaults.show_x_axis == 'on' %}selected{% endif %}>On</option>
+                                <option value="on_with_tick_marks" {% if defaults.show_x_axis == 'on_with_tick_marks' %}selected{% endif %}>On (with tick marks)</option>
+                                <option value="off" {% if defaults.show_x_axis == 'off' %}selected{% endif %}>Off</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="x_tick_step_hours">Tick Step (hours)</label>
+                            <input type="number" id="x_tick_step_hours" name="x_tick_step_hours" value="{{ defaults.x_tick_step_hours }}" min="1" max="24">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cheap_periods_on_x_axis">Highlight Cheap Periods on X-axis</label>
+                            <select id="cheap_periods_on_x_axis" name="cheap_periods_on_x_axis">
+                                <option value="on" {% if defaults.cheap_periods_on_x_axis == 'on' %}selected{% endif %}>On</option>
+                                <option value="on_comfy" {% if defaults.cheap_periods_on_x_axis == 'on_comfy' %}selected{% endif %}>On (comfy)</option>
+                                <option value="on_compact" {% if defaults.cheap_periods_on_x_axis == 'on_compact' %}selected{% endif %}>On (compact)</option>
+                                <option value="off" {% if defaults.cheap_periods_on_x_axis == 'off' %}selected{% endif %}>Off</option>
+                            </select>
                         </div>
 
                         <div class="form-group checkbox">
                             <label>
-                                <input type="checkbox" id="color_price_line_by_average" name="color_price_line_by_average" {% if defaults.color_price_line_by_average %}checked{% endif %}>
-                                <span>Color Price Line by Average</span>
+                                <input type="checkbox" id="show_vertical_grid" name="show_vertical_grid" {% if defaults.show_vertical_grid %}checked{% endif %}>
+                                <span>Show Vertical Grid</span>
                             </label>
                         </div>
                     </div>
 
                     <div class="section">
-                        <h2>Auto-Refresh Settings</h2>
+                        <h2>Y-Axis Settings</h2>
+
+                        <div class="form-group">
+                            <label for="show_y_axis">Show Y-axis</label>
+                            <select id="show_y_axis" name="show_y_axis">
+                                <option value="on" {% if defaults.show_y_axis == 'on' %}selected{% endif %}>On</option>
+                                <option value="on_with_tick_marks" {% if defaults.show_y_axis == 'on_with_tick_marks' %}selected{% endif %}>On (with tick marks)</option>
+                                <option value="off" {% if defaults.show_y_axis == 'off' %}selected{% endif %}>Off</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="y_tick_count">Tick Count (leave empty for auto)</label>
+                            <input type="number" id="y_tick_count" name="y_tick_count" value="{{ defaults.y_tick_count }}" min="1" max="20">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="y_axis_label_rotation_deg">Label Rotation (degrees)</label>
+                            <input type="number" id="y_axis_label_rotation_deg" name="y_axis_label_rotation_deg" value="{{ defaults.y_axis_label_rotation_deg }}" min="0" max="360">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="y_axis_side">Y-axis Side</label>
+                            <select id="y_axis_side" name="y_axis_side">
+                                <option value="left" {% if defaults.y_axis_side == 'left' %}selected{% endif %}>Left</option>
+                                <option value="right" {% if defaults.y_axis_side == 'right' %}selected{% endif %}>Right</option>
+                            </select>
+                        </div>
 
                         <div class="form-group checkbox">
                             <label>
-                                <input type="checkbox" id="auto_refresh_enabled" name="auto_refresh_enabled" {% if defaults.auto_refresh_enabled %}checked{% endif %}>
-                                <span>Auto-Refresh Enabled</span>
+                                <input type="checkbox" id="y_tick_use_colors" name="y_tick_use_colors" {% if defaults.y_tick_use_colors %}checked{% endif %}>
+                                <span>Use Colors for Y-axis Ticks</span>
                             </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="show_horizontal_grid" name="show_horizontal_grid" {% if defaults.show_horizontal_grid %}checked{% endif %}>
+                                <span>Show Horizontal Grid</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h2>Refresh Settings</h2>
+
+                        <div class="form-group">
+                            <label for="refresh_mode">Refresh Mode</label>
+                            <select id="refresh_mode" name="refresh_mode" class="auto-render">
+                                <option value="system" {% if defaults.refresh_mode == 'system' %}selected{% endif %}>System</option>
+                                <option value="system_interval" {% if defaults.refresh_mode == 'system_interval' %}selected{% endif %}>System + Interval</option>
+                                <option value="interval" {% if defaults.refresh_mode == 'interval' %}selected{% endif %}>Interval</option>
+                                <option value="manual" {% if defaults.refresh_mode == 'manual' %}selected{% endif %}>Manual</option>
+                            </select>
                         </div>
                     </div>
 
@@ -352,7 +342,7 @@
 
                 <div class="form-group">
                     <label for="json-options-input">Options (YAML format)</label>
-                    <textarea id="json-options-input" rows="10" placeholder="theme: dark&#10;canvas_width: 1920&#10;show_x_axis_tick_marks: true&#10;cheap_price_points: 5"></textarea>
+                    <textarea id="json-options-input" rows="10" placeholder="theme: dark&#10;canvas_width: 1920&#10;show_x_axis: on_with_tick_marks&#10;cheap_price_points: 5"></textarea>
                 </div>
 
                 <div class="form-group checkbox">

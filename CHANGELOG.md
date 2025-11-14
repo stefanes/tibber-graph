@@ -4,6 +4,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2025-11-14
+
+### Added
+
+- 🖼️ **Image sensor**: `image.tibber_graph_{entity_name}` exposing the rendered graph as an [image entity](https://www.home-assistant.io/integrations/image/).
+- 🎬 **New actions** (see [README.md](README.md#actions) for usage examples):
+  - `tibber_graph.create_graph` to create entries programmatically with specified configuration, including options and custom themes.
+  - `tibber_graph.delete_graph` to delete entries programmatically.
+
+### Changed
+
+- 🔃 Changed the auto-refresh setting into a refresh mode with more options for better control. See [docs/OPTIONS.md](docs/OPTIONS.md#refresh-settings) for details.
+- 💶 Improved how the currency is determined when using a custom data source. See [docs/OPTIONS.md](docs/OPTIONS.md#currency-override) for details.
+- Simplified options UI by merging options where applicable.
+- Rearranged options UI for improved usability.
+- Related entities are now grouped under a device for easier management.
+
 ## [0.5.2] - 2025-11-08
 
 ### Changed
@@ -86,7 +103,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- 🖱️ **BREAKING**: Removed support for legacy YAML configuration. The component now requires configuration through the UI (**Settings → Integrations → Add Integration → Tibber Graph**). Existing YAML configurations must be migrated to config flow entries.
+- 🖱️ **BREAKING**: Removed support for legacy YAML configuration. The component now requires configuration through the UI (**Settings → Devices & services → Add Integration → Tibber Graph**). Existing YAML configurations must be migrated to config flow entries.
 
 ## [0.1.0] - 2025-10-17
 

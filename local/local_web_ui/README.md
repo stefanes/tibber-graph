@@ -80,7 +80,7 @@ The UI includes an options dialog that allows you to paste configuration options
 theme: dark
 canvas_width: 1920
 canvas_height: 1080
-show_x_axis_tick_marks: true
+show_x_axis: on_with_tick_marks
 cheap_price_points: 5
 start_graph_at: current_hour
 ```
