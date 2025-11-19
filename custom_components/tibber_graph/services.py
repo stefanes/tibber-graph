@@ -12,12 +12,20 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 
 from .themes import get_theme_names, validate_custom_theme
-from .helpers import get_config_entry_for_device_entity
+from .helpers import get_config_entry_for_device_entity, validate_sensor_entity
 from .const import (
     DOMAIN,
     # Config entry keys
     CONF_ENTITY_NAME,
     CONF_PRICE_ENTITY_ID,
+    # Custom data source config keys
+    CONF_DATA_ATTR,
+    CONF_DATA_ATTR_START_FIELD,
+    CONF_DATA_ATTR_START_FMT,
+    CONF_DATA_ATTR_PRICE_FIELD,
+    CONF_DATA_ATTR_PRICE_FACTOR,
+    CONF_DATA_ATTR_PRICE_ADD,
+    CONF_CURRENCY_ATTR,
     # General config keys
     CONF_THEME,
     CONF_CUSTOM_THEME,
@@ -132,6 +140,13 @@ SERVICE_SET_DATA_SOURCE_SCHEMA = vol.Schema(
     {
         vol.Required("entity_id"): cv.entity_id,
         vol.Optional("price_entity_id"): vol.Any(None, cv.entity_id),
+        vol.Optional("data_attr"): vol.Any(None, cv.string),
+        vol.Optional("data_attr_start_field"): vol.Any(None, cv.string),
+        vol.Optional("data_attr_start_fmt"): vol.Any(None, cv.string),
+        vol.Optional("data_attr_price_field"): vol.Any(None, cv.string),
+        vol.Optional("data_attr_price_factor"): vol.Any(None, vol.Coerce(float)),
+        vol.Optional("data_attr_price_add"): vol.Any(None, vol.Coerce(float)),
+        vol.Optional("currency_attr"): vol.Any(None, cv.string),
     }
 )
 
@@ -158,6 +173,13 @@ SERVICE_CREATE_GRAPH_SCHEMA = vol.Schema(
         vol.Optional("options"): dict,
         vol.Optional("custom_theme"): dict,
         vol.Optional("recreate", default=False): cv.boolean,
+        vol.Optional("data_attr"): vol.Any(None, cv.string),
+        vol.Optional("data_attr_start_field"): vol.Any(None, cv.string),
+        vol.Optional("data_attr_start_fmt"): vol.Any(None, cv.string),
+        vol.Optional("data_attr_price_field"): vol.Any(None, cv.string),
+        vol.Optional("data_attr_price_factor"): vol.Any(None, vol.Coerce(float)),
+        vol.Optional("data_attr_price_add"): vol.Any(None, vol.Coerce(float)),
+        vol.Optional("currency_attr"): vol.Any(None, cv.string),
     }
 )
 
@@ -425,6 +447,27 @@ async def async_handle_set_data_source(call: ServiceCall) -> None:
     if isinstance(price_entity_id, str):
         price_entity_id = price_entity_id.strip() or None
 
+    # Get custom data source parameters
+    data_attr = call.data.get("data_attr")
+    data_attr_price_field = call.data.get("data_attr_price_field")
+    data_attr_start_field = call.data.get("data_attr_start_field")
+    data_attr_start_fmt = call.data.get("data_attr_start_fmt")
+    data_attr_price_factor = call.data.get("data_attr_price_factor")
+    data_attr_price_add = call.data.get("data_attr_price_add")
+    currency_attr = call.data.get("currency_attr")
+
+    # Strip string parameters
+    if isinstance(data_attr, str):
+        data_attr = data_attr.strip() or None
+    if isinstance(data_attr_price_field, str):
+        data_attr_price_field = data_attr_price_field.strip() or None
+    if isinstance(data_attr_start_field, str):
+        data_attr_start_field = data_attr_start_field.strip() or None
+    if isinstance(data_attr_start_fmt, str):
+        data_attr_start_fmt = data_attr_start_fmt.strip() or None
+    if isinstance(currency_attr, str):
+        currency_attr = currency_attr.strip() or None
+
     # Get the config entry for this entity (works with camera, image, or sensor)
     config_entry = await get_config_entry_for_device_entity(hass, entity_id, DOMAIN)
     if not config_entry:
@@ -432,27 +475,30 @@ async def async_handle_set_data_source(call: ServiceCall) -> None:
 
     # Validate the new data source
     if price_entity_id:
-        # Validate the entity exists and is a sensor
-        entity_registry = er.async_get(hass)
-        entity_entry = entity_registry.async_get(price_entity_id)
-
-        if not entity_entry:
-            # Try to get the state to check if entity exists
-            state = hass.states.get(price_entity_id)
-            if not state:
+        is_valid, error_key = validate_sensor_entity(hass, price_entity_id)
+        if not is_valid:
+            if error_key == "entity_not_found":
                 raise HomeAssistantError(f"Entity {price_entity_id} not found")
-            elif not price_entity_id.startswith("sensor."):
+            else:
                 raise HomeAssistantError(f"Entity {price_entity_id} is not a sensor")
-        elif entity_entry.domain != "sensor":
-            raise HomeAssistantError(f"Entity {price_entity_id} is not a sensor")
     else:
         # No entity provided, check if Tibber integration is available
         if "tibber" not in hass.config.components:
             raise HomeAssistantError("Either a price entity must be provided or the Tibber integration must be configured")
 
-    # Update entry data with new price entity ID
+    # Update entry data with new price entity ID and custom data source parameters
     updated_data = dict(config_entry.data)
     updated_data[CONF_PRICE_ENTITY_ID] = price_entity_id
+
+    # Store custom data source parameters (None values will be stored to reset to defaults)
+    updated_data[CONF_DATA_ATTR] = data_attr
+    updated_data[CONF_DATA_ATTR_PRICE_FIELD] = data_attr_price_field
+    updated_data[CONF_DATA_ATTR_START_FIELD] = data_attr_start_field
+    updated_data[CONF_DATA_ATTR_START_FMT] = data_attr_start_fmt
+    updated_data[CONF_DATA_ATTR_PRICE_FACTOR] = data_attr_price_factor
+    updated_data[CONF_DATA_ATTR_PRICE_ADD] = data_attr_price_add
+    updated_data[CONF_CURRENCY_ATTR] = currency_attr
+
     hass.config_entries.async_update_entry(config_entry, data=updated_data)
     await hass.config_entries.async_reload(config_entry.entry_id)
 
@@ -505,20 +551,35 @@ async def async_handle_create_graph(call: ServiceCall) -> dict[str, str]:
     if isinstance(price_entity_id, str):
         price_entity_id = price_entity_id.strip() or None
 
+    # Get custom data source parameters
+    data_attr = call.data.get("data_attr")
+    data_attr_price_field = call.data.get("data_attr_price_field")
+    data_attr_start_field = call.data.get("data_attr_start_field")
+    data_attr_start_fmt = call.data.get("data_attr_start_fmt")
+    data_attr_price_factor = call.data.get("data_attr_price_factor")
+    data_attr_price_add = call.data.get("data_attr_price_add")
+    currency_attr = call.data.get("currency_attr")
+
+    # Strip string parameters
+    if isinstance(data_attr, str):
+        data_attr = data_attr.strip() or None
+    if isinstance(data_attr_price_field, str):
+        data_attr_price_field = data_attr_price_field.strip() or None
+    if isinstance(data_attr_start_field, str):
+        data_attr_start_field = data_attr_start_field.strip() or None
+    if isinstance(data_attr_start_fmt, str):
+        data_attr_start_fmt = data_attr_start_fmt.strip() or None
+    if isinstance(currency_attr, str):
+        currency_attr = currency_attr.strip() or None
+
     # Validate price entity if provided
     if price_entity_id:
-        entity_registry = er.async_get(hass)
-        entity_entry = entity_registry.async_get(price_entity_id)
-
-        if not entity_entry:
-            # Try to get the state to check if entity exists
-            state = hass.states.get(price_entity_id)
-            if not state:
+        is_valid, error_key = validate_sensor_entity(hass, price_entity_id)
+        if not is_valid:
+            if error_key == "entity_not_found":
                 raise HomeAssistantError(f"Entity {price_entity_id} not found")
-            elif not price_entity_id.startswith(f"{SENSOR_DOMAIN}."):
+            else:
                 raise HomeAssistantError(f"Entity {price_entity_id} is not a sensor")
-        elif entity_entry.domain != SENSOR_DOMAIN:
-            raise HomeAssistantError(f"Entity {price_entity_id} is not a sensor")
     else:
         # No entity provided, check if Tibber integration is available
         if TIBBER_DOMAIN not in hass.config.components:
@@ -594,6 +655,14 @@ async def async_handle_create_graph(call: ServiceCall) -> dict[str, str]:
     entry_data = {
         CONF_ENTITY_NAME: entity_name,
         CONF_PRICE_ENTITY_ID: price_entity_id,
+        # Store custom data source parameters
+        CONF_DATA_ATTR: data_attr,
+        CONF_DATA_ATTR_PRICE_FIELD: data_attr_price_field,
+        CONF_DATA_ATTR_START_FIELD: data_attr_start_field,
+        CONF_DATA_ATTR_START_FMT: data_attr_start_fmt,
+        CONF_DATA_ATTR_PRICE_FACTOR: data_attr_price_factor,
+        CONF_DATA_ATTR_PRICE_ADD: data_attr_price_add,
+        CONF_CURRENCY_ATTR: currency_attr,
     }
 
     # Create the config entry

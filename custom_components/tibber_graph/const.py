@@ -19,6 +19,7 @@ from .defaults import (
     BOTTOM_MARGIN,
     LEFT_MARGIN,
     NEAR_AVERAGE_THRESHOLD,
+    COLOR_GRADIENT_INTERPOLATION_STEPS,
     # Price labels
     PRICE_DECIMALS,
     USE_HOURLY_PRICES,
@@ -40,6 +41,7 @@ from .defaults import (
     SHOW_VERTICAL_GRID,
     X_AXIS_LABEL_Y_OFFSET,
     CHEAP_PERIOD_BOUNDARY_HOURS,
+    CHEAP_PERIOD_BOUNDARY_HIGHLIGHT,
     # Y-axis settings
     SHOW_Y_AXIS,
     Y_TICK_COUNT,
@@ -61,6 +63,14 @@ DOMAIN = "tibber_graph"
 CONF_ENTITY_NAME = "entity_name"
 CONF_PRICE_ENTITY_ID = "price_entity_id"
 CONF_CUSTOM_THEME = "custom_theme"
+# Custom data source config keys
+CONF_DATA_ATTR = "data_attr"
+CONF_DATA_ATTR_START_FIELD = "data_attr_start_field"
+CONF_DATA_ATTR_START_FMT = "data_attr_start_fmt"
+CONF_DATA_ATTR_PRICE_FIELD = "data_attr_price_field"
+CONF_DATA_ATTR_PRICE_FACTOR = "data_attr_price_factor"
+CONF_DATA_ATTR_PRICE_ADD = "data_attr_price_add"
+CONF_CURRENCY_ATTR = "currency_attr"
 # General settings
 CONF_THEME = "theme"
 CONF_TRANSPARENT_BACKGROUND = "transparent_background"
@@ -108,6 +118,14 @@ REFRESH_MODE_MANUAL = "manual"
 # Default values imported from defaults.py
 DEFAULT_ENTITY_NAME = None  # Will be auto-generated if not provided
 DEFAULT_PRICE_ENTITY_ID = None  # Optional - if not provided, use Tibber integration
+# Custom data source defaults - None means use default detection from SUPPORTED_* lists
+DEFAULT_DATA_ATTR = None
+DEFAULT_DATA_ATTR_START_FIELD = None
+DEFAULT_DATA_ATTR_START_FMT = None
+DEFAULT_DATA_ATTR_PRICE_FIELD = None
+DEFAULT_DATA_ATTR_PRICE_FACTOR = None
+DEFAULT_DATA_ATTR_PRICE_ADD = None
+DEFAULT_CURRENCY_ATTR = None
 # General settings
 DEFAULT_THEME = THEME
 DEFAULT_TRANSPARENT_BACKGROUND = TRANSPARENT_BACKGROUND
@@ -124,6 +142,7 @@ DEFAULT_COLOR_PRICE_LINE_BY_AVERAGE = COLOR_PRICE_LINE_BY_AVERAGE
 DEFAULT_BOTTOM_MARGIN = BOTTOM_MARGIN
 DEFAULT_LEFT_MARGIN = LEFT_MARGIN
 DEFAULT_NEAR_AVERAGE_THRESHOLD = NEAR_AVERAGE_THRESHOLD
+DEFAULT_COLOR_GRADIENT_INTERPOLATION_STEPS = COLOR_GRADIENT_INTERPOLATION_STEPS
 # Price labels
 DEFAULT_PRICE_DECIMALS = PRICE_DECIMALS
 DEFAULT_USE_HOURLY_PRICES = USE_HOURLY_PRICES
@@ -145,6 +164,7 @@ DEFAULT_CHEAP_PERIODS_ON_X_AXIS = CHEAP_PERIODS_ON_X_AXIS
 DEFAULT_SHOW_VERTICAL_GRID = SHOW_VERTICAL_GRID
 DEFAULT_X_AXIS_LABEL_Y_OFFSET = X_AXIS_LABEL_Y_OFFSET
 DEFAULT_CHEAP_PERIOD_BOUNDARY_HOURS = CHEAP_PERIOD_BOUNDARY_HOURS
+DEFAULT_CHEAP_PERIOD_BOUNDARY_HIGHLIGHT = CHEAP_PERIOD_BOUNDARY_HIGHLIGHT
 # Y-axis settings
 DEFAULT_SHOW_Y_AXIS = SHOW_Y_AXIS
 DEFAULT_Y_TICK_COUNT = Y_TICK_COUNT
@@ -203,3 +223,10 @@ Y_AXIS_SIDE_RIGHT = "right"
 # External domain constants
 SENSOR_DOMAIN = "sensor"
 TIBBER_DOMAIN = "tibber"
+
+# Custom data source configuration - supported attribute names (ordered by priority)
+SUPPORTED_DATA_ATTRIBUTES = ["prices", "data"]
+
+# Custom data source configuration - supported field names (ordered by priority)
+SUPPORTED_START_TIME_FIELDS = ["start_time", "start", "startsAt"]
+SUPPORTED_PRICE_FIELDS = ["price", "price_per_kwh", "total"]

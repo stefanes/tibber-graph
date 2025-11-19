@@ -88,10 +88,11 @@ def _get_old_value(entry, options, old_key):
     Returns:
         tuple: (has_value, value, location) where location is 'options' or 'data'
     """
-    if options and old_key in options:
-        return True, options[old_key], "options"
-    if entry and old_key in entry.data:
-        return True, entry.data[old_key], "data"
+    # Reuse _get_value to avoid duplication
+    value = _get_value(entry, options, old_key)
+    if value is not None:
+        location = "options" if (options and old_key in options) else "data"
+        return True, value, location
     return False, None, None
 
 
@@ -393,24 +394,16 @@ def migrate_label_current_and_header_merge(hass, entry, options, name):
     old_key_label_current_in_header = "label_current_in_header"
     old_key_label_current_in_header_more = "label_current_in_header_more"
 
-    # Helper to get value from options or entry.data
-    def _get_value(key):
-        if options and key in options:
-            return options[key]
-        if entry and key in entry.data:
-            return entry.data[key]
-        return None
-
     # Check if we have old related options that indicate this needs migration
     def _has_old_related_options():
-        header_more = _get_value(old_key_label_current_in_header_more)
+        header_more = _get_value(entry, options, old_key_label_current_in_header_more)
         if header_more is not None:
             return True
-        header = _get_value(old_key_label_current_in_header)
+        header = _get_value(entry, options, old_key_label_current_in_header)
         return isinstance(header, bool)
 
     # Determine if migration is needed and get label_current value
-    label_current = _get_value(old_key_label_current)
+    label_current = _get_value(entry, options, old_key_label_current)
 
     if isinstance(label_current, bool):
         # Explicit boolean value found
@@ -427,8 +420,8 @@ def migrate_label_current_and_header_merge(hass, entry, options, name):
                                         old_key_label_current_in_header_more)
 
     # Get related option values
-    old_value_label_current_in_header = _get_value(old_key_label_current_in_header)
-    old_value_label_current_in_header_more = _get_value(old_key_label_current_in_header_more)
+    old_value_label_current_in_header = _get_value(entry, options, old_key_label_current_in_header)
+    old_value_label_current_in_header_more = _get_value(entry, options, old_key_label_current_in_header_more)
 
     # Determine new value based on old options
     new_value = _determine_new_label_current_value(

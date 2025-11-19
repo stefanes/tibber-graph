@@ -166,7 +166,7 @@ if (-Not $z.IsPresent -And (Test-Path $destManifestPath)) {
         # Extract major.minor from original version and append HHMM
         if ($originalVersion -match '^(\d+\.\d+)') {
             $timestamp = Get-Date -Format "HHmm"
-            $newVersion = "$originalVersion-l$timestamp"
+            $newVersion = "$originalVersion+$timestamp"
             $manifest.version = $newVersion
             $manifest | ConvertTo-Json -Depth 10 | Set-Content $destManifestPath
             Write-Host ""

@@ -571,6 +571,12 @@
                         throw new Error(`Empty key on line: "${trimmedLine}"`);
                     }
 
+                    // Remove surrounding quotes if present
+                    if ((value.startsWith('"') && value.endsWith('"')) ||
+                        (value.startsWith("'") && value.endsWith("'"))) {
+                        value = value.substring(1, value.length - 1);
+                    }
+
                     // Parse value to appropriate type
                     if (value === '' || value === 'null') {
                         value = null;

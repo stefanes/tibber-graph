@@ -8,7 +8,7 @@
 [![Downloads](https://img.shields.io/github/downloads/stefanes/tibber-graph/latest/total?style=for-the-badge&color=1ed0e7&logoColor=ccc&logo=githubsponsors&label=Downloads)](https://tooomm.github.io/github-release-stats/?username=stefanes&repository=tibber-graph)
 [![Issues](https://img.shields.io/github/issues/stefanes/tibber-graph?style=for-the-badge&color=1ed0e7&logoColor=ccc&logo=github)](https://github.com/stefanes/tibber-graph/issues)
 
-Display past and future electricity prices as a graph in Home Assistant, as an out-of-the-box alternative to [Apex Charts](https://github.com/RomRider/apexcharts-card). **Tibber Graph** was originally built for the official [Tibber integration](https://www.home-assistant.io/integrations/tibber/), but supports any compatible price sensor as a data source such as [Nord Pool](https://www.home-assistant.io/integrations/nordpool) (see example [below](#nord-pool-official-integration)) or [EPEX Spot](https://github.com/mampfes/ha_epex_spot).
+Display past and future electricity prices as a graph in Home Assistant - an out-of-the-box alternative to e.g. [Apex Charts](https://github.com/RomRider/apexcharts-card). **Tibber Graph** was originally built for the official [Tibber integration](https://www.home-assistant.io/integrations/tibber/) but supports [any price sensor](#price-sensors-as-data-source) as a data source, such as [Nord Pool](https://www.home-assistant.io/integrations/nordpool) or [EPEX Spot](https://github.com/mampfes/ha_epex_spot).
 
 ![Graph with only defaults](docs/assets/defaults-only.png)
 
@@ -24,7 +24,7 @@ Display past and future electricity prices as a graph in Home Assistant, as an o
 
 ### Manual Installation
 
-1. Copy the contents of the `custom_components/tibber_graph` folder into `config/custom_components/tibber_graph`
+1. Copy the contents of the [`custom_components/tibber_graph` folder](custom_components/tibber_graph/) into `config/custom_components/tibber_graph`
 2. Restart Home Assistant
 
 ## Configuration
@@ -53,10 +53,10 @@ You can configure Tibber Graph to get price data from either:
 
 1. **Tibber Integration** (default): Uses the official [Tibber integration](https://www.home-assistant.io/integrations/tibber/) to fetch prices directly. You can [sign up for Tibber](https://tibber.com/se/invite/gqpkcwrn) using the invitation code `gqpkcwrn` to get a **€50/500 kr bonus** for use in the [Tibber Store](https://tibber.com/se/store).
 
-2. **Custom Entity**: Provide any Home Assistant sensor entity that contains price data in its attributes. The entity must have either a `prices` or `data` attribute containing a list of prices with `start_time`|`start`|`startsAt` and `price`|`price_per_kwh`|`total` fields (see [examples](#custom-data-source) and [schema](#schema) below).
+2. **Price Sensor**: Provide any Home Assistant price sensor that contains price data in its attributes. See [Price Sensors as Data Source](#price-sensors-as-data-source) below for details.
 
 > [!TIP]
-> The price data source can be changed at any time using the [`tibber_graph.set_data_source` action](#tibber_graphset_data_source).
+> The data source can be changed at any time using the [`tibber_graph.create_graph`](#tibber_graphcreate_graph) or [`tibber_graph.set_data_source`](#tibber_graphset_data_source) actions.
 
 ### Advanced Customization
 
@@ -84,6 +84,8 @@ The reconfigure dialog allows you to:
 - **Reset nullable fields**: Reset specific nullable configuration values (hours to show, Y-axis tick count, price decimals, currency override) back to their defaults
 - **Reset all settings**: Clear all custom configuration and return to default settings
 
+![Reconfigure entry](docs/assets/reconfigure.png)
+
 ### Provided Entities
 
 Tibber Graph provides the following entities:
@@ -108,8 +110,8 @@ This sensor provides the timestamp of the last successful image render for the c
 
 **Attributes:**
 
-- `data_source_entity_id`: The entity ID used as the price data source (empty string if using Tibber integration)
-- `data_source_friendly_name`: The friendly name of the data source entity (or "Tibber Integration" if using Tibber integration)
+- `data_source_entity_id`: The entity ID of the [price sensor used as a data source](#price-sensors-as-data-source) (empty string if using Tibber integration)
+- `data_source_friendly_name`: The friendly name of the price sensor (or "Tibber Integration" if using Tibber integration)
 - `triggered_by`: The source that triggered the rendering. Possible values:
   - `camera_access`: Graph was rendered when the camera entity was accessed
   - `action`: Graph was rendered via the [`tibber_graph.render` action](#tibber_graphrender)
@@ -123,11 +125,11 @@ Tibber Graph provides actions for managing the graph configuration and rendering
 
 Update one or more configuration options for an entity. The entity will be reloaded automatically after the options are updated.
 
-| Data attribute | Required | Description                                                                                                                                                                                            |
-| -------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `entity_id`    | Yes      | The entity ID of the camera to update                                                                                                                                                                  |
-| `options`      | Yes      | Dictionary of options to update, where keys are option names (as defined in [OPTIONS.md](docs/OPTIONS.md)) and values are the new values                                                               |
-| `overwrite`    | No       | When `true`, all options **not** provided in the `options` dictionary will be reset to their default values. When `false` (default), only provided options are updated, existing options are preserved |
+| Data attribute | Required | Description                                                                                                                                                                                             |
+| -------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entity_id`    | Yes      | The entity ID of the camera to update.                                                                                                                                                                  |
+| `options`      | Yes      | Dictionary of options to update, where keys are option names (as defined in [OPTIONS.md](docs/OPTIONS.md)) and values are the new values.                                                               |
+| `overwrite`    | No       | When `true`, all options **not** provided in the `options` dictionary will be reset to their default values. When `false` (default), only provided options are updated, existing options are preserved. |
 
 **Examples:**
 
@@ -137,7 +139,7 @@ action: tibber_graph.set_option
 data:
   entity_id: camera.tibber_graph_nord_pool_price
   options:
-    theme: light
+    theme: "light"
 ```
 
 ```yaml
@@ -146,7 +148,7 @@ action: tibber_graph.set_option
 data:
   entity_id: camera.tibber_graph_nord_pool_price
   options:
-    theme: dark
+    theme: "dark"
     transparent_background: true
     canvas_width: 1920
     canvas_height: 1080
@@ -160,7 +162,7 @@ action: tibber_graph.set_option
 data:
   entity_id: camera.tibber_graph_nord_pool_price
   options:
-    theme: light
+    theme: "light"
     canvas_width: 1920
   overwrite: true
 # All options not listed (canvas_height, show_average_price_line, etc.)
@@ -171,10 +173,10 @@ data:
 
 Reset one or more configuration options to their default values for an entity. The entity will be reloaded automatically after the options are reset.
 
-| Data attribute | Required | Description                                                                                                                                   |
-| -------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `entity_id`    | Yes      | The entity ID of the camera to reset options for                                                                                              |
-| `options`      | No       | List of option names to reset (as defined in [OPTIONS.md](docs/OPTIONS.md)). Leave empty or omit to reset all options to their default values |
+| Data attribute | Required | Description                                                                                                                                    |
+| -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entity_id`    | Yes      | The entity ID of the camera to reset options for.                                                                                              |
+| `options`      | No       | List of option names to reset (as defined in [OPTIONS.md](docs/OPTIONS.md)). Leave empty or omit to reset all options to their default values. |
 
 **Examples:**
 
@@ -198,17 +200,19 @@ data:
 
 #### `tibber_graph.set_data_source`
 
-Change the price data source for an entity. This allows you to switch between the Tibber integration and/or custom price entities.
+Change the data source for an entity. This allows you to switch between the Tibber integration and/or price sensors as a data source.
 
-| Data attribute    | Required | Description                                                                                                |
-| ----------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
-| `entity_id`       | Yes      | The entity ID of the camera to update the data source for                                                  |
-| `price_entity_id` | No       | The entity ID of a sensor containing price data. Leave empty or omit to use the Tibber integration instead |
+| Data attribute    | Required | Description                                                                                                 |
+| ----------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
+| `entity_id`       | Yes      | The entity ID of the camera to update the data source for.                                                  |
+| `price_entity_id` | No       | The entity ID of a sensor containing price data. Leave empty or omit to use the Tibber integration instead. |
+
+See also [Custom attributes & fields](#custom-attributes--fields) below for how to specify custom attributes and fields.
 
 **Examples:**
 
 ```yaml
-# Switch to a custom price entity
+# Switch to a price sensor as data source
 action: tibber_graph.set_data_source
 data:
   entity_id: camera.tibber_graph_nord_pool_price
@@ -226,9 +230,9 @@ data:
 
 Render the graph for an entity. If `entity_id` is not provided, renders all Tibber Graph entities.
 
-| Data attribute | Required | Description                                                                                                   |
-| -------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
-| `entity_id`    | No       | The entity ID (or list of entity IDs) of the camera to render for. If not provided, all entities are rendered |
+| Data attribute | Required | Description                                                                                                |
+| -------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `entity_id`    | No       | The entity ID (or list of entity IDs) of the camera to render. If not provided, all entities are rendered. |
 
 **Examples:**
 
@@ -250,10 +254,10 @@ action: tibber_graph.render
 
 Set a custom theme for an entity, allowing you to dynamically change the graph's color scheme. All theme properties must be provided when setting a custom theme. Call without `theme_config` to clear the custom theme and revert to the configured theme.
 
-| Data attribute | Required | Description                                                                                 |
-| -------------- | -------- | ------------------------------------------------------------------------------------------- |
-| `entity_id`    | Yes      | The entity ID of the camera to set the custom theme for                                     |
-| `theme_config` | No       | Dictionary containing all 23 theme properties. If omitted or empty, clears the custom theme |
+| Data attribute | Required | Description                                                                                  |
+| -------------- | -------- | -------------------------------------------------------------------------------------------- |
+| `entity_id`    | Yes      | The entity ID of the camera to set the custom theme for.                                     |
+| `theme_config` | No       | Dictionary containing all 23 theme properties. If omitted or empty, clears the custom theme. |
 
 For detailed information about theme properties, complete examples, and automation ideas, see **[CUSTOM_THEME.md](docs/CUSTOM_THEME.md)**.
 
@@ -301,17 +305,17 @@ data:
 
 #### `tibber_graph.create_graph`
 
-Create a new Tibber Graph camera entity programmatically. This action allows you to create entities without using the UI, making it easy to set up multiple graphs with similar configurations.
+Create a new Tibber Graph camera entity programmatically. This action allows you to create entities without using the UI, making it easy to set up multiple graphs with similar configurations. The action returns the entity ID of the created camera entity.
 
-| Data attribute    | Required | Description                                                                                                                                                                                          |
-| ----------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `entity_name`     | No       | The name of the new entity. Must be unique. If not provided, auto-generated from the price entity friendly name or Tibber home name. Will be prefixed with "Tibber Graph" for the camera entity name |
-| `price_entity_id` | No       | The entity ID of a sensor containing price data. If not provided, the Tibber integration will be used                                                                                                |
-| `options`         | No       | Dictionary of options to set for the new entity. Keys should be option names (as defined in [OPTIONS.md](docs/OPTIONS.md))                                                                           |
-| `custom_theme`    | No       | Dictionary defining a custom theme. Keys should be theme property names (as defined in [CUSTOM_THEME.md](docs/CUSTOM_THEME.md))                                                                      |
-| `recreate`        | No       | If `true`, recreate the entity if it already exists. If `false` (default), an error will be raised if an entity with the same name exists                                                            |
+| Data attribute    | Required | Description                                                                                                                                                                                           |
+| ----------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entity_name`     | No       | The name of the new entity. Must be unique. If not provided, auto-generated from the price entity friendly name or Tibber home name. Will be prefixed with "Tibber Graph" for the camera entity name. |
+| `price_entity_id` | No       | The entity ID of a sensor containing price data. If not provided, the Tibber integration will be used.                                                                                                |
+| `options`         | No       | Dictionary of options to set for the new entity. Keys should be option names (as defined in [OPTIONS.md](docs/OPTIONS.md)).                                                                           |
+| `custom_theme`    | No       | Dictionary defining a custom theme. Keys should be theme property names (as defined in [CUSTOM_THEME.md](docs/CUSTOM_THEME.md)).                                                                      |
+| `recreate`        | No       | If `true`, recreate the entity if it already exists. If `false` (default), an error will be raised if an entity with the same name exists.                                                            |
 
-The action returns the entity ID of the created camera entity.
+See also [Custom attributes & fields](#custom-attributes--fields) below for how to specify custom attributes and fields.
 
 **Examples:**
 
@@ -321,13 +325,13 @@ action: tibber_graph.create_graph
 ```
 
 ```yaml
-# Re-create an entity with custom data source and specific options
+# Re-create an entity with a price sensor as data source and specific options
 action: tibber_graph.create_graph
 data:
   entity_name: "Living Room Display"
   price_entity_id: sensor.nord_pool_price
   options:
-    theme: light
+    theme: "light"
     canvas_width: 1920
     canvas_height: 1080
     transparent_background: true
@@ -371,9 +375,9 @@ data:
 
 Delete a Tibber Graph camera entity programmatically. This action removes the entity from Home Assistant.
 
-| Data attribute | Required | Description                                        |
-| -------------- | -------- | -------------------------------------------------- |
-| `entity_id`    | Yes      | The entity ID of the Tibber Graph camera to delete |
+| Data attribute | Required | Description                                         |
+| -------------- | -------- | --------------------------------------------------- |
+| `entity_id`    | Yes      | The entity ID of the Tibber Graph camera to delete. |
 
 The action validates that the entity exists before deleting it and returns a confirmation message upon success.
 
@@ -386,51 +390,24 @@ data:
   entity_id: camera.tibber_graph_nord_pool_price
 ```
 
-## Custom Data Source
+## Price Sensors as Data Source
 
-Examples of custom data sources that can be used with Tibber Graph (see [schema](#schema) below).
+Any price sensor can be used as a data source as long as it exposes price data in its attributes in a compatible format. This allows you to use other electricity price providers or roll your own custom price sensor.
+
+Sensors must either follow the data source format below (by transforming the data using a template sensors as with [Nord Pool](#nord-pool) or directly as with [EPEX Spot](#epex-spot)) or you can specify [custom attributes and fields](#custom-attributes--fields) when using the `tibber_graph.create_graph` or `tibber_graph.set_data_source` actions.
+
+```yaml
+# Data source format
+attributes:
+  {prices|data}:
+    - {start_time|start|startsAt}: datetime # datetime string in ISO 8601 format
+      {price|price_per_kwh|total}: float    # price per kWh
+    - ...
+  currency: string                          # (optional) currency string
+```
 
 > [!TIP]
 > See the [`home-assistant-config` repo](https://github.com/stefanes/home-assistant-config) for more complete examples.
-
-### Tibber
-
-Install and configure the official [Tibber integration](https://www.home-assistant.io/integrations/tibber/) and create a template sensor:
-
-```yaml
-template:
-  - trigger:
-      - trigger: time
-        at: "14:00:00"
-      - trigger: homeassistant
-        event: start
-    action:
-      - action: tibber.get_prices
-        data:
-          start: "{{ (today_at()).strftime('%Y-%m-%d %H:%M:%S') }}"
-          end: "{{ (today_at() + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S') }}"
-        response_variable: today_prices
-      - action: tibber.get_prices
-        data:
-          start: "{{ (today_at() + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S') }}"
-          end: "{{ (today_at() + timedelta(days=2)).strftime('%Y-%m-%d %H:%M:%S') }}"
-        response_variable: tomorrow_prices
-    sensor:
-      - name: Tibber price
-        state: >
-          {% set prices = today_prices.prices.values() | first + tomorrow_prices.prices.values() | first %}
-          {{ (prices | map(attribute='price') | sum / prices | count)  | round(3, default=0) }}
-        unit_of_measurement: SEK/kWh
-        state_class: total
-        device_class: monetary
-        unique_id: tibber_price
-        icon: mdi:cash-multiple
-        availability: >
-          {{ today_prices is mapping and today_prices.prices.values() | first | length > 0 }}
-        attributes:
-          prices: >
-            {{ today_prices.prices.values() | first + tomorrow_prices.prices.values() | first }}
-```
 
 ### Nord Pool
 
@@ -446,6 +423,11 @@ template:
         at: "14:00:00"
       - trigger: homeassistant
         event: start
+      - platform: event
+        event_type: call_service
+        event_data:
+          domain: template
+          service: reload
     action:
       - variables:
           config_entry: "{nord_pool_config_entry_id}"
@@ -461,7 +443,7 @@ template:
           date: "{{ now().date() + timedelta(days=1) }}"
         response_variable: tomorrow_prices
     sensor:
-      - name: Nord Pool price
+      - name: Nord Pool price (example)
         state: >
           {% set prices = today_prices[area] + tomorrow_prices[area] %}
           {{ (prices | map(attribute='price') | sum / prices | count / 1000 * 1.25 + 0.086) | round(3, default=0) }}
@@ -473,7 +455,7 @@ template:
         unit_of_measurement: SEK/kWh
         state_class: total
         device_class: monetary
-        unique_id: nord_pool_price
+        unique_id: nord_pool_price_example
         icon: mdi:cash-multiple
         availability: >
           {{ today_prices is mapping and today_prices[area] | length > 0 }}
@@ -492,23 +474,83 @@ template:
 
 ### EPEX Spot
 
-Install and configure the [EPEX Spot integration](https://github.com/mampfes/ha_epex_spot). The price sensors provided by this integration can be used directly as the data source for Tibber Graph, as they already expose the required [`data` attribute](https://github.com/mampfes/ha_epex_spot?tab=readme-ov-file#2-market-price-sensor).
+Install and configure the [EPEX Spot integration](https://github.com/mampfes/ha_epex_spot). The price sensors provided by this integration can be used directly as a data source as they expose a compatible [`data` attribute](https://github.com/mampfes/ha_epex_spot?tab=readme-ov-file#2-market-price-sensor).
 
-### Schema
+### Custom attributes & fields
+
+You can customize how price data is extracted and transformed using one or more of these parameters when calling the [`tibber_graph.create_graph`](#tibber_graphcreate_graph) or [`tibber_graph.set_data_source`](#tibber_graphset_data_source) actions:
+
+| Parameter               | Type   | Description                                                                                                                                                                                       |
+| ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data_attr`             | String | Specify the attribute name containing the price data list.                                                                                                                                        |
+| `data_attr_start_field` | String | Specify the field name for the start time in each price point.                                                                                                                                    |
+| `data_attr_start_fmt`   | String | Specify the datetime format string for parsing timestamps (using Python's [format codes](https://docs.python.org/3/library/datetime.html#format-codes)). If not set, ISO 8601 format is expected. |
+| `data_attr_price_field` | String | Specify the field name for the price value in each price point.                                                                                                                                   |
+| `currency_attr`         | String | Specify the attribute name to read the currency symbol from.                                                                                                                                      |
+
+> [!NOTE]
+> If any of the above parameters are not provided, the default values will be used (see [Data source format](#price-sensors-as-data-source) above).
+
+These parameters allow you to transform the price provided by the data source, in this order, before displaying them:
+
+| Parameter                | Type   | Description                                                                                                                         |
+| ------------------------ | ------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `data_attr_price_factor` | Number | Multiply each price by this factor. Useful for unit conversion (e.g., 0.001 for MWh to kWh) or adding VAT (e.g., 1.25 for 25% VAT). |
+| `data_attr_price_add`    | Number | Add this value to each price. Useful for adding fixed costs like grid fees.                                                         |
+
+#### Examples
+
+Given a price sensor exposing data in the following format (prices in SEK/MWh without VAT or markup):
 
 ```yaml
-attributes:
-  {prices|data}:
-    - {"start_time"|"start"|"startsAt"}: datetime # datetime string in ISO 8601 format
-      {"price"|"price_per_kwh"|"total"}: float    # price per kWh
-    - ...
-  currency: string                                # optional currency string (e.g., "€", "SEK", "öre")
+sensor:
+  - name: Nord Pool spot price
+    ...
+    unique_id: nord_pool_spot_price
+    ...
+    attributes:
+      price_per_mwh:
+        - from: 11/17/2025 00:00:00
+          spot_price: 585.86
+        - from: 11/17/2025 00:15:00
+          spot_price: 578.4
+          ...
+      price_unit: kr
+```
+
+Create/update graph using the `tibber_graph.create_graph` and `tibber_graph.set_data_source` actions:
+
+```yaml
+# Create a graph with prices in SEK/kWh, including 25% VAT and a 0.086 SEK/kWh markup
+action: tibber_graph.create_graph
+data:
+  price_entity_id: sensor.nord_pool_spot_price
+  data_attr: "price_per_mwh"
+  data_attr_start_field: "from"
+  data_attr_start_fmt: "%m/%d/%Y %H:%M:%S"
+  data_attr_price_field: "spot_price"
+  data_attr_price_factor: 0.00125 # convert MWh to kWh and add 25% VAT
+  data_attr_price_add: 0.086 # add 0.086 SEK/kWh markup
+  currency_attr: "price_unit"
+```
+
+```yaml
+# Revert back to spot price per MWh by omitting price transformation parameters
+action: tibber_graph.set_data_source
+data:
+  entity_id: camera.tibber_graph_nord_pool_spot_price
+  price_entity_id: sensor.nord_pool_spot_price
+  data_attr: "price_per_mwh"
+  data_attr_start_field: "from"
+  data_attr_start_fmt: "%m/%d/%Y %H:%M:%S"
+  data_attr_price_field: "spot_price"
+  currency_attr: "price_unit"
 ```
 
 ## Example Graphs
 
 > [!TIP]
-> Use the configuration snippets below together with the [`tibber_graph.set_option` action](README.md#tibber_graphset_option) to reproduce the example graphs.
+> Use the configuration snippets below together with the [`tibber_graph.set_option` action](#tibber_graphset_option) to reproduce the example graphs.
 
 <details>
 <summary>Graph rendered with <a href="https://github.com/stefanes/tibber-graph/releases/tag/v0.2.1">version 0.2.1</a> defaults:</summary>
@@ -519,9 +561,9 @@ canvas_width: 1200
 canvas_height: 700
 color_price_line_by_average: false
 # Price labels
-label_current: on_in_graph
+label_current: "on_in_graph"
 # Y-axis settings
-show_y_axis: on_with_tick_marks
+show_y_axis: "on_with_tick_marks"
 ```
 
 </details>
@@ -533,29 +575,29 @@ show_y_axis: on_with_tick_marks
 
 ```yaml
 # General settings
-theme: dark
+theme: "dark"
 transparent_background: true
 canvas_width: 1280
 canvas_height: 720
 label_font_size: 17
-start_graph_at: current_hour
+start_graph_at: "current_hour"
 cheap_price_points: 5
 cheap_price_threshold: 0.5
 # Price labels
 use_hourly_prices: true
 use_cents: true
-currency_override: öre
-label_current: on_current_price_only
-label_min: on_no_price
-label_max: on_no_price
+currency_override: "öre"
+label_current: "on_current_price_only"
+label_min: "on_no_price"
+label_max: "on_no_price"
 # X-axis settings
-show_x_axis: on_with_tick_marks
-cheap_periods_on_x_axis: on_comfy
+show_x_axis: "on_with_tick_marks"
+cheap_periods_on_x_axis: "on_comfy"
 # Y-axis settings
-show_y_axis: on_with_tick_marks
+show_y_axis: "on_with_tick_marks"
 y_tick_count: 2
 y_axis_label_rotation_deg: 270
-y_axis_side: right
+y_axis_side: "right"
 y_tick_use_colors: true
 ```
 
@@ -564,22 +606,22 @@ y_tick_use_colors: true
 ![Graph with Wear OS configuration](docs/assets/wearos-config.png)
 
 <details>
-<summary>Graph rendered with random price data and light mode:</summary>
+<summary>Graph rendered with light mode, cheap periods on X-axis, and colored Y-axis tick marks:</summary>
 
 ```yaml
 # General settings
-theme: light
+theme: "light"
 cheap_price_points: 5
 cheap_price_threshold: 1.0
 color_price_line_by_average: false
 # Price labels
 use_hourly_prices: true
-label_current: on_in_graph
-label_min: off
-label_max: off
+label_current: "on_in_graph"
+label_min: "off"
+label_max: "off"
 # X-axis settings
-show_x_axis: on_with_tick_marks
-cheap_periods_on_x_axis: on
+show_x_axis: "on_with_tick_marks"
+cheap_periods_on_x_axis: "on"
 show_vertical_grid: false
 # Y-axis settings
 y_tick_count: 3

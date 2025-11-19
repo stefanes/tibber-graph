@@ -143,33 +143,11 @@ class TibberGraphLastUpdateSensor(SensorEntity):
         """Build extra state attributes for the sensor."""
         attributes = {}
 
+        # Data source information
         if self._price_entity_id:
-            # Using custom entity as data source
             attributes["data_source_entity_id"] = self._price_entity_id
-
-            # Get friendly name from state's friendly_name attribute first (customized name),
-            # then entity registry, then state's name
-            state = self.hass.states.get(self._price_entity_id)
-
-            if state and state.attributes.get("friendly_name"):
-                # Use the friendly_name from state attributes (user-customized name)
-                attributes["data_source_friendly_name"] = state.attributes.get("friendly_name")
-            else:
-                # Fallback to entity registry name
-                entity_registry = er.async_get(self.hass)
-                entity_entry = entity_registry.async_get(self._price_entity_id)
-
-                if entity_entry and entity_entry.name:
-                    # Use the name from entity registry
-                    attributes["data_source_friendly_name"] = entity_entry.name
-                elif state and state.name:
-                    # Fallback to state's name
-                    attributes["data_source_friendly_name"] = state.name
-                else:
-                    # No friendly name available
-                    attributes["data_source_friendly_name"] = ""
+            attributes["data_source_friendly_name"] = self._get_entity_friendly_name(self._price_entity_id)
         else:
-            # Using Tibber integration as data source
             attributes["data_source_entity_id"] = ""
             attributes["data_source_friendly_name"] = "Tibber Integration"
 
@@ -177,15 +155,14 @@ class TibberGraphLastUpdateSensor(SensorEntity):
         if self._triggered_by:
             attributes["triggered_by"] = self._triggered_by
 
+        # Get camera entity once for multiple attribute lookups
+        camera_entity = self._get_camera_entity()
+
         # Add currency information from camera entity
-        if self._camera_entity_id:
-            entity_comp = self.hass.data.get("entity_components", {}).get("camera")
-            if entity_comp:
-                camera_entity = entity_comp.get_entity(self._camera_entity_id)
-                if camera_entity and hasattr(camera_entity, "_get_currency_with_source"):
-                    currency_symbol, currency_source = camera_entity._get_currency_with_source()
-                    attributes["currency_symbol"] = currency_symbol
-                    attributes["currency_source"] = currency_source
+        if camera_entity and hasattr(camera_entity, "_get_currency_with_source"):
+            currency_symbol, currency_source = camera_entity._get_currency_with_source()
+            attributes["currency_symbol"] = currency_symbol
+            attributes["currency_source"] = currency_source
 
         # Add refresh_mode from entry options
         refresh_mode = self._entry.options.get(CONF_REFRESH_MODE)
@@ -193,19 +170,37 @@ class TibberGraphLastUpdateSensor(SensorEntity):
             attributes["refresh_mode"] = refresh_mode
 
             # Add refresh_interval if mode is system_interval or interval
-            if refresh_mode in [REFRESH_MODE_SYSTEM_INTERVAL,
-            REFRESH_MODE_INTERVAL]:
-                # Get camera entity component to access detected interval
-                if self._camera_entity_id:
-                    entity_comp = self.hass.data.get("entity_components", {}).get("camera")
-                    if entity_comp:
-                        camera_entity = entity_comp.get_entity(self._camera_entity_id)
-                        if camera_entity and hasattr(camera_entity, "_refresh_interval_hourly"):
-                            if camera_entity._refresh_interval_hourly is not None:
-                                # Convert boolean to text representation
-                                if camera_entity._refresh_interval_hourly:
-                                    attributes["refresh_interval"] = "60 minutes"
-                                else:
-                                    attributes["refresh_interval"] = "15 minutes"
+            if refresh_mode in [REFRESH_MODE_SYSTEM_INTERVAL, REFRESH_MODE_INTERVAL]:
+                if camera_entity and hasattr(camera_entity, "_refresh_interval_hourly"):
+                    if camera_entity._refresh_interval_hourly is not None:
+                        # Convert boolean to text representation
+                        attributes["refresh_interval"] = "60 minutes" if camera_entity._refresh_interval_hourly else "15 minutes"
 
         return attributes
+
+    def _get_camera_entity(self):
+        """Get the camera entity object (cached lookup)."""
+        if not self._camera_entity_id:
+            return None
+        entity_comp = self.hass.data.get("entity_components", {}).get("camera")
+        return entity_comp.get_entity(self._camera_entity_id) if entity_comp else None
+
+    def _get_entity_friendly_name(self, entity_id: str) -> str:
+        """Get friendly name for an entity with fallbacks."""
+        state = self.hass.states.get(entity_id)
+
+        # First try friendly_name attribute (user-customized)
+        if state and state.attributes.get("friendly_name"):
+            return state.attributes.get("friendly_name")
+
+        # Fallback to entity registry
+        entity_registry = er.async_get(self.hass)
+        entity_entry = entity_registry.async_get(entity_id)
+        if entity_entry and entity_entry.name:
+            return entity_entry.name
+
+        # Fallback to state name
+        if state and state.name:
+            return state.name
+
+        return ""

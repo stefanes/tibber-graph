@@ -106,6 +106,28 @@ with open(const_file, 'r', encoding='utf-8') as f:
 # No additional loading needed - all modes use defaults.py as base
 # Test modes will apply render_options inline in main()
 
+# Load ensure_timezone function from helpers.py (without importing Home Assistant dependencies)
+# Define it directly to avoid import issues
+from dateutil import tz
+
+# Reuse local timezone object
+LOCAL_TZ = tz.tzlocal()
+
+def ensure_timezone(dt, tz_info=None):
+    """Ensure a datetime object has timezone information.
+
+    Args:
+        dt: datetime object to check
+        tz_info: timezone to apply if missing (defaults to LOCAL_TZ)
+
+    Returns:
+        datetime object with timezone information
+    """
+    if tz_info is None:
+        tz_info = LOCAL_TZ
+    # For Python 3.11+, use replace() for all timezone objects
+    return dt if dt.tzinfo else dt.replace(tzinfo=tz_info)
+
 # Read and execute renderer.py (replacing relative imports)
 renderer_file = component_dir / "renderer.py"
 with open(renderer_file, 'r', encoding='utf-8') as f:
@@ -122,6 +144,13 @@ with open(renderer_file, 'r', encoding='utf-8') as f:
     renderer_code = re.sub(
         r'^# Import theme loader for dynamic theme selection\nfrom \.themes import get_theme_config',
         '# Theme loader defined locally',
+        renderer_code,
+        flags=re.MULTILINE
+    )
+    # Remove the helpers import
+    renderer_code = re.sub(
+        r'^# Import helper functions\nfrom \.helpers import ensure_timezone\n\n',
+        '',
         renderer_code,
         flags=re.MULTILINE
     )
@@ -425,7 +454,7 @@ def generate_price_data(use_random=False, fixed_time=None):
     # Load real price data from JSON file
     # Note: This file format matches the expected format for entity-based price data
     # (same format as entity attributes 'prices' or 'data')
-    # Supported field names: `start_time`|`start`|`startsAt` for timestamp, `price`|`price_per_kwh`|`total` for value
+    # Supported field names: `start_time|start|startsAt` for timestamp, `price|price_per_kwh|total` for value
     try:
         with open(PRICE_DATA_FILE, 'r', encoding='utf-8') as f:
             price_data_json = json.load(f)

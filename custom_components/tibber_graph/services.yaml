@@ -71,6 +71,63 @@ set_data_source:
       selector:
         entity:
           domain: sensor
+    data_attr:
+      name: Data attribute
+      description: The attribute to use for getting the price data from the data source entity. Omit to use defaults (see README.md for details).
+      required: false
+      example: "prices"
+      selector:
+        text:
+    data_attr_start_field:
+      name: Start time field name
+      description: The field to use for getting the start time from each price point in the price data. Omit to use defaults (see README.md for details).
+      required: false
+      example: "start_time"
+      selector:
+        text:
+    data_attr_start_fmt:
+      name: Start timeformat string
+      description: The datetime format string for parsing timestamps (using Python's strftime format codes, e.g., '%m/%d/%Y %H:%M:%S'). Omit to use ISO 8601 format.
+      required: false
+      example: "%m/%d/%Y %H:%M:%S"
+      selector:
+        text:
+    data_attr_price_field:
+      name: Price field name
+      description: The field to use for getting the price value from each price point in the price data. Omit to use defaults (see README.md for details).
+      required: false
+      example: "price"
+      selector:
+        text:
+    data_attr_price_factor:
+      name: Price multiplication factor
+      description: The factor to multiply each price value by for unit conversion or adding VAT (e.g., 0.001 to convert from kWh to MWh, or 1.25 to add 25% VAT). Can combine both (e.g., 0.00125 for MWh with 25% VAT). Omit to disable.
+      required: false
+      example: 0.001
+      selector:
+        number:
+          min: 0.000001
+          max: 1000
+          step: any
+          mode: box
+    data_attr_price_add:
+      name: Price addition
+      description: The value to add to each price value after other transformations (e.g., to add a fixed grid fee per kWh). Omit to disable.
+      required: false
+      example: 0.05
+      selector:
+        number:
+          min: -1000
+          max: 1000
+          step: any
+          mode: box
+    currency_attr:
+      name: Currency attribute
+      description: The attribute to use for getting the currency symbol from the data source entity. Omit to use defaults (see README.md for details).
+      required: false
+      example: "currency"
+      selector:
+        text:
 
 render:
   name: Render
@@ -102,7 +159,7 @@ set_custom_theme:
           domain: camera
     theme_config:
       name: Theme config
-      description: Dictionary containing all theme properties. If omitted or empty, clears the custom theme and reverts to the configured theme. Must include all required theme fields (please see documentation).
+      description: Dictionary containing all theme properties. If omitted or empty, clears the custom theme and reverts to the configured theme. Must include all required theme fields (see CUSTOM_THEME.md for details).
       required: false
       example: '{"axis_label_color": "#cfd6e6", "background_color": "#1c1c1c", "cheap_price_color": "#2d5a3d", "fill_alpha": 0.18, "fill_color": "#7dc3ff", "grid_alpha": 0.45, "grid_color": "#2a2f36", "label_color": "#e6edf3", "label_color_avg": "#eab308", "label_color_max": "#fb7185", "label_color_min": "#34d399", "label_stroke": true, "nowline_alpha": 0.5, "nowline_color": "#ff6b6b", "plot_linewidth": 1.0, "price_line_color": "#7dc3ff", "price_line_color_above_avg": "#fb7185", "price_line_color_below_avg": "#7dc3ff", "price_line_color_near_avg": "#eab308", "spine_color": "#3a4250", "tick_color": "#cfd6e6", "tickline_color": "#1f2530"}'
       selector:
@@ -149,6 +206,63 @@ create_graph:
       example: false
       selector:
         boolean:
+    data_attr:
+      name: Data attribute
+      description: The attribute to use for getting the price data from the data source entity. Omit to use defaults (see README.md for details).
+      required: false
+      example: "prices"
+      selector:
+        text:
+    data_attr_start_field:
+      name: Start time field name
+      description: The field to use for getting the start time from each price point in the price data. Omit to use defaults (see README.md for details).
+      required: false
+      example: "start_time"
+      selector:
+        text:
+    data_attr_start_fmt:
+      name: Start time format string
+      description: The datetime format string for parsing timestamps (using Python's strftime format codes, e.g., '%m/%d/%Y %H:%M:%S'). Omit to use ISO 8601 format.
+      required: false
+      example: "%m/%d/%Y %H:%M:%S"
+      selector:
+        text:
+    data_attr_price_field:
+      name: Price field name
+      description: The field to use for getting the price value from each price point in the price data. Omit to use defaults (see README.md for details).
+      required: false
+      example: "price"
+      selector:
+        text:
+    data_attr_price_factor:
+      name: Price multiplication factor
+      description: The factor to multiply each price value by for unit conversion or adding VAT (e.g., 0.001 to convert from kWh to MWh, or 1.25 to add 25% VAT). Can combine both (e.g., 0.00125 for MWh with 25% VAT). Omit to disable.
+      required: false
+      example: 0.001
+      selector:
+        number:
+          min: 0.000001
+          max: 1000
+          step: any
+          mode: box
+    data_attr_price_add:
+      name: Price addition
+      description: The value to add to each price value after other transformations (e.g., to add a fixed grid fee per kWh). Omit to disable.
+      required: false
+      example: 0.05
+      selector:
+        number:
+          min: -1000
+          max: 1000
+          step: any
+          mode: box
+    currency_attr:
+      name: Currency attribute
+      description: The attribute to use for getting the currency symbol from the data source entity. Omit to use defaults (see README.md for details).
+      required: false
+      example: "currency"
+      selector:
+        text:
 
 delete_graph:
   name: Delete graph

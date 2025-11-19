@@ -1,11 +1,14 @@
 """Rendering logic for Tibber price graphs using matplotlib."""
 import datetime
 
-from dateutil import tz
 import matplotlib
 import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import numpy as np
+
+# Import helper functions
+from .helpers import ensure_timezone
 
 # Import default constants from const.py for fallback values
 from .const import (
@@ -26,6 +29,7 @@ from .const import (
     DEFAULT_HOURS_TO_SHOW as HOURS_TO_SHOW,
     DEFAULT_SHOW_VERTICAL_GRID as SHOW_VERTICAL_GRID,
     DEFAULT_CHEAP_PERIOD_BOUNDARY_HOURS as CHEAP_PERIOD_BOUNDARY_HOURS,
+    DEFAULT_CHEAP_PERIOD_BOUNDARY_HIGHLIGHT as CHEAP_PERIOD_BOUNDARY_HIGHLIGHT,
     DEFAULT_SHOW_Y_AXIS as SHOW_Y_AXIS,
     DEFAULT_SHOW_HORIZONTAL_GRID as SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE as SHOW_AVERAGE_PRICE_LINE,
@@ -49,6 +53,7 @@ from .const import (
     DEFAULT_PRICE_DECIMALS as PRICE_DECIMALS,
     DEFAULT_COLOR_PRICE_LINE_BY_AVERAGE as COLOR_PRICE_LINE_BY_AVERAGE,
     DEFAULT_NEAR_AVERAGE_THRESHOLD as NEAR_AVERAGE_THRESHOLD,
+    DEFAULT_COLOR_GRADIENT_INTERPOLATION_STEPS as COLOR_GRADIENT_INTERPOLATION_STEPS,
     START_GRAPH_AT_MIDNIGHT,
     START_GRAPH_AT_CURRENT_HOUR,
     START_GRAPH_AT_SHOW_ALL,
@@ -85,24 +90,6 @@ matplotlib.use("Agg")
 plt.rcdefaults()
 plt.rcParams.update({'font.size': 12})
 
-# Reuse local timezone object
-LOCAL_TZ = tz.tzlocal()
-
-
-def _ensure_timezone(dt, tz_info=None):
-    """Ensure a datetime object has timezone information.
-
-    Args:
-        dt: datetime object to check
-        tz_info: timezone to apply if missing (defaults to LOCAL_TZ)
-
-    Returns:
-        datetime object with timezone information
-    """
-    if tz_info is None:
-        tz_info = LOCAL_TZ
-    return dt if dt.tzinfo else dt.replace(tzinfo=tz_info)
-
 
 def _split_past_future_data(dates_plot, prices_plot, now_local):
     """Split price data into past and future sections at current time.
@@ -128,23 +115,27 @@ def _split_past_future_data(dates_plot, prices_plot, now_local):
     future_dates = []
     future_prices = []
 
+    # Find the current hour's price (the hour that contains "now")
+    # This is the last data point that starts at or before "now"
+    current_hour_price = None
     for i, (d, p) in enumerate(zip(dates_plot, prices_plot)):
         if d <= now_local:
+            current_hour_price = p
             past_dates.append(d)
             past_prices.append(p)
         if d >= now_local:
             future_dates.append(d)
             future_prices.append(p)
 
-    # Ensure continuity at the "now" point
+    # Ensure continuity at the "now" point using the current hour's price
     if past_dates and future_dates:
         if past_dates[-1] != now_local and future_dates[0] != now_local:
-            if past_prices:
+            # Use the current hour's price (the hour containing "now") for both continuity points
+            if current_hour_price is not None:
                 past_dates.append(now_local)
-                past_prices.append(past_prices[-1])
-            if future_prices:
+                past_prices.append(current_hour_price)
                 future_dates.insert(0, now_local)
-                future_prices.insert(0, future_prices[0])
+                future_prices.insert(0, current_hour_price)
 
     return past_dates, past_prices, future_dates, future_prices
 
@@ -164,8 +155,6 @@ def _draw_colored_price_line(ax, dates, prices, average_price, threshold,
         color_above: Color for prices above average
         linewidth: Width of the price line
     """
-    import numpy as np
-
     # Validate input data to prevent rendering errors
     if not dates or not prices or len(dates) <= 1 or len(prices) <= 1:
         return
@@ -185,7 +174,7 @@ def _draw_colored_price_line(ax, dates, prices, average_price, threshold,
             color_next = _get_price_color(prices[i + 1], average_price, threshold,
                                           color_below, color_near, color_above)
             # Create gradient on vertical segment
-            n_points = 10
+            n_points = COLOR_GRADIENT_INTERPOLATION_STEPS
             y_vals = np.linspace(prices[i], prices[i + 1], n_points)
             for j in range(n_points - 1):
                 ratio = j / (n_points - 1)
@@ -215,11 +204,11 @@ def _calculate_end_hour(start_hour, hours_to_show, dates_plot, default_end):
     if hours_to_show is not None and hours_to_show > 0:
         hours_end = start_hour + datetime.timedelta(hours=hours_to_show)
         last_data_point = dates_plot[-1] if dates_plot else default_end
-        last_data_point = _ensure_timezone(last_data_point)
+        last_data_point = ensure_timezone(last_data_point)
         return min(hours_end, last_data_point)
     else:
         end_hour = dates_plot[-1] if dates_plot else default_end
-        return _ensure_timezone(end_hour)
+        return ensure_timezone(end_hour)
 
 
 def _get_price_color(price, average_price, threshold_pct, color_below, color_near, color_above):
@@ -329,6 +318,7 @@ def render_plot_to_path(
     X_TICK_STEP_HOURS_OPT = get_opt("x_tick_step_hours", X_TICK_STEP_HOURS)
     HOURS_TO_SHOW_OPT = get_opt("hours_to_show", HOURS_TO_SHOW)
     SHOW_VERTICAL_GRID_OPT = get_opt("show_vertical_grid", SHOW_VERTICAL_GRID)
+    CHEAP_PERIOD_BOUNDARY_HIGHLIGHT_OPT = get_opt("cheap_period_boundary_highlight", CHEAP_PERIOD_BOUNDARY_HIGHLIGHT)
     # Y-axis settings
     SHOW_Y_AXIS_OPT = get_opt("show_y_axis", SHOW_Y_AXIS)
     SHOW_HORIZONTAL_GRID_OPT = get_opt("show_horizontal_grid", SHOW_HORIZONTAL_GRID)
@@ -502,7 +492,7 @@ def render_plot_to_path(
     if START_GRAPH_AT_OPT == START_GRAPH_AT_MIDNIGHT:
         # Start at local midnight
         start_hour = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-        start_hour = _ensure_timezone(start_hour)
+        start_hour = ensure_timezone(start_hour)
 
         # Calculate end hour with optional hours limit
         default_end = start_hour + datetime.timedelta(days=1)
@@ -510,7 +500,7 @@ def render_plot_to_path(
     elif START_GRAPH_AT_OPT == START_GRAPH_AT_CURRENT_HOUR:
         # Start one hour before the current hour and show data up to the last available point
         start_hour = now_local.replace(minute=0, second=0, microsecond=0) - datetime.timedelta(hours=1)
-        start_hour = _ensure_timezone(start_hour)
+        start_hour = ensure_timezone(start_hour)
 
         # Calculate end hour with optional hours limit
         default_end = start_hour + datetime.timedelta(hours=2)
@@ -522,12 +512,12 @@ def render_plot_to_path(
     else:  # START_GRAPH_AT_SHOW_ALL
         # Show all available data from first to last data point
         if dates_plot:
-            start_hour = _ensure_timezone(dates_plot[0])
-            end_hour = _ensure_timezone(dates_plot[-1])
+            start_hour = ensure_timezone(dates_plot[0])
+            end_hour = ensure_timezone(dates_plot[-1])
         else:
             # Fallback if no data
             start_hour = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-            start_hour = _ensure_timezone(start_hour)
+            start_hour = ensure_timezone(start_hour)
             end_hour = start_hour + datetime.timedelta(days=1)
 
         # Apply hours limit if configured (even in show_all mode)
@@ -647,14 +637,14 @@ def render_plot_to_path(
                     zorder=3,  # Above grid lines (z=2) but below price line (z=4)
                 )
 
-    # Draw price line, fill, and "now" line based on visibility
-    # If COLOR_PRICE_LINE_BY_AVERAGE is enabled, color future segments with gradient transitions
-    if COLOR_PRICE_LINE_BY_AVERAGE_OPT and calc_prices and len(calc_prices) > 0:
-        # Calculate average price from calculation data (filtered based on display options)
+    # Pre-calculate average price once if needed (used multiple times below)
+    average_price = None
+    if (COLOR_PRICE_LINE_BY_AVERAGE_OPT or SHOW_AVERAGE_PRICE_LINE_OPT) and calc_prices and len(calc_prices) > 0:
         average_price = sum(calc_prices) / len(calc_prices)
 
-        # Import necessary for gradient coloring
-        import numpy as np
+    # Draw price line, fill, and "now" line based on visibility
+    # If COLOR_PRICE_LINE_BY_AVERAGE is enabled, color future segments with gradient transitions
+    if COLOR_PRICE_LINE_BY_AVERAGE_OPT and average_price is not None:
 
         if now_is_visible:
             # Split the data into past (dimmed) and future (bright) sections
@@ -994,8 +984,7 @@ def render_plot_to_path(
 
     # Draw average price line if enabled (at same z-order as horizontal grid lines)
     # Average is calculated from calculation data (filtered based on display options)
-    if SHOW_AVERAGE_PRICE_LINE_OPT and calc_prices and len(calc_prices) > 0:
-        average_price = sum(calc_prices) / len(calc_prices)
+    if SHOW_AVERAGE_PRICE_LINE_OPT and average_price is not None:
         ax.axhline(average_price, color=NOWLINE_COLOR, alpha=GRID_ALPHA, linestyle=":", linewidth=1, zorder=2)
 
     # Calculate Y-axis tick min/max values
@@ -1141,7 +1130,7 @@ def render_plot_to_path(
             period_start, period_end, _ = future_cheap_periods[i]
 
             # Check if this period is continuous with the current range
-            if (period_start - current_range_end).total_seconds() <= gap_threshold_seconds:
+            if (period_start - current_range_end).total_seconds() < gap_threshold_seconds:
                 # There's a gap, but we're merging the ranges for display
                 # Track both the end of cheap period before gap and start after gap
                 if (period_start - current_range_end).total_seconds() > 0:
@@ -1191,7 +1180,7 @@ def render_plot_to_path(
                 if gap_tick not in cheap_tick_times:
                     cheap_tick_times.append(gap_tick)
 
-    def _draw_x_label(ax, tick_time, y_offset, label_color, label_effects):
+    def _draw_x_label(ax, tick_time, y_offset, label_color, label_effects, fontweight="normal"):
         """Draw x-axis label at specified position with given styling."""
         ax.text(
             tick_time,
@@ -1202,6 +1191,7 @@ def render_plot_to_path(
             ha="center",
             va="top",
             fontsize=LABEL_FONT_SIZE_OPT,
+            fontweight=fontweight,
             color=label_color,
             clip_on=False,
             zorder=6,
@@ -1215,25 +1205,19 @@ def render_plot_to_path(
             tick_start = _get_tick_time(range_start)
             tick_end = _get_tick_time(range_end)
 
-            # Always add start label for the first range
-            if idx == 0:
-                cheap_tick_times.append(tick_start)
-            else:
-                # For subsequent ranges, check if we should add intermediate start label
-                prev_tick_end = _get_tick_time(cheap_ranges[idx - 1][1])
-                time_diff_seconds = (tick_start - prev_tick_end).total_seconds()
-
-                # Add start label if sufficiently far from previous end label
-                if time_diff_seconds >= boundary_threshold_seconds:
-                    cheap_tick_times.append(tick_start)
+            # Always add start label (filtering for row placement happens later)
+            cheap_tick_times.append(tick_start)
 
             # Add gap boundary labels within this range (both gap ends and gap starts)
             _add_gap_boundary_ticks(gap_end_times, range_start, range_end, cheap_tick_times)
             _add_gap_boundary_ticks(gap_start_times, range_start, range_end, cheap_tick_times)
 
-            # Always add end label if it differs from start
+            # Add end label if it differs from start AND period is long enough
+            # (at least x_tick_step_hours) to warrant showing both start and end
             if tick_end != tick_start:
-                cheap_tick_times.append(tick_end)
+                period_length_seconds = (range_end - range_start).total_seconds()
+                if period_length_seconds >= boundary_threshold_seconds:
+                    cheap_tick_times.append(tick_end)
 
     # Choose tick generation strategy based on configuration
     if CHEAP_PERIODS_ON_X_AXIS_OPT in (CHEAP_PERIODS_ON_X_AXIS_ON, CHEAP_PERIODS_ON_X_AXIS_ON_COMFY):
@@ -1314,7 +1298,18 @@ def render_plot_to_path(
 
             # Determine label color: 'label_color_min' if in cheap range, otherwise use default tick color
             label_color = LABEL_COLOR_MIN if tt in matching_ticks else tick_color
-            _draw_x_label(ax, tt, X_AXIS_LABEL_Y_OFFSET, label_color, xlab_effects)
+
+            # Determine font weight: bold for boundary labels when highlighting is enabled
+            # In compact mode: bold if in cheap_tick_times
+            # In comfy mode: bold if in cheap_tick_times (boundary labels on row one)
+            if (CHEAP_PERIOD_BOUNDARY_HIGHLIGHT_OPT and show_cheap_boundaries and
+                CHEAP_PERIODS_ON_X_AXIS_OPT in (CHEAP_PERIODS_ON_X_AXIS_ON_COMPACT, CHEAP_PERIODS_ON_X_AXIS_ON_COMFY) and
+                tt in cheap_tick_times):
+                fontweight = "bold"
+            else:
+                fontweight = "normal"
+
+            _draw_x_label(ax, tt, X_AXIS_LABEL_Y_OFFSET, label_color, xlab_effects, fontweight)
 
     # Handle bottom margin and optional separate row for cheap labels
     adjusted_bottom_margin = BOTTOM_MARGIN_OPT
@@ -1335,7 +1330,9 @@ def render_plot_to_path(
 
         # Draw cheap-only labels on second row
         for tt in cheap_only_ticks:
-            _draw_x_label(ax, tt, cheap_label_y_offset, LABEL_COLOR_MIN, xlab_effects)
+            # Make boundary labels bold in comfy mode when highlighting is enabled
+            fontweight = "bold" if CHEAP_PERIOD_BOUNDARY_HIGHLIGHT_OPT else "normal"
+            _draw_x_label(ax, tt, cheap_label_y_offset, LABEL_COLOR_MIN, xlab_effects, fontweight)
 
     # Finalize plot layout and save
     ax.margins(x=0)

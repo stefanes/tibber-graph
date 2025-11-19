@@ -12,6 +12,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv, entity_registry as er, selector
 
 from .themes import get_theme_names
+from .helpers import validate_sensor_entity
 from .const import (
     DOMAIN,
     CONF_ENTITY_NAME,
@@ -231,19 +232,10 @@ class TibberGraphConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             # Validate that either a price entity is provided or Tibber integration is configured
             if price_entity_id:
-                # Validate the entity exists and is a sensor
-                entity_registry = er.async_get(self.hass)
-                entity_entry = entity_registry.async_get(price_entity_id)
-
-                if not entity_entry:
-                    # Try to get the state to check if entity exists (even if not in registry)
-                    state = self.hass.states.get(price_entity_id)
-                    if not state:
-                        errors["price_entity_id"] = "entity_not_found"
-                    elif not price_entity_id.startswith("sensor."):
-                        errors["price_entity_id"] = "not_sensor_entity"
-                elif entity_entry.domain != "sensor":
-                    errors["price_entity_id"] = "not_sensor_entity"
+                # Validate the entity using helper function
+                is_valid, error_key = validate_sensor_entity(self.hass, price_entity_id)
+                if not is_valid:
+                    errors["price_entity_id"] = error_key
 
                 # Store the entity_id for later use
                 user_input[CONF_PRICE_ENTITY_ID] = price_entity_id

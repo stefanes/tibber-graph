@@ -64,7 +64,7 @@ The script supports three configuration modes:
 
 ## Data and Output Files
 
-- **Input**: `local/local_render/local_render.json` - Price data (shared with local_web_ui). This file format matches the expected format for entity-based price data in Home Assistant (list of prices with `start_time`|`start`|`startsAt` and `price`|`price_per_kwh`|`total` fields).
+- **Input**: `local/local_render/local_render.json` - Price data (shared with local_web_ui). This file format matches the expected format for entity-based price data in Home Assistant (list of prices with `start_time|start|startsAt` and `price|price_per_kwh|total` fields).
 - **Output**: `local/local_render.png` - Generated graph image
 
 ## Customizing Test Mode

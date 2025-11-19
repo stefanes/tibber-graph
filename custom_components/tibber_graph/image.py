@@ -8,6 +8,7 @@ from homeassistant.components.image import ImageEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.util import dt as dt_util
 
@@ -64,6 +65,9 @@ class TibberGraphImage(ImageEntity):
         """Initialize the Tibber Graph image."""
         super().__init__(hass)
 
+        self._entry = entry
+        self._entity_name = entity_name
+
         # Always prefix entity name with "Tibber Graph"
         self._attr_name = f"Tibber Graph {entity_name}"
 
@@ -72,6 +76,10 @@ class TibberGraphImage(ImageEntity):
 
         # Generate unique ID using helper function
         self._attr_unique_id = get_unique_id("image", entity_name, entry.entry_id)
+
+        # Get camera unique ID to match events
+        self._camera_unique_id = get_unique_id("camera", entity_name, entry.entry_id)
+        self._camera_entity_id = None
 
         # Set up device info to group with camera and sensor
         self._attr_device_info = DeviceInfo(
@@ -85,6 +93,20 @@ class TibberGraphImage(ImageEntity):
     async def async_added_to_hass(self) -> None:
         """Run when entity is added to hass."""
         await super().async_added_to_hass()
+
+        # Find the camera entity ID
+        entity_registry = er.async_get(self.hass)
+
+        # Search for camera entity with matching unique_id
+        for entity_entry in er.async_entries_for_config_entry(entity_registry, self._entry.entry_id):
+            if entity_entry.unique_id == self._camera_unique_id:
+                self._camera_entity_id = entity_entry.entity_id
+                _LOGGER.debug("Found camera entity: %s for image %s", self._camera_entity_id, self.entity_id)
+                break
+
+        if not self._camera_entity_id:
+            _LOGGER.warning("Could not find camera entity with unique_id %s for image %s",
+                          self._camera_unique_id, self.entity_id)
 
         # Load the initial image if it exists
         if self._file_path.exists():
@@ -112,10 +134,12 @@ class TibberGraphImage(ImageEntity):
         This is triggered by the Camera entity whenever it updates the PNG file,
         including during auto-refresh, so no separate file monitoring is needed.
         """
-        if self._file_path.exists():
-            self.hass.async_create_task(self._async_load_image())
-            _LOGGER.debug("Reloaded image for %s after camera update (triggered by: %s)",
-                         self._attr_name, event.data.get("triggered_by", "unknown"))
+        # Only reload if this is an update for our camera
+        if event.data.get("entity_id") == self._camera_entity_id:
+            if self._file_path.exists():
+                self.hass.async_create_task(self._async_load_image())
+                _LOGGER.debug("Reloaded image for %s after camera update (triggered by: %s)",
+                             self._attr_name, event.data.get("triggered_by", "unknown"))
 
     async def _async_load_image(self) -> None:
         """Load the image from the file."""

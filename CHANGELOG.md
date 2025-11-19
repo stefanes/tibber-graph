@@ -4,11 +4,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2025-11-19
+
+### Added
+
+- 🔀 Added support for **any** price sensor as a data source when created/updated using the [`tibber_graph.create_graph`](README.md#tibber_graphcreate_graph) or [`tibber_graph.set_data_source`](README.md#tibber_graphset_data_source) actions. See [Custom attributes & fields](README.md#custom-attributes--fields) for details and examples.
+
+### Fixed
+
+- Fixed issue with price line rendering around the now line.
+- Improved how cheap periods are highlighted on the X-axis.
+- Fixed issue with the [image entity](README.md#imagetibber_graph_entity_name) reloading the PNG too frequently.
+- Other minor bug fixes and improvements.
+
 ## [0.6.0] - 2025-11-14
 
 ### Added
 
-- 🖼️ **Image sensor**: `image.tibber_graph_{entity_name}` exposing the rendered graph as an [image entity](https://www.home-assistant.io/integrations/image/).
+- 🖼️ **Image entity**: `image.tibber_graph_{entity_name}` exposing the rendered graph as an [image entity](https://www.home-assistant.io/integrations/image/).
 - 🎬 **New actions** (see [README.md](README.md#actions) for usage examples):
   - `tibber_graph.create_graph` to create entries programmatically with specified configuration, including options and custom themes.
   - `tibber_graph.delete_graph` to delete entries programmatically.

@@ -70,6 +70,28 @@ themes_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(themes_module)
 get_theme_config = themes_module.get_theme_config
 
+# Load ensure_timezone function from helpers.py (without importing Home Assistant dependencies)
+# Define it directly to avoid import issues
+from dateutil import tz
+
+# Reuse local timezone object
+LOCAL_TZ = tz.tzlocal()
+
+def ensure_timezone(dt, tz_info=None):
+    """Ensure a datetime object has timezone information.
+
+    Args:
+        dt: datetime object to check
+        tz_info: timezone to apply if missing (defaults to LOCAL_TZ)
+
+    Returns:
+        datetime object with timezone information
+    """
+    if tz_info is None:
+        tz_info = LOCAL_TZ
+    # For Python 3.11+, use replace() for all timezone objects
+    return dt if dt.tzinfo else dt.replace(tzinfo=tz_info)
+
 # Read and execute renderer.py (replacing relative imports)
 renderer_file = component_dir / "renderer.py"
 with open(renderer_file, 'r', encoding='utf-8') as f:
@@ -88,6 +110,12 @@ with open(renderer_file, 'r', encoding='utf-8') as f:
         '',
         renderer_code,
         flags=re.DOTALL
+    )
+    # Remove the helpers import
+    renderer_code = re.sub(
+        r'# Import helper functions\nfrom \.helpers import ensure_timezone\n\n',
+        '',
+        renderer_code
     )
     exec(renderer_code, globals())
 

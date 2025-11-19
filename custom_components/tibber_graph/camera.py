@@ -35,6 +35,18 @@ from .const import (
     # General config keys
     CONF_ENTITY_NAME,
     CONF_PRICE_ENTITY_ID,
+    # Custom data source config keys
+    CONF_DATA_ATTR,
+    CONF_DATA_ATTR_PRICE_FIELD,
+    CONF_DATA_ATTR_START_FIELD,
+    CONF_DATA_ATTR_START_FMT,
+    CONF_DATA_ATTR_PRICE_FACTOR,
+    CONF_DATA_ATTR_PRICE_ADD,
+    CONF_CURRENCY_ATTR,
+    # Supported attribute/field lists
+    SUPPORTED_DATA_ATTRIBUTES,
+    SUPPORTED_START_TIME_FIELDS,
+    SUPPORTED_PRICE_FIELDS,
     CONF_THEME,
     CONF_CUSTOM_THEME,
     CONF_TRANSPARENT_BACKGROUND,
@@ -134,7 +146,7 @@ from .const import (
 )
 
 from .renderer import render_plot_to_path
-from .helpers import get_graph_file_path, get_unique_id
+from .helpers import get_graph_file_path, get_unique_id, ensure_timezone
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -199,6 +211,18 @@ class TibberCam(LocalFile):
         self._uniqueid = get_unique_id("camera", entity_name, entry.entry_id if entry else "default")
         self._refresh_unsub = None
         self._refresh_interval_hourly = None  # Track detected interval for sensor attribute
+        self._cached_use_hourly_prices = None  # Cache hourly pricing detection result
+
+        # Cache data source attribute configuration (determined once at init/update)
+        self._cached_data_attr = None
+        self._cached_start_field = None
+        self._cached_price_field = None
+        self._cached_currency_attr = None
+        self._cached_start_fmt = None
+        self._cached_price_factor = None
+        self._cached_price_add = None
+        # Initialize cached attributes
+        self._determine_data_source_config()
 
         # Set up device info to group camera and sensor together
         self._attr_device_info = DeviceInfo(
@@ -212,6 +236,7 @@ class TibberCam(LocalFile):
         super().__init__(self._name, self._path, self._uniqueid)
 
         # Run migrations for deprecated configuration options
+        # Note: After migration, cached values should be invalidated
         self._options = migrate_start_graph_at_option(self.hass, self._entry, self._options, self._name)
         self._options = migrate_dark_black_theme(self.hass, self._entry, self._options, self._name)
         self._options = migrate_label_current_option(self.hass, self._entry, self._options, self._name)
@@ -239,6 +264,83 @@ class TibberCam(LocalFile):
                 return None
             return value
         return fallback
+
+    def _determine_data_source_config(self) -> None:
+        """Determine and cache data source attribute configuration.
+
+        This method should be called once when the entity is created or when
+        the data source is updated. It determines which attributes to use for
+        custom data sources and caches them for efficient access during rendering.
+        """
+        if not self._price_entity_id:
+            # Using Tibber integration - no custom attributes needed
+            return
+
+        # Get configured or default attribute names
+        self._cached_data_attr = self._get_data_source_config(CONF_DATA_ATTR) or SUPPORTED_DATA_ATTRIBUTES[0]
+        self._cached_start_field = self._get_data_source_config(CONF_DATA_ATTR_START_FIELD) or SUPPORTED_START_TIME_FIELDS[0]
+        self._cached_price_field = self._get_data_source_config(CONF_DATA_ATTR_PRICE_FIELD) or SUPPORTED_PRICE_FIELDS[0]
+
+        # Get optional attributes (can be None)
+        self._cached_currency_attr = self._get_data_source_config(CONF_CURRENCY_ATTR)
+        self._cached_start_fmt = self._get_data_source_config(CONF_DATA_ATTR_START_FMT)
+        self._cached_price_factor = self._get_data_source_config(CONF_DATA_ATTR_PRICE_FACTOR)
+        self._cached_price_add = self._get_data_source_config(CONF_DATA_ATTR_PRICE_ADD)
+
+    def _get_data_source_config(self, key: str) -> Any:
+        """Get a custom data source configuration value from entry data.
+
+        Returns the configured value or None if not set (which means use defaults).
+        Only reads from entry.data, not from options.
+        """
+        if self._entry and key in self._entry.data:
+            return self._entry.data[key]
+        return None
+
+    def _apply_price_transformations(self, price: float) -> float:
+        """Apply configured transformations to a price value.
+
+        Args:
+            price: The raw price value
+
+        Returns:
+            The transformed price value
+        """
+        # Apply multiplication factor (e.g., MWh to kWh conversion or VAT)
+        if self._cached_price_factor is not None and self._cached_price_factor != 0:
+            price = price * self._cached_price_factor
+
+        # Add fixed amount
+        if self._cached_price_add is not None:
+            price = price + self._cached_price_add
+
+        return price
+
+    @staticmethod
+    def _get_field_value(item: dict, primary_field: str, fallback_fields: list[str]):
+        """Get value from dict, trying primary field first, then fallbacks.
+
+        Args:
+            item: Dictionary to search in
+            primary_field: The preferred field name
+            fallback_fields: List of fallback field names to try
+
+        Returns:
+            The field value or None if not found
+        """
+        # Try primary field first
+        value = item.get(primary_field)
+        if value is not None:
+            return value
+
+        # Try fallback fields
+        for field in fallback_fields:
+            if field != primary_field:
+                value = item.get(field)
+                if value is not None:
+                    return value
+
+        return None
 
     async def async_added_to_hass(self) -> None:
         """Run when entity is added to hass - start interval refresh if enabled."""
@@ -270,9 +372,14 @@ class TibberCam(LocalFile):
         Returns:
             bool: True if hourly pricing should be used, False for 15-minute pricing
         """
+        # Return cached value if available
+        if self._cached_use_hourly_prices is not None:
+            return self._cached_use_hourly_prices
+
         # First check if use_hourly_prices is explicitly enabled
         use_hourly_config = self._get_option(CONF_USE_HOURLY_PRICES, DEFAULT_USE_HOURLY_PRICES)
         if use_hourly_config:
+            self._cached_use_hourly_prices = True
             return True
 
         # Try to detect from actual price data
@@ -283,25 +390,21 @@ class TibberCam(LocalFile):
                 time_diff = (dates[1] - dates[0]).total_seconds() / 60  # in minutes
                 # If interval is less than 60 minutes, it's quarterly (15-minute) data
                 # Otherwise it's hourly data
-                if time_diff < 60:
-                    _LOGGER.debug(
-                        "Detected 15-minute pricing data for %s (interval: %.1f minutes)",
-                        self._name, time_diff
-                    )
-                    return False
-                else:
-                    _LOGGER.debug(
-                        "Detected hourly pricing data for %s (interval: %.1f minutes)",
-                        self._name, time_diff
-                    )
-                    return True
+                result = time_diff >= 60
+                self._cached_use_hourly_prices = result
+                _LOGGER.debug(
+                    "Detected %s pricing data for %s (interval: %.1f minutes)",
+                    "hourly" if result else "15-minute", self._name, time_diff
+                )
+                return result
         except Exception as err:
             _LOGGER.debug(
                 "Could not detect pricing interval for %s, defaulting based on configuration: %s",
                 self._name, err
             )
 
-        # Fallback to configuration
+        # Fallback to configuration and cache it
+        self._cached_use_hourly_prices = use_hourly_config
         return use_hourly_config
 
     async def _schedule_next_refresh(self) -> None:
@@ -529,7 +632,7 @@ class TibberCam(LocalFile):
         """Parse timestamp and price, applying optional date filtering.
 
         Args:
-            timestamp_str: ISO format timestamp string
+            timestamp_str: Timestamp string in ISO format or custom format (if data_attr_start_fmt is configured)
             price_val: Price value (will be converted to float)
             start_date: Start date for filtering (None to disable)
             end_date: End date for filtering (None to disable)
@@ -537,7 +640,25 @@ class TibberCam(LocalFile):
         Returns:
             tuple: (datetime, price) or None if invalid/filtered out
         """
-        dt_loc = dt_util.as_local(dt_util.parse_datetime(timestamp_str))
+        if self._cached_start_fmt:
+            # Use cached custom format string
+            try:
+                dt_parsed = datetime.datetime.strptime(timestamp_str, self._cached_start_fmt)
+            except (ValueError, TypeError):
+                # Don't log here - let the caller log once for all failures
+                return None
+        else:
+            # Try ISO format parsing
+            dt_parsed = dt_util.parse_datetime(timestamp_str)
+            if not dt_parsed:
+                # Don't log here - let the caller log once for all failures
+                return None
+
+        # If no timezone info, assume local time
+        dt_loc = ensure_timezone(dt_parsed, dt_util.DEFAULT_TIME_ZONE)
+        if dt_parsed.tzinfo is not None:
+            dt_loc = dt_util.as_local(dt_parsed)
+
         if not dt_loc:
             return None
 
@@ -559,10 +680,12 @@ class TibberCam(LocalFile):
             _LOGGER.warning("Price entity %s not found for %s", self._price_entity_id, self._name)
             return [], []
 
-        # Try to get prices from 'prices' attribute first, then 'data' attribute
-        data = state.attributes.get("prices") or state.attributes.get("data")
+        # Try cached attribute first, then fall back to other supported attributes
+        data = self._get_field_value(state.attributes, self._cached_data_attr, SUPPORTED_DATA_ATTRIBUTES)
+
         if not data:
-            _LOGGER.warning("No price data in entity %s for %s", self._price_entity_id, self._name)
+            _LOGGER.warning("No price data in entity %s for %s (tried attributes: %s)",
+                          self._price_entity_id, self._name, ", ".join(SUPPORTED_DATA_ATTRIBUTES))
             return [], []
 
         if not isinstance(data, list):
@@ -573,23 +696,51 @@ class TibberCam(LocalFile):
         # Get date range filter
         start_date, end_date = self._get_date_range_filter()
 
-        # Parse price data from entity (same format as local_render.json)
+        # Parse price data from entity using cached field names
         paired = []
+        parse_failures = 0
+        first_failed_timestamp = None
+
         for item in data:
             if not isinstance(item, dict):
                 continue
 
-            # Support `start_time`|`start`|`startsAt` keys (prioritize in that order)
-            time_key = item.get("start_time") or item.get("start") or item.get("startsAt")
-            # Support `price`|`price_per_kwh`|`total` keys (prioritize in that order)
-            price_val = item.get("price") or item.get("price_per_kwh") or item.get("total")
+            # Get start time and price using cached field names
+            time_key = self._get_field_value(item, self._cached_start_field, SUPPORTED_START_TIME_FIELDS)
+            price_val = self._get_field_value(item, self._cached_price_field, SUPPORTED_PRICE_FIELDS)
 
             if not time_key or price_val is None:
                 continue
 
+            # Apply configured price transformations
+            price_val = self._apply_price_transformations(price_val)
+
             result = self._parse_datetime_and_price(time_key, price_val, start_date, end_date)
             if result:
                 paired.append(result)
+            elif time_key:
+                # Track parse failures
+                parse_failures += 1
+                if first_failed_timestamp is None:
+                    first_failed_timestamp = time_key
+
+        # Log warning once if there were parse failures
+        if parse_failures > 0 and first_failed_timestamp:
+            if self._cached_start_fmt:
+                _LOGGER.warning(
+                    "Failed to parse %d timestamp(s) for %s with custom format '%s' (example timestamp: '%s'). "
+                    "Please verify the format string matches your timestamp format. "
+                    "See here for details: https://github.com/stefanes/tibber-graph/blob/main/README.md#custom-attributes--fields",
+                    parse_failures, self._name, self._cached_start_fmt, first_failed_timestamp
+                )
+            else:
+                _LOGGER.warning(
+                    "Failed to parse %d timestamp(s) for %s (example timestamp: '%s'). "
+                    "If your timestamps are not in ISO 8601 format, please specify 'data_attr_start_fmt' "
+                    "with the appropriate format string (e.g., '%%m/%%d/%%Y %%H:%%M:%%S' for '11/17/2025 18:00:00'). "
+                    "See here for details: https://github.com/stefanes/tibber-graph/blob/main/README.md#custom-attributes--fields",
+                    parse_failures, self._name, first_failed_timestamp
+                )
 
         return self._filter_and_parse_prices(paired, f"entity {self._price_entity_id}")
 
@@ -618,10 +769,36 @@ class TibberCam(LocalFile):
 
         # Build price pairs using helper method
         paired = []
+        parse_failures = 0
+        first_failed_timestamp = None
+
         for k, v in items:
             result = self._parse_datetime_and_price(k, v, start_date, end_date)
             if result:
                 paired.append(result)
+            elif k:
+                # Track parse failures
+                parse_failures += 1
+                if first_failed_timestamp is None:
+                    first_failed_timestamp = k
+
+        # Log warning once if there were parse failures
+        if parse_failures > 0 and first_failed_timestamp:
+            if self._cached_start_fmt:
+                _LOGGER.warning(
+                    "Failed to parse %d timestamp(s) for %s with custom format '%s' (example timestamp: '%s'). "
+                    "Please verify the format string matches your timestamp format. "
+                    "See here for details: https://github.com/stefanes/tibber-graph/blob/main/README.md#custom-attributes--fields",
+                    parse_failures, self._name, self._cached_start_fmt, first_failed_timestamp
+                )
+            else:
+                _LOGGER.warning(
+                    "Failed to parse %d timestamp(s) for %s (example timestamp: '%s'). "
+                    "If your timestamps are not in ISO 8601 format, please specify 'data_attr_start_fmt' "
+                    "with the appropriate format string (e.g., '%%m/%%d/%%Y %%H:%%M:%%S' for '11/17/2025 18:00:00'). "
+                    "See here for details: https://github.com/stefanes/tibber-graph/blob/main/README.md#custom-attributes--fields",
+                    parse_failures, self._name, first_failed_timestamp
+                )
 
         return self._filter_and_parse_prices(paired, "Tibber integration")
 
@@ -683,12 +860,19 @@ class TibberCam(LocalFile):
         if self._price_entity_id:
             state = self.hass.states.get(self._price_entity_id)
             if state:
-                # 3a. Check for 'currency' attribute
-                currency_attr = state.attributes.get("currency")
-                if currency_attr:
-                    return (str(currency_attr), "currency_attribute")
+                # 3a. Check for cached currency attribute name
+                if self._cached_currency_attr:
+                    # Use configured currency attribute
+                    currency_attr = state.attributes.get(self._cached_currency_attr)
+                    if currency_attr:
+                        return (str(currency_attr), "currency_attribute")
+                else:
+                    # Use default 'currency' attribute as fallback
+                    currency_attr = state.attributes.get("currency")
+                    if currency_attr:
+                        return (str(currency_attr), "currency_attribute")
 
-                # 3b. Check for 'unit_of_measurement' attribute
+                # 3b. Check for 'unit_of_measurement' attribute as fallback
                 unit_of_measurement = state.attributes.get("unit_of_measurement")
                 if unit_of_measurement:
                     # Extract currency symbol from unit_of_measurement

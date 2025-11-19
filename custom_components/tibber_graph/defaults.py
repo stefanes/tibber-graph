@@ -25,6 +25,7 @@ COLOR_PRICE_LINE_BY_AVERAGE = True          # True = color price line based on a
 BOTTOM_MARGIN = 0.14                        # Space reserved for bottom labels
 LEFT_MARGIN = 0.12                          # Left margin for the plot area
 NEAR_AVERAGE_THRESHOLD = 0.25               # Threshold for "near average" color range (±25% from average), used only when COLOR_PRICE_LINE_BY_AVERAGE is enabled
+COLOR_GRADIENT_INTERPOLATION_STEPS = 10     # Number of interpolation steps for smooth color gradients on vertical segments of colored price line
 
 # Price labels
 PRICE_DECIMALS = None                       # Number of decimals to show for all price displays (None = auto: 2 for standard, 0 for cents)
@@ -48,6 +49,7 @@ CHEAP_PERIODS_ON_X_AXIS = "off"             # Highlight cheap periods on X-axis:
 SHOW_VERTICAL_GRID = True                   # True = show vertical gridlines, False = hide
 X_AXIS_LABEL_Y_OFFSET = 0.05                # Distance below axis (as fraction)
 CHEAP_PERIOD_BOUNDARY_HOURS = 0             # Internal: Hours from cheap period boundaries to show end time label (0 = use X_TICK_STEP_HOURS, not exposed to UI)
+CHEAP_PERIOD_BOUNDARY_HIGHLIGHT = False     # Internal: Make start and end time labels of cheap periods bold in comfy and compact mode (not exposed to UI)
 
 # Y-axis settings
 SHOW_Y_AXIS = "on"                          # Y-axis visibility: "on" = show axis/labels without tick marks, "on_with_tick_marks" = show axis/labels with tick marks, "off" = hide y-axis completely
