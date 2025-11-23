@@ -183,7 +183,7 @@ def parse_option_value(option_key, form_value, default_fallback):
         'show_vertical_grid', 'y_tick_use_colors',
         'use_hourly_prices', 'use_cents',
         'label_show_currency', 'label_use_colors',
-        'color_price_line_by_average'
+        'color_price_line_by_average', 'show_cheap_price_line'
     ]
 
     # Integer options
@@ -230,6 +230,14 @@ def build_render_options(form_data):
         form_value = form_data.get(option_key, '')
 
         render_options[option_key] = parse_option_value(option_key, form_value, default_value)
+
+    # Handle hidden options not in strings.json (not exposed in UI but supported in YAML)
+    hidden_options = ['cheap_boundary_highlight', 'show_cheap_price_line']
+    for option_key in hidden_options:
+        if option_key in form_data:
+            default_value = get_default_value(option_key)
+            form_value = form_data.get(option_key, '')
+            render_options[option_key] = parse_option_value(option_key, form_value, default_value)
 
     # Auto-determine price_decimals if not explicitly set (None = auto)
     if render_options.get('price_decimals') is None:

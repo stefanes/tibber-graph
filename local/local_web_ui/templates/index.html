@@ -414,6 +414,9 @@
             }
         }
 
+        // Storage for hidden options (not in UI but supported via YAML)
+        const hiddenOptions = {};
+
         function getFormData() {
             const form = document.getElementById('config-form');
             const formData = new FormData(form);
@@ -429,6 +432,16 @@
             checkboxes.forEach(checkbox => {
                 data[checkbox.name] = checkbox.checked ? 'true' : 'false';
             });
+
+            // Include hidden options (convert booleans to strings to match form data format)
+            for (let [key, value] of Object.entries(hiddenOptions)) {
+                // Convert boolean to string to match checkbox format
+                if (typeof value === 'boolean') {
+                    data[key] = value ? 'true' : 'false';
+                } else {
+                    data[key] = value;
+                }
+            }
 
             return data;
         }
@@ -600,6 +613,9 @@
                 console.log('Applying options:', options);
                 console.log('Overwrite mode:', overwrite);
 
+                // Define list of hidden options (not in UI but supported via YAML)
+                const hiddenOptionKeys = ['cheap_boundary_highlight', 'show_cheap_price_line'];
+
                 // If overwrite mode, reset all fields to defaults first
                 if (overwrite) {
                     const response = await fetch('/defaults');
@@ -615,13 +631,25 @@
                             element.value = value;
                         }
                     }
+
+                    // Clear hidden options in overwrite mode
+                    for (let key of hiddenOptionKeys) {
+                        delete hiddenOptions[key];
+                    }
                 }
 
                 // Apply provided options
                 for (let [key, value] of Object.entries(options)) {
                     const element = document.getElementById(key);
                     if (!element) {
-                        console.warn(`Element not found for key: ${key}`);
+                        // Check if this is a hidden option
+                        if (hiddenOptionKeys.includes(key)) {
+                            // Store in hiddenOptions object for inclusion in form data
+                            hiddenOptions[key] = value;
+                            console.log(`Set hidden option ${key} to ${value}`);
+                        } else {
+                            console.warn(`Element not found for key: ${key}`);
+                        }
                         continue;
                     }
 

@@ -4,6 +4,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2] - 2025-11-23
+
+### Added
+
+- 🖌️ **Cheap boundary highlight**: New `cheap_boundary_highlight` option to highlight start and end time labels of cheap periods for greater visibility. See [OPTIONS.md](docs/OPTIONS.md#cheap-boundary-highlight) for details.
+- **Show cheap price line**: New `show_cheap_price_line` option to draw a horizontal line at the provided cheap price threshold. See [OPTIONS.md](docs/OPTIONS.md#show-cheap-price-line) for details.
+- 🎨 **New theme properties** (see [CUSTOM_THEME.md](docs/CUSTOM_THEME.md#theme-properties) for details):
+  - `avgline_color` and `avgline_style` for the average price line color and style.
+  - `cheapline_color` and `cheapline_style` for the cheap price threshold line color and style.
+
+### Changed
+
+- 🎨 **Theme properties now optional**: Any property not provided as part of a custom theme will fall back to the configured built-in theme.
+
+### Fixed
+
+- Remove inaccurate timestamp parsing warning generated under some circumstances:
+  
+  ```log
+  2025-11-21 06:00:29.793 WARNING (MainThread) [custom_components.tibber_graph.camera] Failed to parse 24 timestamp(s) for Tibber Graph ...
+  ```
+
 ## [0.6.1] - 2025-11-19
 
 ### Added

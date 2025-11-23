@@ -1,9 +1,13 @@
 {
   "dark": {
     "by": "@stefanes",
+    "avgline_color": "#fb7185",
+    "avgline_style": ":",
     "axis_label_color": "#cfd6e6",
     "background_color": "#1c1c1c",
     "cheap_price_color": "#2d5a3d",
+    "cheapline_color": "#34d399",
+    "cheapline_style": ":",
     "fill_alpha": 0.18,
     "fill_color": "#7dc3ff",
     "grid_alpha": 0.45,
@@ -26,9 +30,13 @@
   },
   "light": {
     "by": "@stefanes",
+    "avgline_color": "#ef4444",
+    "avgline_style": ":",
     "axis_label_color": "#000000",
     "background_color": "#ffffff",
     "cheap_price_color": "#6ee7b7",
+    "cheapline_color": "#16a34a",
+    "cheapline_style": ":",
     "fill_alpha": 0.25,
     "fill_color": "#039be5",
     "grid_alpha": 0.25,

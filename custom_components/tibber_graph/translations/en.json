@@ -294,7 +294,7 @@
           "hours_to_show": "Number of hours to show from start point. Leave empty for all available data.\nDefault: all available data (reconfigure to reset)",
           "cheap_price_points": "Number of lowest-price periods to highlight per day (0 = none). Works with 'Cheap price threshold'.\nDefault: 0",
           "cheap_price_threshold": "Price threshold for highlighting cheap periods (0 = disabled). Works with 'Cheap price points'.\nDefault: 0",
-          "show_average_price_line": "Show dotted line at average price level.\nDefault: on",
+          "show_average_price_line": "Show line at average price level.\nDefault: on",
           "color_price_line_by_average": "Color price line based on average price with gradients.\nDefault: on",
           "price_decimals": "Number of decimal places for prices. Leave empty for automatic.\nDefault: automatic (reconfigure to reset)",
           "use_hourly_prices": "Aggregate to hourly averages.\nDefault: off",

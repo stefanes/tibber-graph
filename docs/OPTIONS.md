@@ -4,13 +4,13 @@ This document provides a comprehensive reference for all configurable options av
 
 ## Table of Contents
 
-- [Multiple Entity Support](#multiple-entity-support)
-- [General Settings](#general-settings)
-- [Price Labels](#price-labels)
-- [X-axis Settings](#x-axis-settings)
-- [Y-axis Settings](#y-axis-settings)
-- [Refresh Settings](#refresh-settings)
-- [Resetting Options to Default](#resetting-options-to-default)
+- [Multiple Entity Support](OPTIONS.md#multiple-entity-support)
+- [General Settings](OPTIONS.md#general-settings)
+- [Price Labels](OPTIONS.md#price-labels)
+- [X-axis Settings](OPTIONS.md#x-axis-settings)
+- [Y-axis Settings](OPTIONS.md#y-axis-settings)
+- [Refresh Settings](OPTIONS.md#refresh-settings)
+- [Resetting Options to Default](OPTIONS.md#resetting-options-to-default)
 
 ## Multiple Entity Support
 
@@ -97,7 +97,16 @@ Price threshold for highlighting cheap periods (0 = disabled). Works with `cheap
 
 **Option:** `show_average_price_line` │ **Type:** Boolean • **Default:** `true`
 
-Show dotted line at average price level.
+Show line at average price level. See [CUSTOM_THEME.md](docs/CUSTOM_THEME.md#theme-properties) for styling.
+
+### Show Cheap Price Line
+
+**Option:** `show_cheap_price_line` │ **Type:** Boolean • **Default:** `false`
+
+Show line at cheap price threshold level if `cheap_price_threshold` is set. See [CUSTOM_THEME.md](docs/CUSTOM_THEME.md#theme-properties) for styling.
+
+> [!NOTE]
+> This option is only available when using using the [`tibber_graph.create_graph`](/README.md#tibber_graphcreate_graph) or [`tibber_graph.set_option`](/README.md#tibber_graphset_option) actions.
 
 ### Color Price Line by Average
 
@@ -215,6 +224,21 @@ Highlight cheap periods on X-axis with different display modes:
 - `off` - Do not highlight cheap periods on X-axis
 
 This option requires either `cheap_price_points` or `cheap_price_threshold` to be configured to identify cheap periods.
+
+### Cheap Boundary Highlight
+
+**Option:** `cheap_boundary_highlight` │ **Type:** Select • **Options:** `none`, `underline`, `underline_all` • **Default:** `none`
+
+Highlight start and end time labels of cheap periods with different underline styles:
+
+- `none` - Do not highlight cheap period boundaries
+- `underline` - Underline cheap period boundaries on first row only
+- `underline_all` - Underline all cheap period boundaries
+
+This option requires `cheap_periods_on_x_axis` and either `cheap_price_points` or `cheap_price_threshold` to be configured to identify cheap periods.
+
+> [!NOTE]
+> This option is only available when using using the [`tibber_graph.create_graph`](/README.md#tibber_graphcreate_graph) or [`tibber_graph.set_option`](/README.md#tibber_graphset_option) actions.
 
 ### Show Vertical Grid
 

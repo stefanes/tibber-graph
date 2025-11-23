@@ -60,10 +60,12 @@ from .const import (
     CONF_X_TICK_STEP_HOURS,
     CONF_HOURS_TO_SHOW,
     CONF_SHOW_VERTICAL_GRID,
+    CONF_CHEAP_BOUNDARY_HIGHLIGHT,
     # Y-axis config keys
     CONF_SHOW_Y_AXIS,
     CONF_SHOW_HORIZONTAL_GRID,
     CONF_SHOW_AVERAGE_PRICE_LINE,
+    CONF_SHOW_CHEAP_PRICE_LINE,
     CONF_CHEAP_PRICE_POINTS,
     CONF_CHEAP_PRICE_THRESHOLD,
     CONF_Y_AXIS_LABEL_ROTATION_DEG,
@@ -100,9 +102,11 @@ from .const import (
     DEFAULT_X_TICK_STEP_HOURS,
     DEFAULT_HOURS_TO_SHOW,
     DEFAULT_SHOW_VERTICAL_GRID,
+    DEFAULT_CHEAP_BOUNDARY_HIGHLIGHT,
     DEFAULT_SHOW_Y_AXIS,
     DEFAULT_SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE,
+    DEFAULT_SHOW_CHEAP_PRICE_LINE,
     DEFAULT_CHEAP_PRICE_POINTS,
     DEFAULT_CHEAP_PRICE_THRESHOLD,
     DEFAULT_Y_AXIS_LABEL_ROTATION_DEG,
@@ -638,7 +642,10 @@ class TibberCam(LocalFile):
             end_date: End date for filtering (None to disable)
 
         Returns:
-            tuple: (datetime, price) or None if invalid/filtered out
+            tuple: (status, result) where status is one of:
+                   'success': result is (datetime, price)
+                   'filtered': timestamp was valid but filtered out by date range
+                   'parse_error': failed to parse timestamp or price
         """
         if self._cached_start_fmt:
             # Use cached custom format string
@@ -646,13 +653,13 @@ class TibberCam(LocalFile):
                 dt_parsed = datetime.datetime.strptime(timestamp_str, self._cached_start_fmt)
             except (ValueError, TypeError):
                 # Don't log here - let the caller log once for all failures
-                return None
+                return ('parse_error', None)
         else:
             # Try ISO format parsing
             dt_parsed = dt_util.parse_datetime(timestamp_str)
             if not dt_parsed:
                 # Don't log here - let the caller log once for all failures
-                return None
+                return ('parse_error', None)
 
         # If no timezone info, assume local time
         dt_loc = ensure_timezone(dt_parsed, dt_util.DEFAULT_TIME_ZONE)
@@ -660,18 +667,18 @@ class TibberCam(LocalFile):
             dt_loc = dt_util.as_local(dt_parsed)
 
         if not dt_loc:
-            return None
+            return ('parse_error', None)
 
         # Apply date filter only if date range is configured
         if start_date is not None and end_date is not None:
             if not (start_date <= dt_loc.date() <= end_date):
-                return None
+                return ('filtered', None)
 
         try:
             price = float(price_val)
-            return (dt_loc, price)
+            return ('success', (dt_loc, price))
         except (TypeError, ValueError):
-            return None
+            return ('parse_error', None)
 
     def _parse_price_data_from_entity(self):
         """Extract and filter price data from a Home Assistant entity."""
@@ -715,14 +722,15 @@ class TibberCam(LocalFile):
             # Apply configured price transformations
             price_val = self._apply_price_transformations(price_val)
 
-            result = self._parse_datetime_and_price(time_key, price_val, start_date, end_date)
-            if result:
+            status, result = self._parse_datetime_and_price(time_key, price_val, start_date, end_date)
+            if status == 'success':
                 paired.append(result)
-            elif time_key:
-                # Track parse failures
+            elif status == 'parse_error' and time_key:
+                # Track parse failures (not filtered timestamps)
                 parse_failures += 1
                 if first_failed_timestamp is None:
                     first_failed_timestamp = time_key
+            # status == 'filtered' is silently ignored as it's expected behavior
 
         # Log warning once if there were parse failures
         if parse_failures > 0 and first_failed_timestamp:
@@ -773,14 +781,15 @@ class TibberCam(LocalFile):
         first_failed_timestamp = None
 
         for k, v in items:
-            result = self._parse_datetime_and_price(k, v, start_date, end_date)
-            if result:
+            status, result = self._parse_datetime_and_price(k, v, start_date, end_date)
+            if status == 'success':
                 paired.append(result)
-            elif k:
-                # Track parse failures
+            elif status == 'parse_error' and k:
+                # Track parse failures (not filtered timestamps)
                 parse_failures += 1
                 if first_failed_timestamp is None:
                     first_failed_timestamp = k
+            # status == 'filtered' is silently ignored as it's expected behavior
 
         # Log warning once if there were parse failures
         if parse_failures > 0 and first_failed_timestamp:
@@ -1026,10 +1035,12 @@ class TibberCam(LocalFile):
             "x_tick_step_hours": self._get_option(CONF_X_TICK_STEP_HOURS, DEFAULT_X_TICK_STEP_HOURS),
             "hours_to_show": self._get_option(CONF_HOURS_TO_SHOW, DEFAULT_HOURS_TO_SHOW),
             "show_vertical_grid": self._get_option(CONF_SHOW_VERTICAL_GRID, DEFAULT_SHOW_VERTICAL_GRID),
+            "cheap_boundary_highlight": self._get_option(CONF_CHEAP_BOUNDARY_HIGHLIGHT, DEFAULT_CHEAP_BOUNDARY_HIGHLIGHT),
             # Y-axis settings
             "show_y_axis": self._get_option(CONF_SHOW_Y_AXIS, DEFAULT_SHOW_Y_AXIS),
             "show_horizontal_grid": self._get_option(CONF_SHOW_HORIZONTAL_GRID, DEFAULT_SHOW_HORIZONTAL_GRID),
             "show_average_price_line": self._get_option(CONF_SHOW_AVERAGE_PRICE_LINE, DEFAULT_SHOW_AVERAGE_PRICE_LINE),
+            "show_cheap_price_line": self._get_option(CONF_SHOW_CHEAP_PRICE_LINE, DEFAULT_SHOW_CHEAP_PRICE_LINE),
             "cheap_price_points": self._get_option(CONF_CHEAP_PRICE_POINTS, DEFAULT_CHEAP_PRICE_POINTS),
             "cheap_price_threshold": self._get_option(CONF_CHEAP_PRICE_THRESHOLD, DEFAULT_CHEAP_PRICE_THRESHOLD),
             "y_axis_label_rotation_deg": self._get_option(CONF_Y_AXIS_LABEL_ROTATION_DEG, DEFAULT_Y_AXIS_LABEL_ROTATION_DEG),

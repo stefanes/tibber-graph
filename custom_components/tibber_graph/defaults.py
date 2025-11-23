@@ -20,7 +20,8 @@ START_GRAPH_AT = "show_all"                 # Graph start point: "midnight" = st
 HOURS_TO_SHOW = None                        # Number of hours from anchor point (None = all available data). For 24h midnight-to-midnight: set START_GRAPH_AT="midnight" and HOURS_TO_SHOW=24
 CHEAP_PRICE_POINTS = 0                      # Number of lowest-price periods to highlight (0 = none, highlights cheapest hours/quarters)
 CHEAP_PRICE_THRESHOLD = 0.0                 # Price threshold for highlighting cheap periods (0.0 = disabled, e.g., 0.5 = 50 öre)
-SHOW_AVERAGE_PRICE_LINE = True              # True = show dotted line at average price of displayed data, False = hide
+SHOW_AVERAGE_PRICE_LINE = True              # True = show line at average price of displayed data, False = hide
+SHOW_CHEAP_PRICE_LINE = False               # True = show line at cheap price threshold (not visible in UI), False = hide
 COLOR_PRICE_LINE_BY_AVERAGE = True          # True = color price line based on average (blue below, amber near, red above); False = use single color
 BOTTOM_MARGIN = 0.14                        # Space reserved for bottom labels
 LEFT_MARGIN = 0.12                          # Left margin for the plot area
@@ -49,7 +50,7 @@ CHEAP_PERIODS_ON_X_AXIS = "off"             # Highlight cheap periods on X-axis:
 SHOW_VERTICAL_GRID = True                   # True = show vertical gridlines, False = hide
 X_AXIS_LABEL_Y_OFFSET = 0.05                # Distance below axis (as fraction)
 CHEAP_PERIOD_BOUNDARY_HOURS = 0             # Internal: Hours from cheap period boundaries to show end time label (0 = use X_TICK_STEP_HOURS, not exposed to UI)
-CHEAP_PERIOD_BOUNDARY_HIGHLIGHT = False     # Internal: Make start and end time labels of cheap periods bold in comfy and compact mode (not exposed to UI)
+CHEAP_BOUNDARY_HIGHLIGHT = "none"           # Highlight start and end time labels of cheap periods: "none", "underline", "underline_all" (not exposed to UI)
 
 # Y-axis settings
 SHOW_Y_AXIS = "on"                          # Y-axis visibility: "on" = show axis/labels without tick marks, "on_with_tick_marks" = show axis/labels with tick marks, "off" = hide y-axis completely

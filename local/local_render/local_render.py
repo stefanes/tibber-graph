@@ -167,37 +167,37 @@ themes_json_file = component_dir / "themes.json"
 with open(themes_json_file, 'r', encoding='utf-8') as f:
     _THEMES_DATA = json.load(f)
 
-# Extract REQUIRED_THEME_FIELDS and validate_custom_theme function
-REQUIRED_THEME_FIELDS = {
-    "axis_label_color", "background_color", "cheap_price_color", "fill_alpha", "fill_color",
-    "grid_alpha", "grid_color", "label_color", "label_color_avg", "label_color_max",
-    "label_color_min", "label_stroke", "nowline_alpha", "nowline_color", "plot_linewidth",
-    "price_line_color", "price_line_color_above_avg", "price_line_color_below_avg",
-    "price_line_color_near_avg", "spine_color", "tick_color", "tickline_color",
-}
+# Import validator from the component's themes.py so local behavior matches
+import importlib.util
 
-def validate_custom_theme(theme_config):
-    """Validate that a custom theme contains all required fields."""
-    if not isinstance(theme_config, dict):
-        return False, "Theme config must be a dictionary"
+# Load themes module from the component directory so this script can be run
+# directly without relying on package imports.
+themes_path = component_dir / "themes.py"
+spec = importlib.util.spec_from_file_location("tibber_graph.themes", themes_path)
+themes_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(themes_module)
 
-    missing_fields = REQUIRED_THEME_FIELDS - set(theme_config.keys())
-
-    if missing_fields:
-        return False, f"Missing required theme fields: {', '.join(sorted(missing_fields))}"
-
-    return True, ""
+validate_custom_theme = themes_module.validate_custom_theme
+REQUIRED_THEME_FIELDS = getattr(themes_module, "REQUIRED_THEME_FIELDS", set())
 
 def get_theme_config(theme_name, custom_theme=None):
-    """Get configuration for a specific theme or use custom theme."""
-    if custom_theme is not None:
-        return custom_theme
+    """Get configuration for a specific theme or merge with custom theme.
 
+    If `custom_theme` is provided it overlays values onto the built-in theme so
+    omitted values fall back to the selected theme's defaults.
+    """
     if theme_name not in _THEMES_DATA:
         print(f"Warning: Theme '{theme_name}' not found, falling back to 'dark' theme")
         theme_name = "dark"
 
-    return _THEMES_DATA[theme_name]
+    base = dict(_THEMES_DATA.get(theme_name, {}))
+    if custom_theme:
+        if not isinstance(custom_theme, dict):
+            print("Warning: custom_theme must be a dict; ignoring custom_theme")
+        else:
+            base.update(custom_theme)
+
+    return base
 
 # Import just the _aggregate_to_hourly function from camera.py
 # We extract and execute only the static method to avoid Home Assistant dependencies
@@ -531,6 +531,7 @@ def main():
             "theme": "light",  # Override: light instead of dark (default: dark)
             "cheap_price_points": 5,  # Override: highlight 20 cheapest periods per day (default: 0)
             "cheap_price_threshold": 1.0,  # Override: highlight periods below 100 öre (default: 0)
+            "show_cheap_price_line": True,  # Override: show cheap price line (default: False)
             "color_price_line_by_average": False,  # Override: use single color price line (default: True)
             # Price labels
             "use_hourly_prices": True,  # Override: aggregate to hourly (default: False)
@@ -558,6 +559,7 @@ def main():
             "start_graph_at": "current_hour",  # Override: start at current hour (default: midnight)
             "cheap_price_points": 5,  # Override: highlight 5 cheapest periods per day (default: 0)
             "cheap_price_threshold": 0.5,  # Override: highlight periods below 50 öre (default: 0)
+            "show_cheap_price_line": True,  # Override: show cheap price line (default: False)
             # Price labels
             "use_hourly_prices": True,  # Override: aggregate to hourly (default: False)
             "use_cents": True,  # Override: display in cents (default: False)
@@ -568,6 +570,7 @@ def main():
             # X-axis settings
             "show_x_axis": "on_with_tick_marks",  # Override: show X-axis with tick marks (default: "on")
             "cheap_periods_on_x_axis": "on_comfy",  # Override: show cheap periods in separate row (default: "off")
+            "cheap_boundary_highlight": "underline", # Override: underline cheap periods (default: "none")
             # Y-axis settings
             "show_y_axis": "on_with_tick_marks", # Override: show Y-axis tick marks (default: "on")
             "y_tick_count": 2,  # Override: 3 ticks instead of automatic (default: None)
@@ -649,8 +652,6 @@ def main():
     print(f"  - Currency: {currency}")
     if render_options:
         print(f"  - Theme: {render_options.get('theme', 'default')}")
-        print(f"  - Colored labels: {render_options.get('label_use_colors', False)}")
-        print(f"  - Colored Y ticks: {render_options.get('y_tick_use_colors', False)}")
 
     render_plot_to_path(
         width=canvas_width,

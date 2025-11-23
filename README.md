@@ -8,7 +8,7 @@
 [![Downloads](https://img.shields.io/github/downloads/stefanes/tibber-graph/latest/total?style=for-the-badge&color=1ed0e7&logoColor=ccc&logo=githubsponsors&label=Downloads)](https://tooomm.github.io/github-release-stats/?username=stefanes&repository=tibber-graph)
 [![Issues](https://img.shields.io/github/issues/stefanes/tibber-graph?style=for-the-badge&color=1ed0e7&logoColor=ccc&logo=github)](https://github.com/stefanes/tibber-graph/issues)
 
-Display past and future electricity prices as a graph in Home Assistant - an out-of-the-box alternative to e.g. [Apex Charts](https://github.com/RomRider/apexcharts-card). **Tibber Graph** was originally built for the official [Tibber integration](https://www.home-assistant.io/integrations/tibber/) but supports [any price sensor](#price-sensors-as-data-source) as a data source, such as [Nord Pool](https://www.home-assistant.io/integrations/nordpool) or [EPEX Spot](https://github.com/mampfes/ha_epex_spot).
+Display past and future electricity prices as a graph in Home Assistant - an out-of-the-box alternative to e.g. [Apex Charts](https://github.com/RomRider/apexcharts-card). **Tibber Graph** was originally built for the official [Tibber integration](https://www.home-assistant.io/integrations/tibber/) but supports [any price sensor](README.md#price-sensors-as-data-source) as a data source, such as [Nord Pool](https://www.home-assistant.io/integrations/nordpool) or [EPEX Spot](https://github.com/mampfes/ha_epex_spot).
 
 ![Graph with only defaults](docs/assets/defaults-only.png)
 
@@ -41,7 +41,7 @@ Or:
 2. Click **Add integration**
 3. Search for "**Tibber Graph**"
 
-You will now have camera and image entities that displays the electricity prices as a graph, see [Provided entities](#provided-entities) below for details.
+You will now have camera and image entities that displays the electricity prices as a graph, see [Provided entities](README.md#provided-entities) below for details.
 
 The integration will appear in **[Settings → Devices & services → Tibber Graph](https://my.home-assistant.io/redirect/integration/?domain=tibber_graph)** with the entity name you provided during setup (or your Tibber home name if no entity name was specified).
 
@@ -53,10 +53,10 @@ You can configure Tibber Graph to get price data from either:
 
 1. **Tibber Integration** (default): Uses the official [Tibber integration](https://www.home-assistant.io/integrations/tibber/) to fetch prices directly. You can [sign up for Tibber](https://tibber.com/se/invite/gqpkcwrn) using the invitation code `gqpkcwrn` to get a **€50/500 kr bonus** for use in the [Tibber Store](https://tibber.com/se/store).
 
-2. **Price Sensor**: Provide any Home Assistant price sensor that contains price data in its attributes. See [Price Sensors as Data Source](#price-sensors-as-data-source) below for details.
+2. **Price Sensor**: Provide any Home Assistant price sensor that contains price data in its attributes. See [Price Sensors as Data Source](README.md#price-sensors-as-data-source) below for details.
 
 > [!TIP]
-> The data source can be changed at any time using the [`tibber_graph.create_graph`](#tibber_graphcreate_graph) or [`tibber_graph.set_data_source`](#tibber_graphset_data_source) actions.
+> The data source can be changed at any time using the [`tibber_graph.create_graph`](README.md#tibber_graphcreate_graph) or [`tibber_graph.set_data_source`](README.md#tibber_graphset_data_source) actions.
 
 ### Advanced Customization
 
@@ -102,7 +102,7 @@ This entity displays the electricity prices as a [camera image](https://www.home
 This entity exposes the generated graph as an [image](https://www.home-assistant.io/integrations/image/).
 
 > [!NOTE]
-> For the graph to update you will need to either access the camera entity, enable [refresh on interval](docs/OPTIONS.md#refresh-mode), or call the [`tibber_graph.render` action](#tibber_graphrender).
+> For the graph to update you will need to either access the camera entity, enable [refresh on interval](docs/OPTIONS.md#refresh-mode), or call the [`tibber_graph.render` action](README.md#tibber_graphrender).
 
 #### `sensor.tibber_graph_{entity_name}_last_update`
 
@@ -110,11 +110,11 @@ This sensor provides the timestamp of the last successful image render for the c
 
 **Attributes:**
 
-- `data_source_entity_id`: The entity ID of the [price sensor used as a data source](#price-sensors-as-data-source) (empty string if using Tibber integration)
+- `data_source_entity_id`: The entity ID of the [price sensor used as a data source](README.md#price-sensors-as-data-source) (empty string if using Tibber integration)
 - `data_source_friendly_name`: The friendly name of the price sensor (or "Tibber Integration" if using Tibber integration)
 - `triggered_by`: The source that triggered the rendering. Possible values:
   - `camera_access`: Graph was rendered when the camera entity was accessed
-  - `action`: Graph was rendered via the [`tibber_graph.render` action](#tibber_graphrender)
+  - `action`: Graph was rendered via the [`tibber_graph.render` action](README.md#tibber_graphrender)
   - `interval_refresh`: Graph was rendered by the interval refresh mechanism
 
 ### Actions
@@ -207,7 +207,7 @@ Change the data source for an entity. This allows you to switch between the Tibb
 | `entity_id`       | Yes      | The entity ID of the camera to update the data source for.                                                  |
 | `price_entity_id` | No       | The entity ID of a sensor containing price data. Leave empty or omit to use the Tibber integration instead. |
 
-See also [Custom attributes & fields](#custom-attributes--fields) below for how to specify custom attributes and fields.
+See also [Custom attributes & fields](README.md#custom-attributes--fields) below for how to specify custom attributes and fields.
 
 **Examples:**
 
@@ -252,12 +252,12 @@ action: tibber_graph.render
 
 #### `tibber_graph.set_custom_theme`
 
-Set a custom theme for an entity, allowing you to dynamically change the graph's color scheme. All theme properties must be provided when setting a custom theme. Call without `theme_config` to clear the custom theme and revert to the configured theme.
+Set a custom theme for an entity, allowing you to dynamically change the graph's color scheme. Theme properties are optional — any properties omitted from `theme_config` will be taken from the selected built-in theme. Call without `theme_config` to clear the custom theme and revert to the configured theme.
 
-| Data attribute | Required | Description                                                                                  |
-| -------------- | -------- | -------------------------------------------------------------------------------------------- |
-| `entity_id`    | Yes      | The entity ID of the camera to set the custom theme for.                                     |
-| `theme_config` | No       | Dictionary containing all 23 theme properties. If omitted or empty, clears the custom theme. |
+| Data attribute | Required | Description                                              |
+| -------------- | -------- | -------------------------------------------------------- |
+| `entity_id`    | Yes      | The entity ID of the camera to set the custom theme for. |
+| `theme_config` | No       | Dictionary containing theme properties.                  |
 
 For detailed information about theme properties, complete examples, and automation ideas, see **[CUSTOM_THEME.md](docs/CUSTOM_THEME.md)**.
 
@@ -269,9 +269,13 @@ action: tibber_graph.set_custom_theme
 data:
   entity_id: camera.tibber_graph_nord_pool_price
   theme_config:
+    avgline_color: "#ff6b9d"
+    avgline_style: ":"
     axis_label_color: "#d8b9ff"
     background_color: "#1a0f2e"
     cheap_price_color: "#2d3d5a"
+    cheapline_color: "#7cffb3"
+    cheapline_style: ":"
     fill_alpha: 0.2
     fill_color: "#9d7cff"
     grid_alpha: 0.4
@@ -315,7 +319,7 @@ Create a new Tibber Graph camera entity programmatically. This action allows you
 | `custom_theme`    | No       | Dictionary defining a custom theme. Keys should be theme property names (as defined in [CUSTOM_THEME.md](docs/CUSTOM_THEME.md)).                                                                      |
 | `recreate`        | No       | If `true`, recreate the entity if it already exists. If `false` (default), an error will be raised if an entity with the same name exists.                                                            |
 
-See also [Custom attributes & fields](#custom-attributes--fields) below for how to specify custom attributes and fields.
+See also [Custom attributes & fields](README.md#custom-attributes--fields) below for how to specify custom attributes and fields.
 
 **Examples:**
 
@@ -347,9 +351,13 @@ data:
   entity_name: "Purple Graph"
   price_entity_id: sensor.nord_pool_price
   custom_theme:
+    avgline_color: "#ff6b9d"
+    avgline_style: ":"
     axis_label_color: "#d8b9ff"
     background_color: "#1a0f2e"
     cheap_price_color: "#2d3d5a"
+    cheapline_color: "#7cffb3"
+    cheapline_style: ":"
     fill_alpha: 0.2
     fill_color: "#9d7cff"
     grid_alpha: 0.4
@@ -394,7 +402,7 @@ data:
 
 Any price sensor can be used as a data source as long as it exposes price data in its attributes in a compatible format. This allows you to use other electricity price providers or roll your own custom price sensor.
 
-Sensors must either follow the data source format below (by transforming the data using a template sensors as with [Nord Pool](#nord-pool) or directly as with [EPEX Spot](#epex-spot)) or you can specify [custom attributes and fields](#custom-attributes--fields) when using the `tibber_graph.create_graph` or `tibber_graph.set_data_source` actions.
+Sensors must either follow the data source format below (by transforming the data using a template sensors as with [Nord Pool](README.md#nord-pool) or directly as with [EPEX Spot](README.md#epex-spot)) or you can specify [custom attributes and fields](README.md#custom-attributes--fields) when using the `tibber_graph.create_graph` or `tibber_graph.set_data_source` actions.
 
 ```yaml
 # Data source format
@@ -478,7 +486,7 @@ Install and configure the [EPEX Spot integration](https://github.com/mampfes/ha_
 
 ### Custom attributes & fields
 
-You can customize how price data is extracted and transformed using one or more of these parameters when calling the [`tibber_graph.create_graph`](#tibber_graphcreate_graph) or [`tibber_graph.set_data_source`](#tibber_graphset_data_source) actions:
+You can customize how price data is extracted and transformed using one or more of these parameters when calling the [`tibber_graph.create_graph`](README.md#tibber_graphcreate_graph) or [`tibber_graph.set_data_source`](README.md#tibber_graphset_data_source) actions:
 
 | Parameter               | Type   | Description                                                                                                                                                                                       |
 | ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -489,7 +497,7 @@ You can customize how price data is extracted and transformed using one or more 
 | `currency_attr`         | String | Specify the attribute name to read the currency symbol from.                                                                                                                                      |
 
 > [!NOTE]
-> If any of the above parameters are not provided, the default values will be used (see [Data source format](#price-sensors-as-data-source) above).
+> If any of the above parameters are not provided, the default values will be used (see [Data source format](README.md#price-sensors-as-data-source) above).
 
 These parameters allow you to transform the price provided by the data source, in this order, before displaying them:
 
@@ -550,20 +558,21 @@ data:
 ## Example Graphs
 
 > [!TIP]
-> Use the configuration snippets below together with the [`tibber_graph.set_option` action](#tibber_graphset_option) to reproduce the example graphs.
+> Use the configuration snippets below together with the [`tibber_graph.set_option` action](README.md#tibber_graphset_option) to reproduce the example graphs.
 
 <details>
 <summary>Graph rendered with <a href="https://github.com/stefanes/tibber-graph/releases/tag/v0.2.1">version 0.2.1</a> defaults:</summary>
 
 ```yaml
-# General settings
-canvas_width: 1200
-canvas_height: 700
-color_price_line_by_average: false
-# Price labels
-label_current: "on_in_graph"
-# Y-axis settings
-show_y_axis: "on_with_tick_marks"
+options:
+  # General settings
+  canvas_width: 1200
+  canvas_height: 700
+  color_price_line_by_average: false
+  # Price labels
+  label_current: "on_in_graph"
+  # Y-axis settings
+  show_y_axis: "on_with_tick_marks"
 ```
 
 </details>
@@ -574,31 +583,34 @@ show_y_axis: "on_with_tick_marks"
 <summary>Graph rendered with my personal <a href="https://companion.home-assistant.io/docs/wear-os/#tiles">Wear OS camera tile</a> configuration:</summary>
 
 ```yaml
-# General settings
-theme: "dark"
-transparent_background: true
-canvas_width: 1280
-canvas_height: 720
-label_font_size: 17
-start_graph_at: "current_hour"
-cheap_price_points: 5
-cheap_price_threshold: 0.5
-# Price labels
-use_hourly_prices: true
-use_cents: true
-currency_override: "öre"
-label_current: "on_current_price_only"
-label_min: "on_no_price"
-label_max: "on_no_price"
-# X-axis settings
-show_x_axis: "on_with_tick_marks"
-cheap_periods_on_x_axis: "on_comfy"
-# Y-axis settings
-show_y_axis: "on_with_tick_marks"
-y_tick_count: 2
-y_axis_label_rotation_deg: 270
-y_axis_side: "right"
-y_tick_use_colors: true
+options:
+  # General settings
+  theme: "dark"
+  transparent_background: true
+  canvas_width: 1280
+  canvas_height: 720
+  label_font_size: 17
+  start_graph_at: "current_hour"
+  cheap_price_points: 5
+  cheap_price_threshold: 0.5
+  show_cheap_price_line: true
+  # Price labels
+  use_hourly_prices: true
+  use_cents: true
+  currency_override: "öre"
+  label_current: "on_current_price_only"
+  label_min: "on_no_price"
+  label_max: "on_no_price"
+  # X-axis settings
+  show_x_axis: "on_with_tick_marks"
+  cheap_periods_on_x_axis: "on_comfy"
+  cheap_boundary_highlight: "underline"
+  # Y-axis settings
+  show_y_axis: "on_with_tick_marks"
+  y_tick_count: 2
+  y_axis_label_rotation_deg: 270
+  y_axis_side: "right"
+  y_tick_use_colors: true
 ```
 
 </details>
@@ -609,23 +621,27 @@ y_tick_use_colors: true
 <summary>Graph rendered with light mode, cheap periods on X-axis, and colored Y-axis tick marks:</summary>
 
 ```yaml
-# General settings
-theme: "light"
-cheap_price_points: 5
-cheap_price_threshold: 1.0
-color_price_line_by_average: false
-# Price labels
-use_hourly_prices: true
-label_current: "on_in_graph"
-label_min: "off"
-label_max: "off"
-# X-axis settings
-show_x_axis: "on_with_tick_marks"
-cheap_periods_on_x_axis: "on"
-show_vertical_grid: false
-# Y-axis settings
-y_tick_count: 3
-y_tick_use_colors: true
+options:
+  # General settings
+  theme: "light"
+  cheap_price_points: 5
+  cheap_price_threshold: 1.0
+  show_cheap_price_line: true
+  color_price_line_by_average: false
+  # Price labels
+  use_hourly_prices: true
+  label_current: "on_in_graph"
+  label_min: "off"
+  label_max: "off"
+  # X-axis settings
+  show_x_axis: "on_with_tick_marks"
+  cheap_periods_on_x_axis: "on"
+  show_vertical_grid: false
+  # Y-axis settings
+  y_tick_count: 3
+  y_tick_use_colors: true
+custom_theme:
+  avgline_style: "-."
 ```
 
 </details>

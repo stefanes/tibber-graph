@@ -7,13 +7,17 @@ The [`set_custom_theme` action](/README.md#tibber_graphset_custom_theme) allows 
 
 ## Theme Properties
 
-All properties must be included when setting a custom theme:
+Theme properties are optional when setting a custom theme. Any properties omitted from the provided `theme_config` will be taken from the selected built-in theme, so you only need to include the properties you wish to override.
 
 | Property                     | Type    | Description                                | Example (`dark` theme) |
 | ---------------------------- | ------- | ------------------------------------------ | ---------------------- |
+| `avgline_color`              | string  | Color for average price line (hex)         | `"#eab308"`            |
+| `avgline_style`              | string  | Line style for average price line          | `":"`                  |
 | `axis_label_color`           | string  | Color for axis labels (hex)                | `"#cfd6e6"`            |
 | `background_color`           | string  | Graph background color (hex)               | `"#1c1c1c"`            |
 | `cheap_price_color`          | string  | Color for cheap price highlights (hex)     | `"#2d5a3d"`            |
+| `cheapline_color`            | string  | Color for cheap price threshold line (hex) | `"#34d399"`            |
+| `cheapline_style`            | string  | Line style for cheap price threshold line  | `":"`                  |
 | `fill_alpha`                 | float   | Opacity of the area fill (0.0-1.0)         | `0.18`                 |
 | `fill_color`                 | string  | Color for area fill (hex)                  | `"#7dc3ff"`            |
 | `grid_alpha`                 | float   | Opacity of grid lines (0.0-1.0)            | `0.45`                 |
@@ -34,6 +38,9 @@ All properties must be included when setting a custom theme:
 | `tick_color`                 | string  | Color for axis ticks (hex)                 | `"#cfd6e6"`            |
 | `tickline_color`             | string  | Color for tick lines (hex)                 | `"#1f2530"`            |
 
+> [!NOTE]
+> Supported [line style values](https://matplotlib.org/stable/gallery/lines_bars_and_markers/linestyles.html#) are `-`, `--`, `-.`, `:`, `None`, ` `, `""`, `solid`, `dashed`, `dashdot`, `dotted`.
+
 ## Examples
 
 > [!TIP]
@@ -53,9 +60,13 @@ action: tibber_graph.set_custom_theme
 data:
   entity_id: camera.tibber_graph_nord_pool_price
   theme_config:
+    avgline_color: "#ff6b9d"
+    avgline_style: ":"
     axis_label_color: "#d8b9ff"
     background_color: "#1a0f2e"
     cheap_price_color: "#2d3d5a"
+    cheapline_color: "#7cffb3"
+    cheapline_style: ":"
     fill_alpha: 0.2
     fill_color: "#9d7cff"
     grid_alpha: 0.4
@@ -89,9 +100,13 @@ action: tibber_graph.set_custom_theme
 data:
   entity_id: camera.tibber_graph_nord_pool_price
   theme_config:
+    avgline_color: "#ff0000"
+    avgline_style: ":"
     axis_label_color: "#ffffff"
     background_color: "#000000"
     cheap_price_color: "#004d00"
+    cheapline_color: "#00ff00"
+    cheapline_style: ":"
     fill_alpha: 0.3
     fill_color: "#00ff00"
     grid_alpha: 0.6
@@ -125,9 +140,13 @@ action: tibber_graph.set_custom_theme
 data:
   entity_id: camera.tibber_graph_nord_pool_price
   theme_config:
+    avgline_color: "#ff6347"
+    avgline_style: ":"
     axis_label_color: "#ffd89b"
     background_color: "#2c1810"
     cheap_price_color: "#4d3b1f"
+    cheapline_color: "#98fb98"
+    cheapline_style: ":"
     fill_alpha: 0.25
     fill_color: "#ff9a56"
     grid_alpha: 0.35
@@ -161,9 +180,13 @@ action: tibber_graph.set_custom_theme
 data:
   entity_id: camera.tibber_graph_nord_pool_price
   theme_config:
+    avgline_color: "#ff80ab"
+    avgline_style: ":"
     axis_label_color: "#a8d8ea"
     background_color: "#0a1929"
     cheap_price_color: "#1a4d4d"
+    cheapline_color: "#69f0ae"
+    cheapline_style: ":"
     fill_alpha: 0.22
     fill_color: "#4dd0e1"
     grid_alpha: 0.4
@@ -208,9 +231,13 @@ automation:
         data:
           entity_id: camera.tibber_graph_nord_pool_price
           theme_config:
+            avgline_color: "#ff0000"
+            avgline_style: ":"
             axis_label_color: "#ffcccc"
             background_color: "#330000"
             cheap_price_color: "#660000"
+            cheapline_color: "#66ff66"
+            cheapline_style: ":"
             fill_alpha: 0.25
             fill_color: "#ff6666"
             grid_alpha: 0.4

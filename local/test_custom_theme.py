@@ -11,9 +11,13 @@ from themes import validate_custom_theme, get_theme_config, REQUIRED_THEME_FIELD
 def test_validate_custom_theme_valid():
     """Test validation with a valid custom theme."""
     valid_theme = {
+        "avgline_color": "#eab308",
+        "avgline_style": ":",
         "axis_label_color": "#cfd6e6",
         "background_color": "#1c1c1c",
         "cheap_price_color": "#2d5a3d",
+        "cheapline_color": "#34d399",
+        "cheapline_style": ":",
         "fill_alpha": 0.18,
         "fill_color": "#7dc3ff",
         "grid_alpha": 0.45,
@@ -45,13 +49,12 @@ def test_validate_custom_theme_missing_fields():
     incomplete_theme = {
         "axis_label_color": "#cfd6e6",
         "background_color": "#1c1c1c",
-        # Missing all other required fields
+        # Partial themes are allowed; missing keys are filled from built-in theme
     }
 
     is_valid, error = validate_custom_theme(incomplete_theme)
-    assert not is_valid, "Expected invalid theme with missing fields"
-    assert "Missing required theme fields" in error, f"Expected missing fields error, got: {error}"
-    print(f"✓ Missing fields test passed: {error}")
+    assert is_valid, f"Expected partial theme to be accepted, got error: {error}"
+    print("✓ Partial theme acceptance test passed")
 
 
 def test_validate_custom_theme_not_dict():
@@ -65,9 +68,13 @@ def test_validate_custom_theme_not_dict():
 def test_get_theme_config_custom_priority():
     """Test that custom theme takes priority over named theme."""
     custom_theme = {
+        "avgline_color": "#custom",
+        "avgline_style": ":",
         "axis_label_color": "#custom",
         "background_color": "#custom",
         "cheap_price_color": "#custom",
+        "cheapline_color": "#custom",
+        "cheapline_style": ":",
         "fill_alpha": 0.99,
         "fill_color": "#custom",
         "grid_alpha": 0.99,
@@ -112,7 +119,7 @@ def test_get_theme_config_named_theme():
 
 def test_required_fields_count():
     """Test that REQUIRED_THEME_FIELDS has the expected number of fields."""
-    expected_count = 23  # Based on the current theme structure
+    expected_count = 26  # Added avgline_style and cheapline_style
     actual_count = len(REQUIRED_THEME_FIELDS)
     assert actual_count == expected_count, f"Expected {expected_count} required fields, got {actual_count}"
     print(f"✓ Required fields count test passed ({actual_count} fields)")

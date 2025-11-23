@@ -5,8 +5,9 @@
   "codeowners": ["@stefanes"],
   "config_flow": true,
   "documentation": "https://github.com/stefanes/tibber-graph?tab=readme-ov-file#readme",
-  "iot_class": "cloud_polling",
+  "integration_type": "device",
+  "iot_class": "calculated",
   "issue_tracker": "https://github.com/stefanes/tibber-graph/issues",
   "requirements": ["matplotlib"],
-  "version": "0.6.1"
+  "version": "0.6.2"
 }

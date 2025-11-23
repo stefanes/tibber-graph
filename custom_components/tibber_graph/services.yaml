@@ -146,7 +146,7 @@ render:
 
 set_custom_theme:
   name: Set custom theme
-  description: Set a custom theme for a Tibber Graph entity. All theme properties must be provided. Call without theme_config to clear the custom theme and revert to the configured theme.
+  description: Set a custom theme for a Tibber Graph entity. Theme properties are optional; provided properties override the configured built-in theme. Call without theme_config to clear the custom theme and revert to the configured theme.
   fields:
     entity_id:
       name: Entity ID
@@ -159,9 +159,9 @@ set_custom_theme:
           domain: camera
     theme_config:
       name: Theme config
-      description: Dictionary containing all theme properties. If omitted or empty, clears the custom theme and reverts to the configured theme. Must include all required theme fields (see CUSTOM_THEME.md for details).
+      description: Dictionary containing theme properties to override. Omitted properties will fall back to the configured built-in theme. If omitted or empty, clears the custom theme and reverts to the configured theme.
       required: false
-      example: '{"axis_label_color": "#cfd6e6", "background_color": "#1c1c1c", "cheap_price_color": "#2d5a3d", "fill_alpha": 0.18, "fill_color": "#7dc3ff", "grid_alpha": 0.45, "grid_color": "#2a2f36", "label_color": "#e6edf3", "label_color_avg": "#eab308", "label_color_max": "#fb7185", "label_color_min": "#34d399", "label_stroke": true, "nowline_alpha": 0.5, "nowline_color": "#ff6b6b", "plot_linewidth": 1.0, "price_line_color": "#7dc3ff", "price_line_color_above_avg": "#fb7185", "price_line_color_below_avg": "#7dc3ff", "price_line_color_near_avg": "#eab308", "spine_color": "#3a4250", "tick_color": "#cfd6e6", "tickline_color": "#1f2530"}'
+      example: '{"avgline_color": "#eab308", "avgline_style": ":", "axis_label_color": "#cfd6e6", "background_color": "#1c1c1c", "cheap_price_color": "#2d5a3d", "cheapline_color": "#34d399", "cheapline_style": ":", "fill_alpha": 0.18, "fill_color": "#7dc3ff", "grid_alpha": 0.45, "grid_color": "#2a2f36", "label_color": "#e6edf3", "label_color_avg": "#eab308", "label_color_max": "#fb7185", "label_color_min": "#34d399", "label_stroke": true, "nowline_alpha": 0.5, "nowline_color": "#ff6b6b", "plot_linewidth": 1.0, "price_line_color": "#7dc3ff", "price_line_color_above_avg": "#fb7185", "price_line_color_below_avg": "#7dc3ff", "price_line_color_near_avg": "#eab308", "spine_color": "#3a4250", "tick_color": "#cfd6e6", "tickline_color": "#1f2530"}'
       selector:
         object:
 
@@ -195,7 +195,7 @@ create_graph:
       name: Custom theme
       description: Dictionary defining a custom theme to apply to the new entity. Keys should be theme property names (as defined in CUSTOM_THEME.md), values should be the corresponding color values. Must include all required theme fields.
       required: false
-      example: '{"axis_label_color": "#d8b9ff", "background_color": "#1a0f2e", "cheap_price_color": "#2d3d5a", "fill_alpha": 0.2, "fill_color": "#9d7cff", "grid_alpha": 0.4, "grid_color": "#3d2f50", "label_color": "#f0e6ff", "label_color_avg": "#ffb347", "label_color_max": "#ff6b9d", "label_color_min": "#7cffb3", "label_stroke": true, "nowline_alpha": 0.6, "nowline_color": "#ff6b9d", "plot_linewidth": 1.2, "price_line_color": "#9d7cff", "price_line_color_above_avg": "#ff6b9d", "price_line_color_below_avg": "#9d7cff", "price_line_color_near_avg": "#ffb347", "spine_color": "#503d70", "tick_color": "#d8b9ff", "tickline_color": "#2e1f45"}'
+      example: '{"avgline_color": "#ffb347", "avgline_style": ":", "axis_label_color": "#d8b9ff", "background_color": "#1a0f2e", "cheap_price_color": "#2d3d5a", "cheapline_color": "#7cffb3", "cheapline_style": ":", "fill_alpha": 0.2, "fill_color": "#9d7cff", "grid_alpha": 0.4, "grid_color": "#3d2f50", "label_color": "#f0e6ff", "label_color_avg": "#ffb347", "label_color_max": "#ff6b9d", "label_color_min": "#7cffb3", "label_stroke": true, "nowline_alpha": 0.6, "nowline_color": "#ff6b9d", "plot_linewidth": 1.2, "price_line_color": "#9d7cff", "price_line_color_above_avg": "#ff6b9d", "price_line_color_below_avg": "#9d7cff", "price_line_color_near_avg": "#ffb347", "spine_color": "#503d70", "tick_color": "#d8b9ff", "tickline_color": "#2e1f45"}'
       selector:
         object:
     recreate:

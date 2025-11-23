@@ -29,10 +29,11 @@ from .const import (
     DEFAULT_HOURS_TO_SHOW as HOURS_TO_SHOW,
     DEFAULT_SHOW_VERTICAL_GRID as SHOW_VERTICAL_GRID,
     DEFAULT_CHEAP_PERIOD_BOUNDARY_HOURS as CHEAP_PERIOD_BOUNDARY_HOURS,
-    DEFAULT_CHEAP_PERIOD_BOUNDARY_HIGHLIGHT as CHEAP_PERIOD_BOUNDARY_HIGHLIGHT,
+    DEFAULT_CHEAP_BOUNDARY_HIGHLIGHT as CHEAP_BOUNDARY_HIGHLIGHT,
     DEFAULT_SHOW_Y_AXIS as SHOW_Y_AXIS,
     DEFAULT_SHOW_HORIZONTAL_GRID as SHOW_HORIZONTAL_GRID,
     DEFAULT_SHOW_AVERAGE_PRICE_LINE as SHOW_AVERAGE_PRICE_LINE,
+    DEFAULT_SHOW_CHEAP_PRICE_LINE as SHOW_CHEAP_PRICE_LINE,
     DEFAULT_Y_AXIS_LABEL_ROTATION_DEG as Y_AXIS_LABEL_ROTATION_DEG,
     DEFAULT_Y_AXIS_LABEL_VERTICAL_ANCHOR as Y_AXIS_LABEL_VERTICAL_ANCHOR,
     DEFAULT_Y_AXIS_SIDE as Y_AXIS_SIDE,
@@ -78,6 +79,9 @@ from .const import (
     CHEAP_PERIODS_ON_X_AXIS_ON_COMFY,
     CHEAP_PERIODS_ON_X_AXIS_ON_COMPACT,
     CHEAP_PERIODS_ON_X_AXIS_OFF,
+    CHEAP_BOUNDARY_HIGHLIGHT_NONE,
+    CHEAP_BOUNDARY_HIGHLIGHT_UNDERLINE,
+    CHEAP_BOUNDARY_HIGHLIGHT_UNDERLINE_ALL,
 )
 
 # Import theme loader for dynamic theme selection
@@ -318,11 +322,12 @@ def render_plot_to_path(
     X_TICK_STEP_HOURS_OPT = get_opt("x_tick_step_hours", X_TICK_STEP_HOURS)
     HOURS_TO_SHOW_OPT = get_opt("hours_to_show", HOURS_TO_SHOW)
     SHOW_VERTICAL_GRID_OPT = get_opt("show_vertical_grid", SHOW_VERTICAL_GRID)
-    CHEAP_PERIOD_BOUNDARY_HIGHLIGHT_OPT = get_opt("cheap_period_boundary_highlight", CHEAP_PERIOD_BOUNDARY_HIGHLIGHT)
+    CHEAP_BOUNDARY_HIGHLIGHT_OPT = get_opt("cheap_boundary_highlight", CHEAP_BOUNDARY_HIGHLIGHT)
     # Y-axis settings
     SHOW_Y_AXIS_OPT = get_opt("show_y_axis", SHOW_Y_AXIS)
     SHOW_HORIZONTAL_GRID_OPT = get_opt("show_horizontal_grid", SHOW_HORIZONTAL_GRID)
     SHOW_AVERAGE_PRICE_LINE_OPT = get_opt("show_average_price_line", SHOW_AVERAGE_PRICE_LINE)
+    SHOW_CHEAP_PRICE_LINE_OPT = get_opt("show_cheap_price_line", SHOW_CHEAP_PRICE_LINE)
     Y_AXIS_LABEL_ROTATION_DEG_OPT = get_opt("y_axis_label_rotation_deg", Y_AXIS_LABEL_ROTATION_DEG)
     Y_AXIS_LABEL_VERTICAL_ANCHOR_OPT = get_opt("y_axis_label_vertical_anchor", Y_AXIS_LABEL_VERTICAL_ANCHOR)
     Y_AXIS_SIDE_OPT = get_opt("y_axis_side", Y_AXIS_SIDE)
@@ -374,6 +379,10 @@ def render_plot_to_path(
     LABEL_COLOR_MIN = theme_config["label_color_min"]
     LABEL_COLOR_MAX = theme_config["label_color_max"]
     LABEL_COLOR_AVG = theme_config["label_color_avg"]
+    AVGLINE_COLOR = theme_config["avgline_color"]
+    AVGLINE_STYLE = theme_config.get("avgline_style", ":")
+    CHEAPLINE_COLOR = theme_config["cheapline_color"]
+    CHEAPLINE_STYLE = theme_config.get("cheapline_style", ":")
     PRICE_LINE_COLOR_ABOVE_AVG = theme_config["price_line_color_above_avg"]
     PRICE_LINE_COLOR_BELOW_AVG = theme_config["price_line_color_below_avg"]
     PRICE_LINE_COLOR_NEAR_AVG = theme_config["price_line_color_near_avg"]
@@ -985,7 +994,12 @@ def render_plot_to_path(
     # Draw average price line if enabled (at same z-order as horizontal grid lines)
     # Average is calculated from calculation data (filtered based on display options)
     if SHOW_AVERAGE_PRICE_LINE_OPT and average_price is not None:
-        ax.axhline(average_price, color=NOWLINE_COLOR, alpha=GRID_ALPHA, linestyle=":", linewidth=1, zorder=2)
+        ax.axhline(average_price, color=AVGLINE_COLOR, alpha=GRID_ALPHA, linestyle=AVGLINE_STYLE, linewidth=1, zorder=2)
+
+    # Draw cheap price threshold line if enabled (at same z-order as horizontal grid lines)
+    # Only draw if cheap_price_threshold is set to a value > 0
+    if SHOW_CHEAP_PRICE_LINE_OPT and CHEAP_PRICE_THRESHOLD_OPT > 0:
+        ax.axhline(CHEAP_PRICE_THRESHOLD_OPT, color=CHEAPLINE_COLOR, alpha=GRID_ALPHA, linestyle=CHEAPLINE_STYLE, linewidth=1, zorder=2)
 
     # Calculate Y-axis tick min/max values
     # Key difference: For labels we use strict future (>), but for ticks we use current hour onwards (>=)
@@ -1180,9 +1194,9 @@ def render_plot_to_path(
                 if gap_tick not in cheap_tick_times:
                     cheap_tick_times.append(gap_tick)
 
-    def _draw_x_label(ax, tick_time, y_offset, label_color, label_effects, fontweight="normal"):
+    def _draw_x_label(ax, tick_time, y_offset, label_color, label_effects, underline=False):
         """Draw x-axis label at specified position with given styling."""
-        ax.text(
+        text_obj = ax.text(
             tick_time,
             -y_offset,
             tick_time.strftime("%H"),
@@ -1191,15 +1205,55 @@ def render_plot_to_path(
             ha="center",
             va="top",
             fontsize=LABEL_FONT_SIZE_OPT,
-            fontweight=fontweight,
+            fontweight="normal",
             color=label_color,
             clip_on=False,
             zorder=6,
             path_effects=label_effects,
         )
 
+        # Add a dotted underline manually if requested
+        if underline:
+            # Get the bounding box of the text to calculate underline width and position
+            renderer = ax.figure.canvas.get_renderer()
+            bbox = text_obj.get_window_extent(renderer=renderer)
+
+            # Transform bbox to the axis transform coordinates
+            bbox_axis_transform = bbox.transformed(ax.get_xaxis_transform().inverted())
+            text_width = bbox_axis_transform.width
+            text_bottom_y = bbox_axis_transform.y0  # Bottom of the text
+
+            # Position the underline just below the bottom of the text
+            underline_y = text_bottom_y - 0.008
+
+            # Draw dotted line spanning the width of the text
+            # For datetime x-axis, we need to work in matplotlib date numbers
+            from matplotlib.dates import date2num, num2date
+            import datetime
+
+            # Convert tick_time to matplotlib numeric format
+            tick_num = date2num(tick_time)
+
+            # Calculate start and end positions with slight inset for better visual alignment
+            width_inset = text_width * 0.04  # Inset by 4% on each side
+            x_start = num2date(tick_num - text_width / 2 + width_inset)
+            x_end = num2date(tick_num + text_width / 2 - width_inset)
+
+            ax.plot(
+                [x_start, x_end],
+                [underline_y, underline_y],
+                color=label_color,
+                linestyle=(0, (1, 2)),  # Dotted pattern: (offset, (on, off))
+                linewidth=1.2,
+                transform=ax.get_xaxis_transform(),
+                clip_on=False,
+                zorder=5,  # Lower zorder so it appears behind the text
+                alpha=0.9
+            )
+
     # Collect cheap period boundary and gap times
     cheap_tick_times = []
+    cheap_tick_times_all_boundaries = []  # Track all boundaries for highlighting
     if show_cheap_boundaries:
         for idx, (range_start, range_end) in enumerate(cheap_ranges):
             tick_start = _get_tick_time(range_start)
@@ -1207,14 +1261,21 @@ def render_plot_to_path(
 
             # Always add start label (filtering for row placement happens later)
             cheap_tick_times.append(tick_start)
+            cheap_tick_times_all_boundaries.append(tick_start)
 
             # Add gap boundary labels within this range (both gap ends and gap starts)
             _add_gap_boundary_ticks(gap_end_times, range_start, range_end, cheap_tick_times)
+            _add_gap_boundary_ticks(gap_start_times, range_start, range_end, cheap_tick_times_all_boundaries)
+            _add_gap_boundary_ticks(gap_end_times, range_start, range_end, cheap_tick_times_all_boundaries)
             _add_gap_boundary_ticks(gap_start_times, range_start, range_end, cheap_tick_times)
 
             # Add end label if it differs from start AND period is long enough
             # (at least x_tick_step_hours) to warrant showing both start and end
             if tick_end != tick_start:
+                # Always track end boundary for highlighting
+                cheap_tick_times_all_boundaries.append(tick_end)
+
+                # Only add to cheap_tick_times if period is long enough to show as a label
                 period_length_seconds = (range_end - range_start).total_seconds()
                 if period_length_seconds >= boundary_threshold_seconds:
                     cheap_tick_times.append(tick_end)
@@ -1299,17 +1360,12 @@ def render_plot_to_path(
             # Determine label color: 'label_color_min' if in cheap range, otherwise use default tick color
             label_color = LABEL_COLOR_MIN if tt in matching_ticks else tick_color
 
-            # Determine font weight: bold for boundary labels when highlighting is enabled
-            # In compact mode: bold if in cheap_tick_times
-            # In comfy mode: bold if in cheap_tick_times (boundary labels on row one)
-            if (CHEAP_PERIOD_BOUNDARY_HIGHLIGHT_OPT and show_cheap_boundaries and
-                CHEAP_PERIODS_ON_X_AXIS_OPT in (CHEAP_PERIODS_ON_X_AXIS_ON_COMPACT, CHEAP_PERIODS_ON_X_AXIS_ON_COMFY) and
-                tt in cheap_tick_times):
-                fontweight = "bold"
-            else:
-                fontweight = "normal"
+            # Determine underline: dotted underline for boundary labels when highlighting is enabled
+            # Note: underline_all is handled separately for row 2 labels below
+            underline = (CHEAP_BOUNDARY_HIGHLIGHT_OPT != CHEAP_BOUNDARY_HIGHLIGHT_NONE and
+                show_cheap_boundaries and tt in cheap_tick_times_all_boundaries)
 
-            _draw_x_label(ax, tt, X_AXIS_LABEL_Y_OFFSET, label_color, xlab_effects, fontweight)
+            _draw_x_label(ax, tt, X_AXIS_LABEL_Y_OFFSET, label_color, xlab_effects, underline)
 
     # Handle bottom margin and optional separate row for cheap labels
     adjusted_bottom_margin = BOTTOM_MARGIN_OPT
@@ -1330,9 +1386,11 @@ def render_plot_to_path(
 
         # Draw cheap-only labels on second row
         for tt in cheap_only_ticks:
-            # Make boundary labels bold in comfy mode when highlighting is enabled
-            fontweight = "bold" if CHEAP_PERIOD_BOUNDARY_HIGHLIGHT_OPT else "normal"
-            _draw_x_label(ax, tt, cheap_label_y_offset, LABEL_COLOR_MIN, xlab_effects, fontweight)
+            # Determine if underline should be applied to row 2 labels
+            # Only apply underline if mode is "underline_all" and this is a boundary label
+            underline_row2 = (CHEAP_BOUNDARY_HIGHLIGHT_OPT == CHEAP_BOUNDARY_HIGHLIGHT_UNDERLINE_ALL and
+                tt in cheap_tick_times_all_boundaries)
+            _draw_x_label(ax, tt, cheap_label_y_offset, LABEL_COLOR_MIN, xlab_effects, underline_row2)
 
     # Finalize plot layout and save
     ax.margins(x=0)
