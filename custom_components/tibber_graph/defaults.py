@@ -21,7 +21,7 @@ HOURS_TO_SHOW = None                        # Number of hours from anchor point 
 CHEAP_PRICE_POINTS = 0                      # Number of lowest-price periods to highlight (0 = none, highlights cheapest hours/quarters)
 CHEAP_PRICE_THRESHOLD = 0.0                 # Price threshold for highlighting cheap periods (0.0 = disabled, e.g., 0.5 = 50 öre)
 SHOW_AVERAGE_PRICE_LINE = True              # True = show line at average price of displayed data, False = hide
-SHOW_CHEAP_PRICE_LINE = False               # True = show line at cheap price threshold (not visible in UI), False = hide
+SHOW_CHEAP_PRICE_LINE = False               # True = show line at cheap price threshold, False = hide
 COLOR_PRICE_LINE_BY_AVERAGE = True          # True = color price line based on average (blue below, amber near, red above); False = use single color
 BOTTOM_MARGIN = 0.14                        # Space reserved for bottom labels
 LEFT_MARGIN = 0.12                          # Left margin for the plot area
@@ -40,8 +40,8 @@ LABEL_CURRENT_IN_HEADER_PADDING = 0.09      # Vertical padding from bottom of te
 LABEL_FONT_WEIGHT = "normal"                # "normal" or "bold" (for in-graph labels)
 LABEL_MIN = "on"                            # "on" = show min label with price, "on_no_price" = show min label without price, "off" = do not show min label
 LABEL_MAX = "on"                            # "on" = show max label with price, "on_no_price" = show max label without price, "off" = do not show max label
-LABEL_MAX_BELOW_POINT = False               # True = render max label below data point; False = render above
 LABEL_USE_COLORS = False                    # True = color min/max/avg labels; False = use default label color
+LABEL_MINMAX_PER_DAY = True                 # Show min/max labels per day instead of single min/max
 
 # X-axis settings
 SHOW_X_AXIS = "on"                          # X-axis visibility: "on" = show axis/labels without tick marks, "on_with_tick_marks" = show axis/labels with tick marks, "off" = hide x-axis completely
@@ -49,7 +49,6 @@ X_TICK_STEP_HOURS = 3                       # Label every 3 hours
 CHEAP_PERIODS_ON_X_AXIS = "off"             # Highlight cheap periods on X-axis: "on" = highlight cheap hours on existing labels, "on_comfy" = show cheap periods in separate row, "on_compact" = show cheap periods on same row, "off" = do not highlight (requires cheap_price_points or cheap_price_threshold > 0)
 SHOW_VERTICAL_GRID = True                   # True = show vertical gridlines, False = hide
 X_AXIS_LABEL_Y_OFFSET = 0.05                # Distance below axis (as fraction)
-CHEAP_PERIOD_BOUNDARY_HOURS = 0             # Internal: Hours from cheap period boundaries to show end time label (0 = use X_TICK_STEP_HOURS, not exposed to UI)
 CHEAP_BOUNDARY_HIGHLIGHT = "none"           # Highlight start and end time labels of cheap periods: "none", "underline", "underline_all" (not exposed to UI)
 
 # Y-axis settings
@@ -60,6 +59,10 @@ Y_AXIS_SIDE = "left"                        # "left" or "right" - which side to 
 Y_TICK_USE_COLORS = False                   # True = color Y-axis ticks (min/avg/max); False = use default tick color
 SHOW_HORIZONTAL_GRID = False                # True = show horizontal gridlines, False = hide
 Y_AXIS_LABEL_VERTICAL_ANCHOR = False        # If True, anchor vertical labels at tick; False = center on tick
+
+# Footer settings
+SHOW_DATA_SOURCE_NAME = False               # Show data source friendly name in footer
+DATA_SOURCE_NAME_FONT_SIZE_DIFF = 2         # Font size difference for data source name (points smaller than label_font_size)
 
 # Refresh settings
 REFRESH_MODE = "system"                     # Refresh mode: "system" = update on camera refresh, "system_interval" = update on camera refresh + interval, "interval" = update on interval only, "manual" = manual updates only

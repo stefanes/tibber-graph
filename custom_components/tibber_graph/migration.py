@@ -119,29 +119,7 @@ def _update_config_entry(hass, entry, options, new_options, keys_to_remove):
     return new_options
 
 
-def _cleanup_orphaned_option(hass, entry, options, name, old_key):
-    """Clean up a single orphaned option.
 
-    Args:
-        hass: Home Assistant instance
-        entry: Config entry to update
-        options: Current options dictionary
-        name: Entity name for logging
-        old_key: Key of the orphaned option
-
-    Returns:
-        tuple: (cleanup_occurred, updated_options)
-    """
-    if old_key in (options or {}):
-        _LOGGER.info(
-            "Removing orphaned %s option from options for %s",
-            old_key, name
-        )
-        new_options = dict(options) if options else {}
-        del new_options[old_key]
-        hass.config_entries.async_update_entry(entry, options=new_options)
-        return True, new_options
-    return False, options
 
 
 def _migrate_boolean_to_dropdown(hass, entry, options, name, old_key, new_key, true_value, false_value):
@@ -571,7 +549,11 @@ def _migrate_boolean_with_secondary_to_dropdown(hass, entry, options, name, old_
     else:
         # No migration needed - cleanup orphaned secondary if exists
         if remove_secondary and secondary_key in (options or {}):
-            return _cleanup_orphaned_option(hass, entry, options, name, secondary_key)[1]
+            _LOGGER.info("Removing orphaned %s option from options for %s", secondary_key, name)
+            new_options = dict(options) if options else {}
+            del new_options[secondary_key]
+            hass.config_entries.async_update_entry(entry, options=new_options)
+            return new_options
         return options
 
     # Get secondary value (use default if not set)

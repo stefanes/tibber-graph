@@ -88,6 +88,31 @@ async def get_config_entry_for_device_entity(
     return config_entry
 
 
+def get_entity_friendly_name(hass: HomeAssistant, entity_id: str) -> str:
+    """Get the friendly name for an entity with fallbacks.
+
+    Args:
+        hass: Home Assistant instance
+        entity_id: Entity ID to get friendly name for
+
+    Returns:
+        str: The friendly name, or a formatted version of the entity ID if not found
+    """
+    # First try getting from state attributes (includes user customizations)
+    state = hass.states.get(entity_id)
+    if state and state.attributes.get("friendly_name"):
+        return state.attributes["friendly_name"]
+
+    # Then try entity registry (includes original names)
+    entity_registry = er.async_get(hass)
+    entity_entry = entity_registry.async_get(entity_id)
+    if entity_entry and entity_entry.name:
+        return entity_entry.name
+
+    # Fallback to formatted entity ID
+    return entity_id.split(".")[-1].replace("_", " ").title()
+
+
 def validate_sensor_entity(hass: HomeAssistant, entity_id: str | None) -> tuple[bool, str | None]:
     """Validate that an entity ID is a sensor and exists.
 
@@ -98,31 +123,25 @@ def validate_sensor_entity(hass: HomeAssistant, entity_id: str | None) -> tuple[
     Returns:
         tuple: (is_valid, error_key) where error_key is None if valid
     """
-    if not entity_id:
+    # Handle None or empty values
+    if not entity_id or (isinstance(entity_id, str) and not entity_id.strip()):
         return True, None
 
     if not isinstance(entity_id, str):
         return False, "not_sensor_entity"
 
     entity_id = entity_id.strip()
-    if not entity_id:
-        return True, None
 
-    # Check entity registry first
+    # Check entity registry first (most reliable)
     entity_registry = er.async_get(hass)
     entity_entry = entity_registry.async_get(entity_id)
 
     if entity_entry:
-        if entity_entry.domain != "sensor":
-            return False, "not_sensor_entity"
-        return True, None
+        return (True, None) if entity_entry.domain == "sensor" else (False, "not_sensor_entity")
 
-    # Fallback to state check
+    # Fallback to state check if not in registry
     state = hass.states.get(entity_id)
     if not state:
         return False, "entity_not_found"
 
-    if not entity_id.startswith("sensor."):
-        return False, "not_sensor_entity"
-
-    return True, None
+    return (True, None) if entity_id.startswith("sensor.") else (False, "not_sensor_entity")

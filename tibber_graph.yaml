@@ -1,0 +1,272 @@
+template:
+  # 'Nord Pool price per kWh' sensor
+  - trigger:
+      - trigger: time
+        at: "14:00:00"
+      - trigger: homeassistant
+        event: start
+      - platform: event
+        event_type: call_service
+        event_data:
+          domain: template
+          service: reload
+    action:
+      - variables:
+          config_entry: "01K8BP8NCJYV0J20SV91VZ0ZYP"
+          area: "SE4"
+      - action: nordpool.get_prices_for_date
+        data:
+          config_entry: "{{ config_entry }}"
+          date: "{{ now().date() }}"
+        response_variable: today_prices
+      - action: nordpool.get_prices_for_date
+        data:
+          config_entry: "{{ config_entry }}"
+          date: "{{ now().date() + timedelta(days=1) }}"
+        response_variable: tomorrow_prices
+    sensor:
+      - name: Nord Pool price per kWh
+        state: >
+          {% set prices = today_prices[area] + tomorrow_prices[area] %}
+          {{ (prices | map(attribute='price') | sum / prices | count / 1000 * 1.25 + 0.086) | round(3, default=0) }}
+        #                                                              ^      ^      ^
+        #                                                              |      |      |
+        #                                     convert to SEK per kWh --┘      |      |
+        #                                     add 25% VAT --------------------┘      |
+        #                                     add 0.086 SEK/kWh markup --------------┘
+        unit_of_measurement: SEK/kWh
+        state_class: total
+        device_class: monetary
+        unique_id: nord_pool_price_per_kwh
+        icon: mdi:cash-multiple
+        availability: >
+          {{ today_prices is mapping and today_prices[area] | length > 0 }}
+        attributes:
+          data: >
+            {% set prices = today_prices[area] + tomorrow_prices[area] %}
+            {% set ns = namespace(prices=[]) %}
+            {% for i in prices %}
+                {% set time = i.start | as_datetime | as_local %}
+                {% set price = i.price / 1000 * 1.25 + 0.086 %}
+                {% set ns.prices = ns.prices + [{'start': time.isoformat(), 'price_per_kwh': price | round(3, default=0)}] %}
+            {% endfor %}
+            {{ ns.prices }}
+          currency: kr per kWh # overrides currency from "unit_of_measurement"
+
+  # 'Nord Pool spot price' sensor
+  - trigger:
+      - trigger: time
+        at: "14:00:00"
+      - trigger: homeassistant
+        event: start
+      - platform: event
+        event_type: call_service
+        event_data:
+          domain: template
+          service: reload
+    action:
+      - variables:
+          config_entry: "01K8BP8NCJYV0J20SV91VZ0ZYP"
+          area: "SE4"
+      - action: nordpool.get_prices_for_date
+        data:
+          config_entry: "{{ config_entry }}"
+          date: "{{ now().date() }}"
+        response_variable: today_prices
+      - action: nordpool.get_prices_for_date
+        data:
+          config_entry: "{{ config_entry }}"
+          date: "{{ now().date() + timedelta(days=1) }}"
+        response_variable: tomorrow_prices
+    sensor:
+      - name: Nord Pool spot price
+        state: >
+          {% set prices = today_prices[area] + tomorrow_prices[area] %}
+          {{ (prices | map(attribute='price') | sum / prices | count) | round(3, default=0) }}
+        unit_of_measurement: SEK/MWh
+        state_class: total
+        device_class: monetary
+        unique_id: nord_pool_spot_price
+        icon: mdi:cash-multiple
+        availability: >
+          {{ today_prices is mapping and today_prices[area] | length > 0 }}
+        attributes:
+          price_per_mwh: >
+            {% set prices = today_prices[area] + tomorrow_prices[area] %}
+            {% set ns = namespace(prices=[]) %}
+            {% for i in prices %}
+                {% set time = (i.start | as_datetime | as_local).strftime('%m/%d/%Y %H:%M:%S') %}
+                {% set ns.prices = ns.prices + [{'from': time, 'spot_price': i.price}] %}
+            {% endfor %}
+            {{ ns.prices }}
+          price_unit: kr
+
+script:
+  # Script to create graphs
+  create_graphs:
+    alias: Create graphs
+    icon: mdi:chart-bar-stacked
+    description: ""
+    sequence:
+      - variables:
+          # Dummy variable used as YAML anchor
+          default_options: &default_options
+            #
+            # General settings
+            theme: "dark"
+            start_graph_at: "show_all"
+            cheap_price_points: 5
+            cheap_price_threshold: 0.5
+            show_cheap_price_line: true
+            # Price labels
+            use_hourly_prices: true
+            # X-axis settings
+            cheap_periods_on_x_axis: "on"
+            # Footer settings
+            show_data_source_name: true
+      - action: tibber_graph.create_graph
+        data:
+          price_entity_id: sensor.nord_pool_price_per_kwh
+          options:
+            <<: *default_options
+            refresh_mode: "manual"
+          recreate: true
+      - action: tibber_graph.create_graph
+        data:
+          entity_name: Nord Pool price from spot
+          price_entity_id: sensor.nord_pool_spot_price
+          data_attr: "price_per_mwh"
+          data_attr_start_field: "from"
+          data_attr_start_fmt: "%m/%d/%Y %H:%M:%S"
+          data_attr_price_field: "spot_price"
+          data_attr_price_factor: 0.00125 # convert MWh to kWh and add 25% VAT
+          data_attr_price_add: 0.086 # add 0.086 SEK/kWh markup
+          currency_attr: "price_unit"
+          options:
+            <<: *default_options
+            refresh_mode: "interval"
+          recreate: true
+      - action: tibber_graph.create_graph
+        data:
+          entity_name: Living Room Display
+          price_entity_id: sensor.nord_pool_price_per_kwh
+          options:
+            theme: "light"
+            canvas_width: 1920
+            canvas_height: 1080
+            transparent_background: true
+            show_average_price_line: true
+            cheap_price_points: 3
+          recreate: true
+      - delay:
+          seconds: 10 # give time for graphs to be created
+      - action: tibber_graph.render
+        data:
+          entity_id:
+            - camera.tibber_graph_nord_pool_price_per_kwh
+            - camera.tibber_graph_nord_pool_price_from_spot
+    mode: single
+
+  # Script to set a custom theme
+  set_custom_theme:
+    alias: Set custom theme
+    icon: mdi:palette
+    description: ""
+    sequence:
+      - action: tibber_graph.set_custom_theme
+        data:
+          entity_id: camera.tibber_graph_living_room_display
+          theme_config:
+            avgline_color: "#ff6b9d"
+            avgline_style: ":"
+            axis_label_color: "#d8b9ff"
+            background_color: "#1a0f2e"
+            cheap_price_color: "#2d3d5a"
+            cheapline_color: "#7cffb3"
+            cheapline_style: ":"
+            fill_alpha: 0.2
+            fill_color: "#9d7cff"
+            grid_alpha: 0.4
+            grid_color: "#3d2f50"
+            label_color: "#f0e6ff"
+            label_color_avg: "#ffb347"
+            label_color_max: "#ff6b9d"
+            label_color_min: "#7cffb3"
+            label_stroke: true
+            nowline_alpha: 0.6
+            nowline_color: "#ff6b9d"
+            plot_linewidth: 1.2
+            price_line_color: "#9d7cff"
+            price_line_color_above_avg: "#ff6b9d"
+            price_line_color_below_avg: "#9d7cff"
+            price_line_color_near_avg: "#ffb347"
+            spine_color: "#503d70"
+            tick_color: "#d8b9ff"
+            tickline_color: "#2e1f45"
+      - action: tibber_graph.set_option
+        data:
+          entity_id: camera.tibber_graph_living_room_display
+          options:
+            transparent_background: false
+      - action: tibber_graph.render
+        data:
+          entity_id:
+            - camera.tibber_graph_living_room_display
+    mode: single
+
+  # Script to clear custom theme
+  clear_custom_theme:
+    alias: Clear custom theme
+    icon: mdi:palette-outline
+    description: ""
+    sequence:
+      - action: tibber_graph.set_custom_theme
+        data:
+          entity_id: camera.tibber_graph_living_room_display
+      - action: tibber_graph.render
+        data:
+          entity_id:
+            - camera.tibber_graph_living_room_display
+    mode: single
+
+  # Script to delete graphs
+  delete_graphs:
+    alias: Delete graphs
+    icon: mdi:delete
+    description: ""
+    sequence:
+      - action: tibber_graph.delete_graph
+        data:
+          entity_id:
+            - camera.tibber_graph_nord_pool_price_per_kwh
+            - camera.tibber_graph_nord_pool_price_from_spot
+            - camera.tibber_graph_living_room_display
+    mode: single
+
+  # Script to manually render all graphs
+  render_all_graphs:
+    alias: Render all graphs
+    icon: mdi:update
+    description: ""
+    sequence:
+      - action: tibber_graph.render
+    mode: single
+
+automation:
+  # Automation to render graphs on sensor updates
+  - id: render_graphs_sensor_update
+    alias: Render graphs (sensor update)
+    description: ""
+    triggers:
+      - trigger: state
+        entity_id: sensor.nord_pool_se4_current_price
+        to:
+        for:
+          seconds: 10
+        id: "nord_pool_price_per_kwh"
+    actions:
+      - action: tibber_graph.render
+        data:
+          entity_id:
+            - camera.tibber_graph_{{ trigger.id }}
+    mode: queued

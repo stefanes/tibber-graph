@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import translation
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
 
@@ -77,6 +78,7 @@ from .const import (
     CONF_USE_CENTS,
     CONF_CURRENCY_OVERRIDE,
     CONF_LABEL_CURRENT,
+    CONF_LABEL_MINMAX_PER_DAY,
     CONF_LABEL_FONT_SIZE,
     CONF_LABEL_MAX,
     CONF_LABEL_MIN,
@@ -120,6 +122,7 @@ from .const import (
     DEFAULT_LABEL_FONT_SIZE,
     DEFAULT_LABEL_MAX,
     DEFAULT_LABEL_MIN,
+    DEFAULT_LABEL_MINMAX_PER_DAY,
     LABEL_MAX_ON,
     LABEL_MAX_ON_NO_PRICE,
     LABEL_MAX_OFF,
@@ -131,9 +134,14 @@ from .const import (
     DEFAULT_PRICE_DECIMALS,
     DEFAULT_COLOR_PRICE_LINE_BY_AVERAGE,
     DEFAULT_REFRESH_MODE,
+    # Footer config keys
+    CONF_SHOW_DATA_SOURCE_NAME,
+    DEFAULT_SHOW_DATA_SOURCE_NAME,
+    DEFAULT_DATA_SOURCE_NAME_FONT_SIZE_DIFF,
     REFRESH_MODE_SYSTEM,
     REFRESH_MODE_SYSTEM_INTERVAL,
     REFRESH_MODE_INTERVAL,
+    REFRESH_MODE_SENSOR,
     REFRESH_MODE_MANUAL,
     # Non-configurable defaults (not exposed in options flow)
     DEFAULT_BOTTOM_MARGIN,
@@ -143,14 +151,13 @@ from .const import (
     DEFAULT_LABEL_CURRENT_IN_HEADER_FONT_WEIGHT,
     DEFAULT_LABEL_CURRENT_IN_HEADER_PADDING,
     DEFAULT_LABEL_FONT_WEIGHT,
-    DEFAULT_LABEL_MAX_BELOW_POINT,
     DEFAULT_MIN_REDRAW_INTERVAL_SECONDS,
     DEFAULT_RENDER_STAGGER_MAX_SECONDS,
     DEFAULT_REFRESH_INTERVAL_DELAY_SECONDS,
 )
 
 from .renderer import render_plot_to_path
-from .helpers import get_graph_file_path, get_unique_id, ensure_timezone
+from .helpers import get_graph_file_path, get_unique_id, ensure_timezone, get_entity_friendly_name
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -214,6 +221,7 @@ class TibberCam(LocalFile):
         # Use helper function to generate unique ID
         self._uniqueid = get_unique_id("camera", entity_name, entry.entry_id if entry else "default")
         self._refresh_unsub = None
+        self._sensor_state_unsub = None  # Track sensor state change listener
         self._refresh_interval_hourly = None  # Track detected interval for sensor attribute
         self._cached_use_hourly_prices = None  # Cache hourly pricing detection result
 
@@ -364,11 +372,62 @@ class TibberCam(LocalFile):
             await self._schedule_next_refresh()
             _LOGGER.debug("Started interval refresh for %s with mode %s", self._name, refresh_mode)
 
+        # Start sensor tracking if sensor mode is enabled
+        if refresh_mode == REFRESH_MODE_SENSOR:
+            if self._price_entity_id:
+                self._sensor_state_unsub = async_track_state_change_event(
+                    self.hass,
+                    [self._price_entity_id],
+                    self._async_sensor_state_changed
+                )
+                _LOGGER.debug("Started sensor tracking for %s on entity %s", self._name, self._price_entity_id)
+            else:
+                # This should not happen as services.py validates and prevents this,
+                # but handle it gracefully as a fallback
+                _LOGGER.warning(
+                    "Sensor refresh mode without price sensor as data source for %s. This should have been prevented by service validation, please recreate graph.",
+                    self._name
+                )
+
     async def async_will_remove_from_hass(self):
-        """Cancel the interval refresh when entity is removed or reloaded."""
+        """Cancel the interval refresh and sensor tracking when entity is removed or reloaded."""
         if self._refresh_unsub:
             self._refresh_unsub()
             self._refresh_unsub = None
+        if self._sensor_state_unsub:
+            self._sensor_state_unsub()
+            self._sensor_state_unsub = None
+
+    async def _async_sensor_state_changed(self, event) -> None:
+        """Handle sensor state or attribute changes.
+
+        This callback is triggered when the data source sensor updates.
+        It refreshes the graph whenever the sensor state or attributes change.
+        Skips rendering if the new state is unavailable or unknown.
+        """
+        try:
+            new_state = event.data.get("new_state")
+            old_state = event.data.get("old_state")
+            if new_state is None:
+                _LOGGER.debug(
+                    "%s: Sensor state changed from '%s' to 'None' -> skipping render",
+                    self._name, old_state.state if old_state else None)
+                return
+
+            if new_state.state in ("unavailable", "unknown"):
+                _LOGGER.debug(
+                    "%s: Sensor state changed from '%s' to '%s' -> skipping render",
+                    self._name, old_state.state if old_state else None, new_state.state
+                )
+                return
+
+            _LOGGER.debug(
+                "%s: Sensor state changed from '%s' to '%s' -> rendering graph",
+                self._name, old_state.state if old_state else None, new_state.state
+            )
+            await self.async_render_image(width=None, height=None, force_render=False, triggered_by="sensor_update")
+        except Exception as err:
+            _LOGGER.error("Failed to render on sensor state change for %s: %s", self._name, err, exc_info=True)
 
     def _detect_hourly_pricing(self) -> bool:
         """Detect whether the pricing data is hourly or 15-minute based on source data.
@@ -632,6 +691,32 @@ class TibberCam(LocalFile):
                      len(prices), source_name, self._name)
         return dates, prices
 
+    def _log_parse_failures(self, parse_failures, first_failed_timestamp):
+        """Log timestamp parse failures with appropriate messaging.
+
+        Args:
+            parse_failures: Number of failed timestamp parses
+            first_failed_timestamp: Example of a failed timestamp
+        """
+        if parse_failures == 0 or not first_failed_timestamp:
+            return
+
+        if self._cached_start_fmt:
+            _LOGGER.warning(
+                "Failed to parse %d timestamp(s) for %s with custom format '%s' (example timestamp: '%s'). "
+                "Please verify the format string matches your timestamp format. "
+                "See here for details: https://github.com/stefanes/tibber-graph/blob/main/README.md#custom-attributes--fields",
+                parse_failures, self._name, self._cached_start_fmt, first_failed_timestamp
+            )
+        else:
+            _LOGGER.warning(
+                "Failed to parse %d timestamp(s) for %s (example timestamp: '%s'). "
+                "If your timestamps are not in ISO 8601 format, please specify 'data_attr_start_fmt' "
+                "with the appropriate format string (e.g., '%%m/%%d/%%Y %%H:%%M:%%S' for '11/17/2025 18:00:00'). "
+                "See here for details: https://github.com/stefanes/tibber-graph/blob/main/README.md#custom-attributes--fields",
+                parse_failures, self._name, first_failed_timestamp
+            )
+
     def _parse_datetime_and_price(self, timestamp_str, price_val, start_date, end_date):
         """Parse timestamp and price, applying optional date filtering.
 
@@ -647,21 +732,18 @@ class TibberCam(LocalFile):
                    'filtered': timestamp was valid but filtered out by date range
                    'parse_error': failed to parse timestamp or price
         """
-        if self._cached_start_fmt:
-            # Use cached custom format string
-            try:
+        # Parse timestamp using custom format or ISO format
+        try:
+            if self._cached_start_fmt:
                 dt_parsed = datetime.datetime.strptime(timestamp_str, self._cached_start_fmt)
-            except (ValueError, TypeError):
-                # Don't log here - let the caller log once for all failures
-                return ('parse_error', None)
-        else:
-            # Try ISO format parsing
-            dt_parsed = dt_util.parse_datetime(timestamp_str)
-            if not dt_parsed:
-                # Don't log here - let the caller log once for all failures
-                return ('parse_error', None)
+            else:
+                dt_parsed = dt_util.parse_datetime(timestamp_str)
+                if not dt_parsed:
+                    return ('parse_error', None)
+        except (ValueError, TypeError):
+            return ('parse_error', None)
 
-        # If no timezone info, assume local time
+        # Ensure timezone info
         dt_loc = ensure_timezone(dt_parsed, dt_util.DEFAULT_TIME_ZONE)
         if dt_parsed.tzinfo is not None:
             dt_loc = dt_util.as_local(dt_parsed)
@@ -669,11 +751,12 @@ class TibberCam(LocalFile):
         if not dt_loc:
             return ('parse_error', None)
 
-        # Apply date filter only if date range is configured
+        # Apply date filter if configured
         if start_date is not None and end_date is not None:
             if not (start_date <= dt_loc.date() <= end_date):
                 return ('filtered', None)
 
+        # Parse price
         try:
             price = float(price_val)
             return ('success', (dt_loc, price))
@@ -733,22 +816,7 @@ class TibberCam(LocalFile):
             # status == 'filtered' is silently ignored as it's expected behavior
 
         # Log warning once if there were parse failures
-        if parse_failures > 0 and first_failed_timestamp:
-            if self._cached_start_fmt:
-                _LOGGER.warning(
-                    "Failed to parse %d timestamp(s) for %s with custom format '%s' (example timestamp: '%s'). "
-                    "Please verify the format string matches your timestamp format. "
-                    "See here for details: https://github.com/stefanes/tibber-graph/blob/main/README.md#custom-attributes--fields",
-                    parse_failures, self._name, self._cached_start_fmt, first_failed_timestamp
-                )
-            else:
-                _LOGGER.warning(
-                    "Failed to parse %d timestamp(s) for %s (example timestamp: '%s'). "
-                    "If your timestamps are not in ISO 8601 format, please specify 'data_attr_start_fmt' "
-                    "with the appropriate format string (e.g., '%%m/%%d/%%Y %%H:%%M:%%S' for '11/17/2025 18:00:00'). "
-                    "See here for details: https://github.com/stefanes/tibber-graph/blob/main/README.md#custom-attributes--fields",
-                    parse_failures, self._name, first_failed_timestamp
-                )
+        self._log_parse_failures(parse_failures, first_failed_timestamp)
 
         return self._filter_and_parse_prices(paired, f"entity {self._price_entity_id}")
 
@@ -792,22 +860,7 @@ class TibberCam(LocalFile):
             # status == 'filtered' is silently ignored as it's expected behavior
 
         # Log warning once if there were parse failures
-        if parse_failures > 0 and first_failed_timestamp:
-            if self._cached_start_fmt:
-                _LOGGER.warning(
-                    "Failed to parse %d timestamp(s) for %s with custom format '%s' (example timestamp: '%s'). "
-                    "Please verify the format string matches your timestamp format. "
-                    "See here for details: https://github.com/stefanes/tibber-graph/blob/main/README.md#custom-attributes--fields",
-                    parse_failures, self._name, self._cached_start_fmt, first_failed_timestamp
-                )
-            else:
-                _LOGGER.warning(
-                    "Failed to parse %d timestamp(s) for %s (example timestamp: '%s'). "
-                    "If your timestamps are not in ISO 8601 format, please specify 'data_attr_start_fmt' "
-                    "with the appropriate format string (e.g., '%%m/%%d/%%Y %%H:%%M:%%S' for '11/17/2025 18:00:00'). "
-                    "See here for details: https://github.com/stefanes/tibber-graph/blob/main/README.md#custom-attributes--fields",
-                    parse_failures, self._name, first_failed_timestamp
-                )
+        self._log_parse_failures(parse_failures, first_failed_timestamp)
 
         return self._filter_and_parse_prices(paired, "Tibber integration")
 
@@ -1015,6 +1068,18 @@ class TibberCam(LocalFile):
                 "label_avg": "avg.",
             }
 
+    def _get_data_source_name(self) -> str:
+        """Get the friendly name of the data source.
+
+        Returns:
+            The friendly name of the price entity sensor, or 'Tibber integration' if using Tibber.
+        """
+        if self._price_entity_id:
+            return get_entity_friendly_name(self.hass, self._price_entity_id)
+        else:
+            # Using Tibber integration
+            return "Tibber integration"
+
     def _get_render_options(self) -> dict[str, Any]:
         """Collect rendering options from config entry (UI) or defaults.py."""
         return {
@@ -1058,10 +1123,14 @@ class TibberCam(LocalFile):
             "label_font_size": self._get_option(CONF_LABEL_FONT_SIZE, DEFAULT_LABEL_FONT_SIZE),
             "label_font_weight": DEFAULT_LABEL_FONT_WEIGHT,
             "label_max": self._get_option(CONF_LABEL_MAX, DEFAULT_LABEL_MAX),
-            "label_max_below_point": DEFAULT_LABEL_MAX_BELOW_POINT,
             "label_min": self._get_option(CONF_LABEL_MIN, DEFAULT_LABEL_MIN),
             "label_show_currency": self._get_option(CONF_LABEL_SHOW_CURRENCY, DEFAULT_LABEL_SHOW_CURRENCY),
             "label_use_colors": self._get_option(CONF_LABEL_USE_COLORS, DEFAULT_LABEL_USE_COLORS),
+            "label_minmax_per_day": self._get_option(CONF_LABEL_MINMAX_PER_DAY, DEFAULT_LABEL_MINMAX_PER_DAY),
             "price_decimals": self._get_option(CONF_PRICE_DECIMALS, DEFAULT_PRICE_DECIMALS),
             "color_price_line_by_average": self._get_option(CONF_COLOR_PRICE_LINE_BY_AVERAGE, DEFAULT_COLOR_PRICE_LINE_BY_AVERAGE),
+            # Footer settings
+            "show_data_source_name": self._get_option(CONF_SHOW_DATA_SOURCE_NAME, DEFAULT_SHOW_DATA_SOURCE_NAME),
+            "data_source_name_font_size_diff": DEFAULT_DATA_SOURCE_NAME_FONT_SIZE_DIFF,
+            "data_source_name": self._get_data_source_name(),
         }

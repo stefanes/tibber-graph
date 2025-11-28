@@ -19,8 +19,9 @@ from .const import (
     CONF_REFRESH_MODE,
     REFRESH_MODE_SYSTEM_INTERVAL,
     REFRESH_MODE_INTERVAL,
+    REFRESH_MODE_SENSOR,
 )
-from .helpers import get_unique_id
+from .helpers import get_unique_id, get_entity_friendly_name
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -187,20 +188,4 @@ class TibberGraphLastUpdateSensor(SensorEntity):
 
     def _get_entity_friendly_name(self, entity_id: str) -> str:
         """Get friendly name for an entity with fallbacks."""
-        state = self.hass.states.get(entity_id)
-
-        # First try friendly_name attribute (user-customized)
-        if state and state.attributes.get("friendly_name"):
-            return state.attributes.get("friendly_name")
-
-        # Fallback to entity registry
-        entity_registry = er.async_get(self.hass)
-        entity_entry = entity_registry.async_get(entity_id)
-        if entity_entry and entity_entry.name:
-            return entity_entry.name
-
-        # Fallback to state name
-        if state and state.name:
-            return state.name
-
-        return ""
+        return get_entity_friendly_name(self.hass, entity_id)

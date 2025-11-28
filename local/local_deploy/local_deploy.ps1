@@ -46,6 +46,7 @@ if (-not $Destination) {
         try {
             $config = Get-Content $configPath -Raw | ConvertFrom-Json
             $Destination = $config.destination
+            $Destination = Join-Path $config.destination "custom_components\tibber_graph" -Resolve
             $HomeAssistantUrl = $config.host
             $AccessToken = $config.token
             Write-Host "Loaded configuration from local_deploy.json" -ForegroundColor Gray
@@ -152,7 +153,30 @@ Get-ChildItem -Path $Source -Recurse -File | ForEach-Object {
     $copied++
 }
 
-Write-Host ""
+# Copy tibber_graph.yaml into the Home Assistant `packages` folder
+$localYamlSource = Join-Path $PSScriptRoot "..\..\tibber_graph.yaml" -Resolve
+$packagesRoot = Split-Path (Split-Path $Destination -Parent) -Parent
+$packagesDir = Join-Path $packagesRoot "packages"
+
+if (Test-Path $localYamlSource) {
+    if (-not (Test-Path $packagesDir)) {
+        New-Item -ItemType Directory -Path $packagesDir -Force | Out-Null
+    }
+
+    $destYaml = Join-Path $packagesDir "tibber_graph_repo.yaml"
+    try {
+        Copy-Item -Path $localYamlSource -Destination $destYaml -Force
+        Write-Host "  ✓ \packages\tibber_graph_repo.yaml" -ForegroundColor Green
+        $copied++
+    }
+    catch {
+        Write-Warning "Failed to copy tibber_graph.yaml to packages: $_"
+    }
+}
+else {
+    Write-Warning "Local tibber_graph.yaml not found at: $localYamlSource. Skipping copying to packages."
+}
+
 Write-Host "Deployment complete!" -ForegroundColor Green
 Write-Host "Files copied: $copied" -ForegroundColor Gray
 Write-Host "Files skipped: $skipped" -ForegroundColor Gray

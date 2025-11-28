@@ -4,13 +4,13 @@ This document provides a comprehensive reference for all configurable options av
 
 ## Table of Contents
 
-- [Multiple Entity Support](OPTIONS.md#multiple-entity-support)
-- [General Settings](OPTIONS.md#general-settings)
-- [Price Labels](OPTIONS.md#price-labels)
-- [X-axis Settings](OPTIONS.md#x-axis-settings)
-- [Y-axis Settings](OPTIONS.md#y-axis-settings)
-- [Refresh Settings](OPTIONS.md#refresh-settings)
-- [Resetting Options to Default](OPTIONS.md#resetting-options-to-default)
+- [Multiple Entity Support](#multiple-entity-support)
+- [General Settings](#general-settings)
+- [Price Labels](#price-labels)
+- [X-axis Settings](#x-axis-settings)
+- [Y-axis Settings](#y-axis-settings)
+- [Refresh Settings](#refresh-settings)
+- [Resetting Options to Default](#resetting-options-to-default)
 
 ## Multiple Entity Support
 
@@ -143,18 +143,21 @@ Override currency symbol. Leave empty for automatic detection.
 Automatic currency detection (in order of precedence):
 
 1. **Tibber Integration**: If using Tibber as the data source, the currency from your Tibber home is used
-2. **Custom Sensor - `currency` attribute**: If using a custom sensor with a `currency` attribute, that value is used
-3. **Custom Sensor - `unit_of_measurement`**: If using a custom sensor with a `unit_of_measurement` attribute (e.g., `€/kWh`), the currency is extracted from it
+2. **Price Sensor - `currency` attribute**: If using a price sensor with a `currency` attribute, that value is used
+3. **Price Sensor - `unit_of_measurement`**: If using a price sensor with a `unit_of_measurement` attribute (e.g., `€/kWh`), the currency is extracted from it
 4. **Default**: Falls back to `€` if no currency can be determined
 
 > [!NOTE]
-> When `use_cents` is enabled, automatic detection uses `¢` unless an override is specified.
+> When `use_cents` is enabled, automatic detection will always use `¢` unless an override is specified.
 
 ### Label Show Currency
 
 **Option:** `label_show_currency` │ **Type:** Boolean • **Default:** `true`
 
 Show currency symbol on price labels.
+
+> [!NOTE]
+> This option is only available when using using the [`tibber_graph.create_graph`](/README.md#tibber_graphcreate_graph) or [`tibber_graph.set_option`](/README.md#tibber_graphset_option) actions.
 
 ### Show Current Price
 
@@ -193,6 +196,15 @@ Show maximum price label:
 **Option:** `label_use_colors` │ **Type:** Boolean • **Default:** `false`
 
 Color min/max labels.
+
+> [!NOTE]
+> This option is only available when using using the [`tibber_graph.create_graph`](/README.md#tibber_graphcreate_graph) or [`tibber_graph.set_option`](/README.md#tibber_graphset_option) actions.
+
+### Label Min/Max Per Day
+
+**Option:** `label_minmax_per_day` │ **Type:** Boolean • **Default:** `true`
+
+When enabled, the integration will show minimum and maximum price labels for each day in the graph instead of only a single min/max for the whole visible range.
 
 ## X-axis Settings
 
@@ -282,6 +294,9 @@ Display Y-axis on left or right side.
 
 Color Y-axis tick labels based on price levels.
 
+> [!NOTE]
+> This option is only available when using using the [`tibber_graph.create_graph`](/README.md#tibber_graphcreate_graph) or [`tibber_graph.set_option`](/README.md#tibber_graphset_option) actions.
+
 ### Show Horizontal Grid
 
 **Option:** `show_horizontal_grid` │ **Type:** Boolean • **Default:** `false`
@@ -299,14 +314,28 @@ Control when the graph is refreshed:
 - `system` (default): Updated by system only
 - `system_interval`: Updated by system & on interval
 - `interval`: Updated on interval only (every 15 minutes for 15-min pricing, every hour for hourly pricing)
+- `sensor`: Updated when data source sensor changes (requires [price sensor as data source](/README.md#price-sensors-as-data-source))
 - `manual`: Manual updates using [`tibber_graph.render` action](/README.md#tibber_graphrender) only (no automatic refresh)
 
-| Mode              | Update on interval | Updated by system | Manual update |
-| ----------------- | ------------------ | ----------------- | ------------- |
-| `system`          | No                 | Yes               | Yes           |
-| `system_interval` | Yes                | Yes               | Yes           |
-| `interval`        | Yes                | No                | Yes           |
-| `manual`          | No                 | No                | Yes           |
+| Mode              | Updated by system | Updated on interval | Updated by sensor | Manual updates |
+| ----------------- | ----------------- | ------------------- | ----------------- | -------------- |
+| `system`          | Yes               | No                  | No                | Yes            |
+| `system_interval` | Yes               | Yes                 | No                | Yes            |
+| `interval`        | No                | Yes                 | No                | Yes            |
+| `sensor`          | No                | No                  | Yes               | Yes            |
+| `manual`          | No                | No                  | No                | Yes            |
+
+> [!NOTE]
+> The `sensor` refresh mode is **only applicable when using a price sensor as data source**. If data source is the Tibber integration, `refresh_mode` will be reverted to `system`.
+
+### Show Data Source Name
+
+**Option:** `show_data_source_name` │ **Type:** Boolean • **Default:** `false`
+
+Show the data source friendly name in the graph footer.
+
+> [!NOTE]
+> This option is only available when using using the [`tibber_graph.create_graph`](/README.md#tibber_graphcreate_graph) or [`tibber_graph.set_option`](/README.md#tibber_graphset_option) actions.
 
 ## Resetting Options to Default
 

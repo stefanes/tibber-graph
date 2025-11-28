@@ -12,7 +12,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv, entity_registry as er, selector
 
 from .themes import get_theme_names
-from .helpers import validate_sensor_entity
+from .helpers import validate_sensor_entity, get_entity_friendly_name
 from .const import (
     DOMAIN,
     CONF_ENTITY_NAME,
@@ -69,7 +69,6 @@ from .const import (
     CONF_Y_AXIS_LABEL_ROTATION_DEG,
     CONF_Y_AXIS_SIDE,
     CONF_Y_TICK_COUNT,
-    CONF_Y_TICK_USE_COLORS,
     # Price label config keys
     CONF_USE_HOURLY_PRICES,
     CONF_USE_CENTS,
@@ -78,8 +77,7 @@ from .const import (
     CONF_LABEL_FONT_SIZE,
     CONF_LABEL_MAX,
     CONF_LABEL_MIN,
-    CONF_LABEL_SHOW_CURRENCY,
-    CONF_LABEL_USE_COLORS,
+    CONF_LABEL_MINMAX_PER_DAY,
     CONF_PRICE_DECIMALS,
     CONF_COLOR_PRICE_LINE_BY_AVERAGE,
     # Refresh config keys
@@ -107,7 +105,6 @@ from .const import (
     DEFAULT_Y_AXIS_LABEL_ROTATION_DEG,
     DEFAULT_Y_AXIS_SIDE,
     DEFAULT_Y_TICK_COUNT,
-    DEFAULT_Y_TICK_USE_COLORS,
     # Price label defaults
     DEFAULT_USE_HOURLY_PRICES,
     DEFAULT_USE_CENTS,
@@ -116,8 +113,7 @@ from .const import (
     DEFAULT_LABEL_FONT_SIZE,
     DEFAULT_LABEL_MAX,
     DEFAULT_LABEL_MIN,
-    DEFAULT_LABEL_SHOW_CURRENCY,
-    DEFAULT_LABEL_USE_COLORS,
+    DEFAULT_LABEL_MINMAX_PER_DAY,
     DEFAULT_PRICE_DECIMALS,
     DEFAULT_COLOR_PRICE_LINE_BY_AVERAGE,
     # Refresh defaults
@@ -126,6 +122,7 @@ from .const import (
     REFRESH_MODE_SYSTEM,
     REFRESH_MODE_SYSTEM_INTERVAL,
     REFRESH_MODE_INTERVAL,
+    REFRESH_MODE_SENSOR,
     REFRESH_MODE_MANUAL,
 )
 
@@ -206,7 +203,7 @@ CHEAP_PERIODS_ON_X_AXIS_SELECTOR = selector.SelectSelector(
 # Refresh mode selector configuration
 REFRESH_MODE_SELECTOR = selector.SelectSelector(
     selector.SelectSelectorConfig(
-        options=[REFRESH_MODE_SYSTEM, REFRESH_MODE_SYSTEM_INTERVAL, REFRESH_MODE_INTERVAL, REFRESH_MODE_MANUAL],
+        options=[REFRESH_MODE_SYSTEM, REFRESH_MODE_SYSTEM_INTERVAL, REFRESH_MODE_INTERVAL, REFRESH_MODE_SENSOR, REFRESH_MODE_MANUAL],
         mode=selector.SelectSelectorMode.DROPDOWN,
         translation_key="refresh_mode",
     )
@@ -253,11 +250,7 @@ class TibberGraphConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if not entity_name:
                     if price_entity_id:
                         # Use the friendly name of the price entity
-                        state = self.hass.states.get(price_entity_id)
-                        if state and state.attributes.get("friendly_name"):
-                            entity_name = state.attributes["friendly_name"]
-                        else:
-                            entity_name = price_entity_id.split(".")[-1].replace("_", " ").title()
+                        entity_name = get_entity_friendly_name(self.hass, price_entity_id)
                     else:
                         # Auto-generate entity name based on Tibber home
                         try:
@@ -275,7 +268,7 @@ class TibberGraphConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # Check for duplicate entity names
                 existing_entries = self._async_current_entries()
                 for entry in existing_entries:
-                    if entry.data.get(CONF_ENTITY_NAME) == entity_name:
+                    if entry.data.get(CONF_ENTITY_NAME, "").lower() == entity_name.lower():
                         errors["entity_name"] = "entity_name_exists"
                         break
 
@@ -388,14 +381,24 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
     ) -> FlowResult:
         """Manage the options."""
         entity_name = self.config_entry.data.get(CONF_ENTITY_NAME, DEFAULT_ENTITY_NAME)
+        errors = {}
 
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            # Validate refresh_mode: sensor mode requires a price sensor as data source
+            refresh_mode = user_input.get(CONF_REFRESH_MODE)
+            price_entity_id = self.config_entry.data.get(CONF_PRICE_ENTITY_ID)
+
+            if refresh_mode == REFRESH_MODE_SENSOR and not price_entity_id:
+                errors["refresh_mode"] = "sensor_mode_requires_entity"
+
+            if not errors:
+                return self.async_create_entry(title="", data=user_input)
 
         return self.async_show_form(
             step_id="init",
             data_schema=self._get_options_schema(),
             description_placeholders={"entity_name": entity_name},
+            errors=errors,
         )
 
     def _get_options_schema(self) -> vol.Schema:
@@ -473,10 +476,6 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                     default=options.get(CONF_CURRENCY_OVERRIDE, DEFAULT_CURRENCY_OVERRIDE or ""),
                 ): cv.string,
                 vol.Optional(
-                    CONF_LABEL_SHOW_CURRENCY,
-                    default=options.get(CONF_LABEL_SHOW_CURRENCY, DEFAULT_LABEL_SHOW_CURRENCY),
-                ): cv.boolean,
-                vol.Optional(
                     CONF_LABEL_CURRENT,
                     default=options.get(CONF_LABEL_CURRENT, DEFAULT_LABEL_CURRENT),
                 ): LABEL_CURRENT_SELECTOR,
@@ -489,8 +488,8 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                     default=options.get(CONF_LABEL_MAX, DEFAULT_LABEL_MAX),
                 ): LABEL_MAX_SELECTOR,
                 vol.Optional(
-                    CONF_LABEL_USE_COLORS,
-                    default=options.get(CONF_LABEL_USE_COLORS, DEFAULT_LABEL_USE_COLORS),
+                    CONF_LABEL_MINMAX_PER_DAY,
+                    default=options.get(CONF_LABEL_MINMAX_PER_DAY, DEFAULT_LABEL_MINMAX_PER_DAY),
                 ): cv.boolean,
                 # X-axis settings
                 vol.Optional(
@@ -532,10 +531,6 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                         translation_key="y_axis_side",
                     )
                 ),
-                vol.Optional(
-                    CONF_Y_TICK_USE_COLORS,
-                    default=options.get(CONF_Y_TICK_USE_COLORS, DEFAULT_Y_TICK_USE_COLORS),
-                ): cv.boolean,
                 vol.Optional(
                     CONF_SHOW_HORIZONTAL_GRID,
                     default=options.get(CONF_SHOW_HORIZONTAL_GRID, DEFAULT_SHOW_HORIZONTAL_GRID),

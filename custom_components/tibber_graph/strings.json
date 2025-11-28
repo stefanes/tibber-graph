@@ -36,11 +36,6 @@
         }
       }
     },
-    "abort": {
-      "single_instance_allowed": "Only a single instance is allowed.",
-      "tibber_not_setup": "The Tibber integration must be set up first.",
-      "reconfigure_successful": "Selected values have been reset to their defaults."
-    },
     "error": {
       "entity_name_exists": "An entity with this name already exists. Please choose a different name.",
       "entity_not_found": "The specified entity was not found.",
@@ -118,6 +113,7 @@
         "system": "System",
         "system_interval": "System + Interval",
         "interval": "Interval",
+        "sensor": "Sensor",
         "manual": "Manual"
       }
     }
@@ -171,7 +167,7 @@
     },
     "set_data_source": {
       "name": "Set data source",
-      "description": "Change the price data source for a Tibber Graph entity. Can switch between Tibber integration and a custom price entity.",
+      "description": "Change the data source for a Tibber Graph entity. Can switch between Tibber integration and price sensors as a data source.",
       "fields": {
         "entity_id": {
           "name": "Entity ID",
@@ -266,11 +262,10 @@
           "use_hourly_prices": "Aggregate to hourly prices",
           "use_cents": "Display in cents",
           "currency_override": "Currency override (leave blank for auto)",
-          "label_show_currency": "Show currency on labels",
           "label_current": "Show current price",
           "label_min": "Show min price",
+          "label_minmax_per_day": "Show min/max per day",
           "label_max": "Show max price",
-          "label_use_colors": "Use colored labels (min/max)",
           "show_x_axis": "Show X-axis",
           "x_tick_step_hours": "X-axis tick interval (hours)",
           "cheap_periods_on_x_axis": "Highlight cheap periods on X-axis",
@@ -279,7 +274,6 @@
           "y_tick_count": "Number of Y-axis ticks",
           "y_axis_label_rotation_deg": "Y-axis label rotation (degrees)",
           "y_axis_side": "Y-axis position",
-          "y_tick_use_colors": "Use colored Y-axis ticks",
           "show_horizontal_grid": "Show horizontal grid",
           "refresh_mode": "Refresh mode"
         },
@@ -300,11 +294,10 @@
           "use_hourly_prices": "Aggregate to hourly averages.\nDefault: off",
           "use_cents": "Display prices in cents.\nDefault: off",
           "currency_override": "Override currency display (e.g., '€', 'SEK', 'öre'). Leave blank for automatic detection based on data source (see [OPTIONS.md](https://github.com/stefanes/tibber-graph/blob/main/docs/OPTIONS.md#currency-override) for details).\nDefault: automatic (reconfigure to reset)",
-          "label_show_currency": "Show currency symbol on price labels.\nDefault: on",
           "label_current": "Show current price: 'On' (show in header), 'On (current price only)' (show in header, price only), 'On (in graph)' (show in graph), 'On (in graph, no price)' (show marker only), or 'Off' (hide).\nDefault: On",
           "label_min": "Show min price label: 'On' (with price), 'On (no price)' (time only), or 'Off' (hide).\nDefault: On",
+          "label_minmax_per_day": "Show separate minimum and maximum labels per day displayed.\nDefault: On",
           "label_max": "Show max price label: 'On' (with price), 'On (no price)' (time only), or 'Off' (hide).\nDefault: On",
-          "label_use_colors": "Color min/max labels.\nDefault: off",
           "show_x_axis": "X-axis visibility: 'On' = show axis/labels without tick marks, 'On (with tick marks)' = show axis/labels with tick marks, 'Off' = hide completely.\nDefault: On",
           "x_tick_step_hours": "Hours between each time label.\nDefault: 3",
           "cheap_periods_on_x_axis": "Highlight cheap periods on X-axis: 'On' = highlight existing labels, 'On (comfy)' = show in separate row, 'On (compact)' = show on same row, 'Off' = do not highlight.\nDefault: Off",
@@ -313,11 +306,13 @@
           "y_tick_count": "Number of price ticks on Y-axis. Leave empty for automatic.\nDefault: automatic (reconfigure to reset)",
           "y_axis_label_rotation_deg": "Rotation angle for Y-axis labels in degrees.\nDefault: 0",
           "y_axis_side": "Display Y-axis on left or right side.\nDefault: left",
-          "y_tick_use_colors": "Color Y-axis tick labels based on price levels.\nDefault: off",
           "show_horizontal_grid": "Show horizontal gridlines.\nDefault: off",
-          "refresh_mode": "Refresh mode: 'System' = update on camera refresh, 'System + Interval' = update on camera refresh + interval, 'Interval' = update on interval only, 'Manual' = manual updates only.\nDefault: System"
+          "refresh_mode": "Refresh mode: 'System' = update on camera refresh, 'System + Interval' = update on camera refresh + interval, 'Interval' = update on interval only, 'Sensor' = update when data source sensor changes (requires price sensor as data source), 'Manual' = manual updates only.\nDefault: System"
         }
       }
+    },
+    "error": {
+      "sensor_mode_requires_entity": "Sensor refresh mode is only supported when using a price sensor as data source."
     }
   }
 }

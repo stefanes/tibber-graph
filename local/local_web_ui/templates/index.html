@@ -123,13 +123,6 @@
                             <input type="text" id="currency_override" name="currency_override" value="{{ defaults.currency_override }}" placeholder="e.g., SEK, öre">
                         </div>
 
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="label_show_currency" name="label_show_currency" {% if defaults.label_show_currency %}checked{% endif %}>
-                                <span>Show Currency Symbol</span>
-                            </label>
-                        </div>
-
                         <div class="form-group">
                             <label for="label_current">Show Current Price</label>
                             <select id="label_current" name="label_current">
@@ -157,13 +150,6 @@
                                 <option value="on_no_price" {% if defaults.label_max == 'on_no_price' %}selected{% endif %}>On (no price)</option>
                                 <option value="off" {% if defaults.label_max == 'off' %}selected{% endif %}>Off</option>
                             </select>
-                        </div>
-
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="label_use_colors" name="label_use_colors" {% if defaults.label_use_colors %}checked{% endif %}>
-                                <span>Use Colors for Labels</span>
-                            </label>
                         </div>
                     </div>
 
@@ -234,13 +220,6 @@
 
                         <div class="form-group checkbox">
                             <label>
-                                <input type="checkbox" id="y_tick_use_colors" name="y_tick_use_colors" {% if defaults.y_tick_use_colors %}checked{% endif %}>
-                                <span>Use Colors for Y-axis Ticks</span>
-                            </label>
-                        </div>
-
-                        <div class="form-group checkbox">
-                            <label>
                                 <input type="checkbox" id="show_horizontal_grid" name="show_horizontal_grid" {% if defaults.show_horizontal_grid %}checked{% endif %}>
                                 <span>Show Horizontal Grid</span>
                             </label>
@@ -256,6 +235,7 @@
                                 <option value="system" {% if defaults.refresh_mode == 'system' %}selected{% endif %}>System</option>
                                 <option value="system_interval" {% if defaults.refresh_mode == 'system_interval' %}selected{% endif %}>System + Interval</option>
                                 <option value="interval" {% if defaults.refresh_mode == 'interval' %}selected{% endif %}>Interval</option>
+                                <option value="sensor" {% if defaults.refresh_mode == 'sensor' %}selected{% endif %}>Sensor</option>
                                 <option value="manual" {% if defaults.refresh_mode == 'manual' %}selected{% endif %}>Manual</option>
                             </select>
                         </div>
@@ -614,7 +594,7 @@
                 console.log('Overwrite mode:', overwrite);
 
                 // Define list of hidden options (not in UI but supported via YAML)
-                const hiddenOptionKeys = ['cheap_boundary_highlight', 'show_cheap_price_line'];
+                const hiddenOptionKeys = ['cheap_boundary_highlight', 'show_cheap_price_line', 'label_use_colors', 'y_tick_use_colors', 'label_minmax_per_day', 'label_show_currency'];
 
                 // If overwrite mode, reset all fields to defaults first
                 if (overwrite) {

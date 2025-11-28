@@ -12,7 +12,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 
 from .themes import get_theme_names, validate_custom_theme
-from .helpers import get_config_entry_for_device_entity, validate_sensor_entity
+from .helpers import get_config_entry_for_device_entity, validate_sensor_entity, get_entity_friendly_name
 from .const import (
     DOMAIN,
     # Config entry keys
@@ -71,10 +71,13 @@ from .const import (
     CONF_LABEL_MIN,
     CONF_LABEL_SHOW_CURRENCY,
     CONF_LABEL_USE_COLORS,
+    CONF_LABEL_MINMAX_PER_DAY,
     CONF_PRICE_DECIMALS,
     CONF_COLOR_PRICE_LINE_BY_AVERAGE,
     # Refresh config keys
     CONF_REFRESH_MODE,
+    # Footer config keys
+    CONF_SHOW_DATA_SOURCE_NAME,
     # Start graph at options
     START_GRAPH_AT_MIDNIGHT,
     START_GRAPH_AT_CURRENT_HOUR,
@@ -107,6 +110,7 @@ from .const import (
     REFRESH_MODE_SYSTEM,
     REFRESH_MODE_SYSTEM_INTERVAL,
     REFRESH_MODE_INTERVAL,
+    REFRESH_MODE_SENSOR,
     REFRESH_MODE_MANUAL,
     # External domain constants
     SENSOR_DOMAIN,
@@ -114,6 +118,43 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _clean_string_or_none(value: Any) -> str | None:
+    """Clean and validate string input, returning None for empty strings.
+
+    Args:
+        value: Input value to clean
+
+    Returns:
+        Cleaned string or None if empty/None
+    """
+    if isinstance(value, str):
+        return value.strip() or None
+    return None
+
+
+def _validate_refresh_mode(refresh_mode: str, price_entity_id: str | None) -> str:
+    """Validate refresh mode and fallback to system mode if sensor mode is invalid.
+
+    Sensor refresh mode is only supported with custom data source entities.
+    If sensor mode is requested without a price entity, fall back to system mode.
+
+    Args:
+        refresh_mode: The requested refresh mode
+        price_entity_id: The price entity ID (None for Tibber integration)
+
+    Returns:
+        The validated refresh mode (possibly changed to REFRESH_MODE_SYSTEM)
+    """
+    if refresh_mode == REFRESH_MODE_SENSOR and not price_entity_id:
+        _LOGGER.warning(
+            "Sensor refresh mode is only supported with a price sensor as data source. "
+            "Falling back to system mode."
+        )
+        return REFRESH_MODE_SYSTEM
+    return refresh_mode
+
 
 # Service names
 SERVICE_SET_OPTION = "set_option"
@@ -123,6 +164,7 @@ SERVICE_RENDER = "render"
 SERVICE_SET_CUSTOM_THEME = "set_custom_theme"
 SERVICE_CREATE_GRAPH = "create_graph"
 SERVICE_DELETE_GRAPH = "delete_graph"
+SERVICE_EXPORT_CONFIG = "export_config"
 
 # Service schema for set_option
 SERVICE_SET_OPTION_SCHEMA = vol.Schema(
@@ -196,6 +238,13 @@ SERVICE_DELETE_GRAPH_SCHEMA = vol.Schema(
     }
 )
 
+# Service schema for export_config
+SERVICE_EXPORT_CONFIG_SCHEMA = vol.Schema(
+    {
+        vol.Required("entity_id"): cv.entity_id,
+    }
+)
+
 # Valid option keys and their validators - theme options loaded dynamically
 VALID_OPTIONS = {
     # General settings
@@ -232,11 +281,14 @@ VALID_OPTIONS = {
     CONF_LABEL_MIN: vol.In([LABEL_MIN_ON, LABEL_MIN_ON_NO_PRICE, LABEL_MIN_OFF]),
     CONF_LABEL_SHOW_CURRENCY: cv.boolean,
     CONF_LABEL_USE_COLORS: cv.boolean,
+    CONF_LABEL_MINMAX_PER_DAY: cv.boolean,
     CONF_PRICE_DECIMALS: vol.Any(None, cv.positive_int),
     CONF_COLOR_PRICE_LINE_BY_AVERAGE: cv.boolean,
     CONF_SHOW_CHEAP_PRICE_LINE: cv.boolean,
     # Refresh settings
-    CONF_REFRESH_MODE: vol.In([REFRESH_MODE_SYSTEM, REFRESH_MODE_SYSTEM_INTERVAL, REFRESH_MODE_INTERVAL, REFRESH_MODE_MANUAL]),
+    CONF_REFRESH_MODE: vol.In([REFRESH_MODE_SYSTEM, REFRESH_MODE_SYSTEM_INTERVAL, REFRESH_MODE_INTERVAL, REFRESH_MODE_SENSOR, REFRESH_MODE_MANUAL]),
+    # Footer settings
+    CONF_SHOW_DATA_SOURCE_NAME: cv.boolean,
 }
 
 
@@ -291,6 +343,14 @@ async def async_register_services(hass: HomeAssistant) -> None:
         schema=SERVICE_DELETE_GRAPH_SCHEMA,
     )
 
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_EXPORT_CONFIG,
+        async_handle_export_config,
+        schema=SERVICE_EXPORT_CONFIG_SCHEMA,
+        supports_response="only",
+    )
+
 
 async def async_unregister_services(hass: HomeAssistant) -> None:
     """Unregister services for Tibber Graph integration."""
@@ -301,6 +361,7 @@ async def async_unregister_services(hass: HomeAssistant) -> None:
     hass.services.async_remove(DOMAIN, SERVICE_SET_CUSTOM_THEME)
     hass.services.async_remove(DOMAIN, SERVICE_CREATE_GRAPH)
     hass.services.async_remove(DOMAIN, SERVICE_DELETE_GRAPH)
+    hass.services.async_remove(DOMAIN, SERVICE_EXPORT_CONFIG)
 
 
 async def async_handle_set_option(call: ServiceCall) -> None:
@@ -334,6 +395,12 @@ async def async_handle_set_option(call: ServiceCall) -> None:
             validated_options[key] = validated_value
         except (vol.Invalid, ValueError) as err:
             raise HomeAssistantError(f"Invalid value for {key}: {value}. Error: {err}") from err
+
+    # Special validation for refresh_mode: sensor mode requires custom data source
+    if CONF_REFRESH_MODE in validated_options:
+        refresh_mode = validated_options[CONF_REFRESH_MODE]
+        price_entity_id = config_entry.data.get(CONF_PRICE_ENTITY_ID)
+        validated_options[CONF_REFRESH_MODE] = _validate_refresh_mode(refresh_mode, price_entity_id)
 
     # Determine new options based on overwrite flag
     if overwrite:
@@ -449,32 +516,16 @@ async def async_handle_set_data_source(call: ServiceCall) -> None:
     """Handle set_data_source service call."""
     hass = call.hass
     entity_id = call.data["entity_id"]
-    price_entity_id = call.data.get("price_entity_id")
-
-    # Strip if it's a string, otherwise keep as None
-    if isinstance(price_entity_id, str):
-        price_entity_id = price_entity_id.strip() or None
+    price_entity_id = _clean_string_or_none(call.data.get("price_entity_id"))
 
     # Get custom data source parameters
-    data_attr = call.data.get("data_attr")
-    data_attr_price_field = call.data.get("data_attr_price_field")
-    data_attr_start_field = call.data.get("data_attr_start_field")
-    data_attr_start_fmt = call.data.get("data_attr_start_fmt")
+    data_attr = _clean_string_or_none(call.data.get("data_attr"))
+    data_attr_price_field = _clean_string_or_none(call.data.get("data_attr_price_field"))
+    data_attr_start_field = _clean_string_or_none(call.data.get("data_attr_start_field"))
+    data_attr_start_fmt = _clean_string_or_none(call.data.get("data_attr_start_fmt"))
     data_attr_price_factor = call.data.get("data_attr_price_factor")
     data_attr_price_add = call.data.get("data_attr_price_add")
-    currency_attr = call.data.get("currency_attr")
-
-    # Strip string parameters
-    if isinstance(data_attr, str):
-        data_attr = data_attr.strip() or None
-    if isinstance(data_attr_price_field, str):
-        data_attr_price_field = data_attr_price_field.strip() or None
-    if isinstance(data_attr_start_field, str):
-        data_attr_start_field = data_attr_start_field.strip() or None
-    if isinstance(data_attr_start_fmt, str):
-        data_attr_start_fmt = data_attr_start_fmt.strip() or None
-    if isinstance(currency_attr, str):
-        currency_attr = currency_attr.strip() or None
+    currency_attr = _clean_string_or_none(call.data.get("currency_attr"))
 
     # Get the config entry for this entity (works with camera, image, or sensor)
     config_entry = await get_config_entry_for_device_entity(hass, entity_id, DOMAIN)
@@ -549,36 +600,20 @@ async def async_handle_set_custom_theme(call: ServiceCall) -> None:
 async def async_handle_create_graph(call: ServiceCall) -> dict[str, str]:
     """Handle create_graph service call."""
     hass = call.hass
-    entity_name = call.data.get("entity_name", "").strip() if call.data.get("entity_name") else ""
-    price_entity_id = call.data.get("price_entity_id")
+    entity_name = _clean_string_or_none(call.data.get("entity_name")) or ""
+    price_entity_id = _clean_string_or_none(call.data.get("price_entity_id"))
     options = call.data.get("options", {})
     custom_theme = call.data.get("custom_theme")
     recreate = call.data.get("recreate", False)
 
-    # Strip price_entity_id if it's a string
-    if isinstance(price_entity_id, str):
-        price_entity_id = price_entity_id.strip() or None
-
     # Get custom data source parameters
-    data_attr = call.data.get("data_attr")
-    data_attr_price_field = call.data.get("data_attr_price_field")
-    data_attr_start_field = call.data.get("data_attr_start_field")
-    data_attr_start_fmt = call.data.get("data_attr_start_fmt")
+    data_attr = _clean_string_or_none(call.data.get("data_attr"))
+    data_attr_price_field = _clean_string_or_none(call.data.get("data_attr_price_field"))
+    data_attr_start_field = _clean_string_or_none(call.data.get("data_attr_start_field"))
+    data_attr_start_fmt = _clean_string_or_none(call.data.get("data_attr_start_fmt"))
     data_attr_price_factor = call.data.get("data_attr_price_factor")
     data_attr_price_add = call.data.get("data_attr_price_add")
-    currency_attr = call.data.get("currency_attr")
-
-    # Strip string parameters
-    if isinstance(data_attr, str):
-        data_attr = data_attr.strip() or None
-    if isinstance(data_attr_price_field, str):
-        data_attr_price_field = data_attr_price_field.strip() or None
-    if isinstance(data_attr_start_field, str):
-        data_attr_start_field = data_attr_start_field.strip() or None
-    if isinstance(data_attr_start_fmt, str):
-        data_attr_start_fmt = data_attr_start_fmt.strip() or None
-    if isinstance(currency_attr, str):
-        currency_attr = currency_attr.strip() or None
+    currency_attr = _clean_string_or_none(call.data.get("currency_attr"))
 
     # Validate price entity if provided
     if price_entity_id:
@@ -597,11 +632,7 @@ async def async_handle_create_graph(call: ServiceCall) -> dict[str, str]:
     if not entity_name:
         if price_entity_id:
             # Use the friendly name of the price entity
-            state = hass.states.get(price_entity_id)
-            if state and state.attributes.get("friendly_name"):
-                entity_name = state.attributes["friendly_name"]
-            else:
-                entity_name = price_entity_id.split(".")[-1].replace("_", " ").title()
+            entity_name = get_entity_friendly_name(hass, price_entity_id)
         else:
             # Auto-generate entity name based on Tibber home
             try:
@@ -618,7 +649,7 @@ async def async_handle_create_graph(call: ServiceCall) -> dict[str, str]:
     existing_entries = hass.config_entries.async_entries(DOMAIN)
     existing_entry = None
     for entry in existing_entries:
-        if entry.data.get(CONF_ENTITY_NAME) == entity_name:
+        if entry.data.get(CONF_ENTITY_NAME, "").lower() == entity_name.lower():
             existing_entry = entry
             break
 
@@ -650,6 +681,13 @@ async def async_handle_create_graph(call: ServiceCall) -> dict[str, str]:
                 validated_options[key] = validated_value
             except (vol.Invalid, ValueError) as err:
                 raise HomeAssistantError(f"Invalid value for option '{key}': {value}. Error: {err}") from err
+
+        # Special validation for refresh_mode: sensor mode requires a price sensor as data source
+        if CONF_REFRESH_MODE in validated_options:
+            validated_options[CONF_REFRESH_MODE] = _validate_refresh_mode(
+                validated_options[CONF_REFRESH_MODE],
+                price_entity_id
+            )
 
     # Validate custom theme if provided
     if custom_theme:
@@ -702,6 +740,50 @@ async def async_handle_create_graph(call: ServiceCall) -> dict[str, str]:
     _LOGGER.info("Successfully created Tibber Graph entity: %s (camera: %s)", entity_name, camera_entity_id)
 
     return {"entity_id": camera_entity_id}
+
+
+async def async_handle_export_config(call: ServiceCall) -> dict[str, Any]:
+    """Handle export_config service call."""
+    from . import const
+
+    hass = call.hass
+    entity_id = call.data["entity_id"]
+
+    # Get the config entry for this entity (works with camera, image, or sensor)
+    config_entry = await get_config_entry_for_device_entity(hass, entity_id, DOMAIN)
+    if not config_entry:
+        raise HomeAssistantError(f"Entity {entity_id} not found or is not a Tibber Graph entity")
+
+    # Build the export dictionary
+    export_data: dict[str, Any] = {}
+
+    # Collect options that differ from defaults
+    options_dict = {}
+    for key, value in config_entry.options.items():
+        # Skip custom theme, it will be handled separately
+        if key == CONF_CUSTOM_THEME:
+            continue
+
+        # Get the default value for this key
+        default_key = f"DEFAULT_{key.upper()}"
+        default_value = getattr(const, default_key, None)
+
+        # Only include if different from default
+        if value != default_value:
+            options_dict[key] = value
+
+    # Add options to export if any exist
+    if options_dict:
+        export_data["options"] = options_dict
+
+    # Add custom theme if present
+    custom_theme = config_entry.options.get(CONF_CUSTOM_THEME)
+    if custom_theme:
+        export_data["custom_theme"] = custom_theme
+
+    _LOGGER.info("Exported configuration for %s", entity_id)
+
+    return export_data
 
 
 async def async_handle_delete_graph(call: ServiceCall) -> None:

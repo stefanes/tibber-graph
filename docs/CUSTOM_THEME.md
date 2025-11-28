@@ -58,7 +58,7 @@ Theme properties are optional when setting a custom theme. Any properties omitte
 ```yaml
 action: tibber_graph.set_custom_theme
 data:
-  entity_id: camera.tibber_graph_nord_pool_price
+  entity_id: camera.tibber_graph_nord_pool_price_per_kwh
   theme_config:
     avgline_color: "#ff6b9d"
     avgline_style: ":"
@@ -98,7 +98,7 @@ data:
 ```yaml
 action: tibber_graph.set_custom_theme
 data:
-  entity_id: camera.tibber_graph_nord_pool_price
+  entity_id: camera.tibber_graph_nord_pool_price_per_kwh
   theme_config:
     avgline_color: "#ff0000"
     avgline_style: ":"
@@ -138,7 +138,7 @@ data:
 ```yaml
 action: tibber_graph.set_custom_theme
 data:
-  entity_id: camera.tibber_graph_nord_pool_price
+  entity_id: camera.tibber_graph_nord_pool_price_per_kwh
   theme_config:
     avgline_color: "#ff6347"
     avgline_style: ":"
@@ -178,7 +178,7 @@ data:
 ```yaml
 action: tibber_graph.set_custom_theme
 data:
-  entity_id: camera.tibber_graph_nord_pool_price
+  entity_id: camera.tibber_graph_nord_pool_price_per_kwh
   theme_config:
     avgline_color: "#ff80ab"
     avgline_style: ":"
@@ -229,7 +229,7 @@ automation:
     action:
       - action: tibber_graph.set_custom_theme
         data:
-          entity_id: camera.tibber_graph_nord_pool_price
+          entity_id: camera.tibber_graph_nord_pool_price_per_kwh
           theme_config:
             avgline_color: "#ff0000"
             avgline_style: ":"
@@ -266,7 +266,7 @@ automation:
     action:
       - action: tibber_graph.set_custom_theme
         data:
-          entity_id: camera.tibber_graph_nord_pool_price
+          entity_id: camera.tibber_graph_nord_pool_price_per_kwh
 ```
 
 #### Night Mode
@@ -280,7 +280,7 @@ automation:
     action:
       - action: tibber_graph.set_custom_theme
         data:
-          entity_id: camera.tibber_graph_nord_pool_price
+          entity_id: camera.tibber_graph_nord_pool_price_per_kwh
           theme_config:
             # Your custom night theme colors here
             background_color: "#000000"
@@ -293,7 +293,7 @@ automation:
     action:
       - action: tibber_graph.set_custom_theme
         data:
-          entity_id: camera.tibber_graph_nord_pool_price
+          entity_id: camera.tibber_graph_nord_pool_price_per_kwh
           # Clear custom theme to use configured built-in theme
 ```
 

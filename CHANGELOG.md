@@ -4,12 +4,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2025-11-28
+
+### Added
+
+- 🔃 New [**_Sensor_ refresh mode** option](docs/OPTIONS.md#refresh-mode), to update the graph image whenever the price sensor data source updates.
+- 🖌️ New [**Show min/max per day** option](docs/OPTIONS.md#label-minmax-per-day) to display minimum and maximum price labels for each day separately.
+- 🖌️ New [**Show data source name** option](docs/OPTIONS.md#show-data-source-name) to display the data source friendly name in the graph footer.
+- 🎬 New [`tibber_graph.export_config` action](README.md#tibber_graphexport_config) to export the current configuration for a Tibber Graph entity, making it easy to recreate entities or share configurations.
+
+### Changed
+
+- **Default behavior**: By default the graph now shows minimum and maximum price labels for each day separately when enabled. To restore the previous default behavior, disable the new **Show min/max per day** option.
+- Simplified options UI by removing some of the more exotic options (unlikely to be used by most users). These options can still be set using the [`tibber_graph.create_graph`](README.md#tibber_graphcreate_graph) or [`tibber_graph.set_option`](README.md#tibber_graphset_option) actions, see notes in [OPTIONS.md](docs/OPTIONS.md).
+
 ## [0.6.2] - 2025-11-23
 
 ### Added
 
-- 🖌️ **Cheap boundary highlight**: New `cheap_boundary_highlight` option to highlight start and end time labels of cheap periods for greater visibility. See [OPTIONS.md](docs/OPTIONS.md#cheap-boundary-highlight) for details.
-- **Show cheap price line**: New `show_cheap_price_line` option to draw a horizontal line at the provided cheap price threshold. See [OPTIONS.md](docs/OPTIONS.md#show-cheap-price-line) for details.
+- 🖌️ **Cheap boundary highlight**: New [`cheap_boundary_highlight` option](docs/OPTIONS.md#cheap-boundary-highlight) to highlight start and end time labels of cheap periods for greater visibility.
+- **Show cheap price line**: New [`show_cheap_price_line` option](docs/OPTIONS.md#show-cheap-price-line) to draw a horizontal line at the provided cheap price threshold.
 - 🎨 **New theme properties** (see [CUSTOM_THEME.md](docs/CUSTOM_THEME.md#theme-properties) for details):
   - `avgline_color` and `avgline_style` for the average price line color and style.
   - `cheapline_color` and `cheapline_style` for the cheap price threshold line color and style.
@@ -21,7 +35,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - Remove inaccurate timestamp parsing warning generated under some circumstances:
-  
+
   ```log
   2025-11-21 06:00:29.793 WARNING (MainThread) [custom_components.tibber_graph.camera] Failed to parse 24 timestamp(s) for Tibber Graph ...
   ```
@@ -50,8 +64,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- 🔃 Changed the auto-refresh setting into a refresh mode with more options for better control. See [docs/OPTIONS.md](docs/OPTIONS.md#refresh-settings) for details.
-- 💶 Improved how the currency is determined when using a custom data source. See [docs/OPTIONS.md](docs/OPTIONS.md#currency-override) for details.
+- 🔃 Changed the auto-refresh setting into a [refresh mode with more options](docs/OPTIONS.md#refresh-settings) for better control.
+- 💶 Improved [how the currency is determined](docs/OPTIONS.md#currency-override) when using a custom data source.
 - Simplified options UI by merging options where applicable.
 - Rearranged options UI for improved usability.
 - Related entities are now grouped under a device for easier management.
@@ -82,7 +96,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- 🎨 **Custom theme support**: Apply custom color schemes dynamically to any Tibber Graph entity. Custom themes persist across restarts and take precedence over the configured theme, see [CUSTOM_THEME.md](docs/CUSTOM_THEME.md) for details and examples.
+- 🎨 **Custom theme support**: Apply [custom color schemes](docs/CUSTOM_THEME.md) dynamically to any Tibber Graph entity. Custom themes persist across restarts and take precedence over the configured theme.
 - 🎬 **Actions for configuration and rendering** (see [README.md](README.md#actions) for usage examples):
   - `tibber_graph.set_option` to update any UI option.
   - `tibber_graph.reset_option` to reset options to default values.

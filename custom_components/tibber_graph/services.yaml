@@ -8,7 +8,7 @@ set_option:
       name: Entity ID
       description: The entity ID of the Tibber Graph camera to update.
       required: true
-      example: "camera.tibber_graph_nord_pool_price"
+      example: "camera.tibber_graph_nord_pool_price_per_kwh"
       selector:
         entity:
           integration: tibber_graph
@@ -37,7 +37,7 @@ reset_option:
       name: Entity ID
       description: The entity ID of the Tibber Graph camera to reset options for.
       required: true
-      example: "camera.tibber_graph_nord_pool_price"
+      example: "camera.tibber_graph_nord_pool_price_per_kwh"
       selector:
         entity:
           integration: tibber_graph
@@ -52,13 +52,13 @@ reset_option:
 
 set_data_source:
   name: Set data source
-  description: Change the price data source for a Tibber Graph entity. Can switch between Tibber integration and a custom price entity.
+  description: Change the data source for a Tibber Graph entity. Can switch between Tibber integration and price sensors as a data source.
   fields:
     entity_id:
       name: Entity ID
       description: The entity ID of the Tibber Graph camera to update the data source for.
       required: true
-      example: "camera.tibber_graph_nord_pool_price"
+      example: "camera.tibber_graph_nord_pool_price_per_kwh"
       selector:
         entity:
           integration: tibber_graph
@@ -67,13 +67,13 @@ set_data_source:
       name: Price entity
       description: The entity ID of a sensor containing price data (see README.md for details). Leave empty to use the Tibber integration instead.
       required: false
-      example: "sensor.nord_pool_price"
+      example: "sensor.nord_pool_price_per_kwh"
       selector:
         entity:
           domain: sensor
     data_attr:
       name: Data attribute
-      description: The attribute to use for getting the price data from the data source entity. Omit to use defaults (see README.md for details).
+      description: The attribute to use for getting the price data from the price sensor data source. Omit to use defaults (see README.md for details).
       required: false
       example: "prices"
       selector:
@@ -123,7 +123,7 @@ set_data_source:
           mode: box
     currency_attr:
       name: Currency attribute
-      description: The attribute to use for getting the currency symbol from the data source entity. Omit to use defaults (see README.md for details).
+      description: The attribute to use for getting the currency symbol from the price sensor data source. Omit to use defaults (see README.md for details).
       required: false
       example: "currency"
       selector:
@@ -137,7 +137,7 @@ render:
       name: Entity ID
       description: The entity ID (or list of entity IDs) of the Tibber Graph camera to render. If not provided, all Tibber Graph entities are rendered.
       required: false
-      example: "camera.tibber_graph_nord_pool_price"
+      example: "camera.tibber_graph_nord_pool_price_per_kwh"
       selector:
         entity:
           integration: tibber_graph
@@ -152,7 +152,7 @@ set_custom_theme:
       name: Entity ID
       description: The entity ID of the Tibber Graph camera to set the custom theme for.
       required: true
-      example: "camera.tibber_graph_nord_pool_price"
+      example: "camera.tibber_graph_nord_pool_price_per_kwh"
       selector:
         entity:
           integration: tibber_graph
@@ -180,7 +180,7 @@ create_graph:
       name: Price entity
       description: The entity ID of a sensor containing price data (see README.md for details). If not provided, the Tibber integration will be used.
       required: false
-      example: "sensor.nord_pool_price"
+      example: "sensor.nord_pool_price_per_kwh"
       selector:
         entity:
           domain: sensor
@@ -208,7 +208,7 @@ create_graph:
         boolean:
     data_attr:
       name: Data attribute
-      description: The attribute to use for getting the price data from the data source entity. Omit to use defaults (see README.md for details).
+      description: The attribute to use for getting the price data from the price sensor data source. Omit to use defaults (see README.md for details).
       required: false
       example: "prices"
       selector:
@@ -258,7 +258,7 @@ create_graph:
           mode: box
     currency_attr:
       name: Currency attribute
-      description: The attribute to use for getting the currency symbol from the data source entity. Omit to use defaults (see README.md for details).
+      description: The attribute to use for getting the currency symbol from the price sensor data source. Omit to use defaults (see README.md for details).
       required: false
       example: "currency"
       selector:
@@ -272,9 +272,23 @@ delete_graph:
       name: Entity ID
       description: The entity ID (or list of entity IDs) of the Tibber Graph camera to delete.
       required: true
-      example: "camera.tibber_graph_nord_pool_price"
+      example: "camera.tibber_graph_nord_pool_price_per_kwh"
       selector:
         entity:
           integration: tibber_graph
           domain: camera
           multiple: true
+
+export_config:
+  name: Export config
+  description: Export the current configuration options for a Tibber Graph entity. Returns a dictionary containing all explicitly set configuration options and their values, suitable for use with other actions.
+  fields:
+    entity_id:
+      name: Entity ID
+      description: The entity ID of the Tibber Graph camera to export the configuration from.
+      required: true
+      example: "camera.tibber_graph_nord_pool_price_per_kwh"
+      selector:
+        entity:
+          integration: tibber_graph
+          domain: camera
