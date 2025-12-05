@@ -1,3 +1,11 @@
+# This file contains some live examples taken from the README.md file.
+# Usage:
+#   1. Install and configure the 'Nord Pool' integration
+#   2. Copy this file to e.g. /config/packages/tibber_graph.yaml (see
+#      https://www.home-assistant.io/docs/configuration/packages/#create-a-packages-folder)
+#   3. Adjust the 'config_entry' and 'area' variables in the template
+#      sensors below to match your own Nord Pool configuration
+
 template:
   # 'Nord Pool price per kWh' sensor
   - trigger:
@@ -11,6 +19,8 @@ template:
           domain: template
           service: reload
     action:
+      # TODO: replace the 'config_entry' and 'area' variables below with
+      # your own config entry id and area
       - variables:
           config_entry: "01K8BP8NCJYV0J20SV91VZ0ZYP"
           area: "SE4"
@@ -65,6 +75,8 @@ template:
           domain: template
           service: reload
     action:
+      # TODO: replace the 'config_entry' and 'area' variables below with
+      # your own config entry id and area
       - variables:
           config_entry: "01K8BP8NCJYV0J20SV91VZ0ZYP"
           area: "SE4"
@@ -116,7 +128,7 @@ script:
             theme: "dark"
             start_graph_at: "show_all"
             cheap_price_points: 5
-            cheap_price_threshold: 0.5
+            cheap_price_threshold: 0.8
             show_cheap_price_line: true
             # Price labels
             use_hourly_prices: true
@@ -156,7 +168,7 @@ script:
             canvas_height: 1080
             transparent_background: true
             show_average_price_line: true
-            cheap_price_points: 3
+            cheap_price_points: 20
           recreate: true
       - delay:
           seconds: 10 # give time for graphs to be created
@@ -254,8 +266,8 @@ script:
 
 automation:
   # Automation to render graphs on sensor updates
-  - id: render_graphs_sensor_update
-    alias: Render graphs (sensor update)
+  - id: render_graphs_on_sensor_update
+    alias: Render graphs on sensor update
     description: ""
     triggers:
       - trigger: state

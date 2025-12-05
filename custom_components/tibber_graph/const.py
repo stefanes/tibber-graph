@@ -201,6 +201,8 @@ LABEL_CURRENT_ON = "on"
 LABEL_CURRENT_ON_CURRENT_PRICE_ONLY = "on_current_price_only"
 LABEL_CURRENT_ON_IN_GRAPH = "on_in_graph"
 LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE = "on_in_graph_no_price"
+LABEL_CURRENT_ON_IN_GRAPH_NO_TIME = "on_in_graph_no_time"
+LABEL_CURRENT_ON_IN_GRAPH_ONLY_MARKER = "on_in_graph_only_marker"
 LABEL_CURRENT_OFF = "off"
 
 # Show X-axis options
@@ -216,10 +218,14 @@ SHOW_Y_AXIS_OFF = "off"
 # Label max/min options
 LABEL_MAX_ON = "on"
 LABEL_MAX_ON_NO_PRICE = "on_no_price"
+LABEL_MAX_ON_NO_TIME = "on_no_time"
+LABEL_MAX_ON_ONLY_MARKER = "on_only_marker"
 LABEL_MAX_OFF = "off"
 
 LABEL_MIN_ON = "on"
 LABEL_MIN_ON_NO_PRICE = "on_no_price"
+LABEL_MIN_ON_NO_TIME = "on_no_time"
+LABEL_MIN_ON_ONLY_MARKER = "on_only_marker"
 LABEL_MIN_OFF = "off"
 
 # Cheap periods on X-axis options

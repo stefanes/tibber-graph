@@ -51,10 +51,6 @@ Theme properties are optional when setting a custom theme. Any properties omitte
 <details>
 <summary>Purple Theme:</summary>
 
-![Purple Theme](assets/theme-purple.png)
-
-</details>
-
 ```yaml
 action: tibber_graph.set_custom_theme
 data:
@@ -88,12 +84,12 @@ data:
     tickline_color: "#2e1f45"
 ```
 
+</details>
+
+![Purple Theme](assets/theme-purple.png)
+
 <details>
 <summary>High-Contrast Dark Theme:</summary>
-
-![High-Contrast Dark Theme](assets/theme-contrast.png)
-
-</details>
 
 ```yaml
 action: tibber_graph.set_custom_theme
@@ -128,12 +124,12 @@ data:
     tickline_color: "#404040"
 ```
 
+</details>
+
+![High-Contrast Dark Theme](assets/theme-contrast.png)
+
 <details>
 <summary>Warm Amber Theme:</summary>
-
-![Warm Amber Theme](assets/theme-amber.png)
-
-</details>
 
 ```yaml
 action: tibber_graph.set_custom_theme
@@ -168,12 +164,12 @@ data:
     tickline_color: "#3d2820"
 ```
 
+</details>
+
+![Warm Amber Theme](assets/theme-amber.png)
+
 <details>
 <summary>Cool Blue-Green Theme:</summary>
-
-![Cool Blue-Green Theme](assets/theme-bluegreen.png)
-
-</details>
 
 ```yaml
 action: tibber_graph.set_custom_theme
@@ -207,6 +203,10 @@ data:
     tick_color: "#a8d8ea"
     tickline_color: "#152a3f"
 ```
+
+</details>
+
+![Cool Blue-Green Theme](assets/theme-bluegreen.png)
 
 ### Automations
 

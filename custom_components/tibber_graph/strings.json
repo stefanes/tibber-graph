@@ -36,6 +36,9 @@
         }
       }
     },
+    "abort": {
+      "reconfigure_successful": "Selected values have been reset to their defaults."
+    },
     "error": {
       "entity_name_exists": "An entity with this name already exists. Please choose a different name.",
       "entity_not_found": "The specified entity was not found.",
@@ -67,8 +70,10 @@
       "options": {
         "on": "On",
         "on_current_price_only": "On (current price only)",
-        "on_in_graph": "On (in graph)",
-        "on_in_graph_no_price": "On (in graph, no price)",
+        "on_in_graph": "In graph",
+        "on_in_graph_no_price": "In graph (no price)",
+        "on_in_graph_no_time": "In graph (no time)",
+        "on_in_graph_only_marker": "In graph (only marker)",
         "off": "Off"
       }
     },
@@ -89,14 +94,18 @@
     "label_max": {
       "options": {
         "on": "On",
-        "on_no_price": "On (no price)",
+        "on_no_price": "No price",
+        "on_no_time": "No time",
+        "on_only_marker": "Only marker",
         "off": "Off"
       }
     },
     "label_min": {
       "options": {
         "on": "On",
-        "on_no_price": "On (no price)",
+        "on_no_price": "No price",
+        "on_no_time": "No time",
+        "on_only_marker": "Only marker",
         "off": "Off"
       }
     },
@@ -294,10 +303,10 @@
           "use_hourly_prices": "Aggregate to hourly averages.\nDefault: off",
           "use_cents": "Display prices in cents.\nDefault: off",
           "currency_override": "Override currency display (e.g., '€', 'SEK', 'öre'). Leave blank for automatic detection based on data source (see [OPTIONS.md](https://github.com/stefanes/tibber-graph/blob/main/docs/OPTIONS.md#currency-override) for details).\nDefault: automatic (reconfigure to reset)",
-          "label_current": "Show current price: 'On' (show in header), 'On (current price only)' (show in header, price only), 'On (in graph)' (show in graph), 'On (in graph, no price)' (show marker only), or 'Off' (hide).\nDefault: On",
-          "label_min": "Show min price label: 'On' (with price), 'On (no price)' (time only), or 'Off' (hide).\nDefault: On",
+          "label_current": "Show current price: 'On' (show in header), 'On (current price only)' (show in header, price only), 'In graph' (show in graph), 'In graph (no price)' (show in graph, time only), 'In graph (no time)' (show in graph, price only), 'In graph (only marker)' (show in graph, only marker), or 'Off'.\nDefault: On",
+          "label_min": "Show min price label: 'On', 'No price' (time only), 'No time' (price only), 'Only marker', or 'Off'.\nDefault: On",
           "label_minmax_per_day": "Show separate minimum and maximum labels per day displayed.\nDefault: On",
-          "label_max": "Show max price label: 'On' (with price), 'On (no price)' (time only), or 'Off' (hide).\nDefault: On",
+          "label_max": "Show max price label: 'On', 'No price' (time only), 'No time' (price only), 'Only marker', or 'Off'.\nDefault: On",
           "show_x_axis": "X-axis visibility: 'On' = show axis/labels without tick marks, 'On (with tick marks)' = show axis/labels with tick marks, 'Off' = hide completely.\nDefault: On",
           "x_tick_step_hours": "Hours between each time label.\nDefault: 3",
           "cheap_periods_on_x_axis": "Highlight cheap periods on X-axis: 'On' = highlight existing labels, 'On (comfy)' = show in separate row, 'On (compact)' = show on same row, 'Off' = do not highlight.\nDefault: Off",

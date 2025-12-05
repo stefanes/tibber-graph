@@ -14,6 +14,6 @@
     Copy-Item $repoRoot\local\local_render\local_render.png $repoRoot\docs\assets\wearos-config.png
 
     # Random light configuration
-    python $repoRoot\local\local_render\local_render.py -r -t 19:34 --publish --custom-theme '{"avgline_style": "-."}'
-    Copy-Item $repoRoot\local\local_render\local_render.png $repoRoot\docs\assets\random-light.png
+    python $repoRoot\local\local_render\local_render.py -t 19:34 --publish --custom-theme '{"avgline_style": "-."}'
+    Copy-Item $repoRoot\local\local_render\local_render.png $repoRoot\docs\assets\light-mode.png
 }

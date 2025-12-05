@@ -63,6 +63,8 @@ from .const import (
     LABEL_CURRENT_ON_CURRENT_PRICE_ONLY,
     LABEL_CURRENT_ON_IN_GRAPH,
     LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE,
+    LABEL_CURRENT_ON_IN_GRAPH_NO_TIME,
+    LABEL_CURRENT_ON_IN_GRAPH_ONLY_MARKER,
     LABEL_CURRENT_OFF,
     SHOW_X_AXIS_ON,
     SHOW_X_AXIS_ON_WITH_TICK_MARKS,
@@ -72,9 +74,13 @@ from .const import (
     SHOW_Y_AXIS_OFF,
     LABEL_MAX_ON,
     LABEL_MAX_ON_NO_PRICE,
+    LABEL_MAX_ON_NO_TIME,
+    LABEL_MAX_ON_ONLY_MARKER,
     LABEL_MAX_OFF,
     LABEL_MIN_ON,
     LABEL_MIN_ON_NO_PRICE,
+    LABEL_MIN_ON_NO_TIME,
+    LABEL_MIN_ON_ONLY_MARKER,
     LABEL_MIN_OFF,
     CHEAP_PERIODS_ON_X_AXIS_ON,
     CHEAP_PERIODS_ON_X_AXIS_ON_COMFY,
@@ -276,24 +282,34 @@ def _get_price_color(price, average_price, threshold_pct, color_below, color_nea
     Returns:
         RGB tuple color with smooth gradient transitions
     """
-    threshold_lower = average_price * (1 - threshold_pct)
-    threshold_upper = average_price * (1 + threshold_pct)
+    # Split the threshold equally around average (e.g., 25% → ±12.5%)
+    half_threshold_pct = threshold_pct / 2
+    threshold_lower_near = average_price * (1 - half_threshold_pct)
+    threshold_upper_near = average_price * (1 + half_threshold_pct)
+    threshold_lower_far = average_price * (1 - threshold_pct)
+    threshold_upper_far = average_price * (1 + threshold_pct)
 
-    if price >= threshold_upper:
-        # Far above average: interpolate from amber to red
-        ratio = min((price - threshold_upper) / max(average_price * 0.5, 0.01), 1.0)
-        return _interpolate_color(color_near, color_above, ratio)
-    elif price >= average_price:
-        # Slightly above average: interpolate from amber to amber (stay in near-average color)
-        ratio = (price - average_price) / (threshold_upper - average_price)
-        return _interpolate_color(color_near, color_near, ratio)
-    elif price >= threshold_lower:
-        # Slightly below average: interpolate from blue to amber
-        ratio = (price - threshold_lower) / (average_price - threshold_lower)
+    if price >= threshold_upper_near:
+        # Above near-average zone
+        if price >= threshold_upper_far:
+            # Far above average: interpolate from amber to red
+            ratio = min((price - threshold_upper_far) / max(average_price * half_threshold_pct, 0.01), 1.0)
+            return _interpolate_color(color_near, color_above, ratio)
+        else:
+            # Transition zone above: interpolate from amber to red
+            ratio = (price - threshold_upper_near) / (threshold_upper_far - threshold_upper_near)
+            return _interpolate_color(color_near, color_above, ratio)
+    elif price >= threshold_lower_near:
+        # Within near-average zone: stay amber
+        return mcolors.to_rgb(color_near)
+    elif price >= threshold_lower_far:
+        # Transition zone below: interpolate from blue to amber
+        ratio = (price - threshold_lower_far) / (threshold_lower_near - threshold_lower_far)
         return _interpolate_color(color_below, color_near, ratio)
     else:
-        # Far below average: stay blue
-        return mcolors.to_rgb(color_below)
+        # Far below average: interpolate towards deeper blue
+        ratio = min((threshold_lower_far - price) / max(average_price * half_threshold_pct, 0.01), 1.0)
+        return _interpolate_color(color_below, color_below, ratio)
 
 
 def render_plot_to_path(
@@ -641,25 +657,39 @@ def render_plot_to_path(
             prices_by_day[day_key].append(i)
 
         # For each day, find cheap periods based on configured criteria
-        cheap_indices_all_days = []
+        # Track separately: periods from cheap_price_points vs cheap_price_threshold
+        cheap_indices_from_points = []
+        cheap_indices_from_threshold = []
+
         for day_key, day_indices in prices_by_day.items():
             # Sort indices by price (ascending) for this day
             sorted_day_indices = sorted(day_indices, key=lambda i: prices_raw[i])
 
-            # Start with the N cheapest periods (if cheap_price_points is set)
-            cheap_for_day = set()
+            # Track the N cheapest periods (if cheap_price_points is set)
+            points_for_day = set()
             if CHEAP_PRICE_POINTS_OPT > 0:
-                # Always include the N cheapest periods
-                cheap_for_day.update(sorted_day_indices[:min(CHEAP_PRICE_POINTS_OPT, len(sorted_day_indices))])
+                # Include the N cheapest periods
+                points_for_day.update(sorted_day_indices[:min(CHEAP_PRICE_POINTS_OPT, len(sorted_day_indices))])
 
-            # Additionally include all periods below the threshold (if threshold is set)
+            # Track periods below the threshold (if threshold is set)
+            threshold_for_day = set()
             if CHEAP_PRICE_THRESHOLD_OPT > 0:
-                cheap_for_day.update([i for i in sorted_day_indices if prices_raw[i] < CHEAP_PRICE_THRESHOLD_OPT])
+                threshold_for_day.update([i for i in sorted_day_indices if prices_raw[i] < CHEAP_PRICE_THRESHOLD_OPT])
 
-            cheap_indices_all_days.extend(cheap_for_day)
+            # Separate the indices: if a period qualifies for both, prioritize points-based
+            for cheap_idx in points_for_day:
+                cheap_indices_from_points.append(cheap_idx)
+
+            for cheap_idx in threshold_for_day:
+                if cheap_idx not in points_for_day:
+                    cheap_indices_from_threshold.append(cheap_idx)
+
+        # Create combined list for X-axis labeling (used later in the code)
+        cheap_indices_all_days = cheap_indices_from_points + cheap_indices_from_threshold
 
         # Draw background highlights for cheap periods (only if they're in the visible range)
-        for cheap_idx in cheap_indices_all_days:
+        # Draw points-based periods with standard subtle highlighting
+        for cheap_idx in cheap_indices_from_points:
             period_start = dates_raw[cheap_idx]
             period_end = period_start + period_duration
 
@@ -668,12 +698,33 @@ def render_plot_to_path(
                 # Determine if this period is in the past (for dimming)
                 is_past = period_end <= now_local
 
-                # Draw the background rectangle
-                # Use dimmed color for past periods
+                # Draw the background rectangle with subtle highlighting
+                alpha = 0.4 # 0.35 / 0.15 (from 0.6 / 0.3)
                 if is_past:
-                    alpha = 0.3  # Dimmed for past
-                else:
-                    alpha = 0.6  # Bright for future
+                    alpha = round(alpha / 2, 2)  # Dimmed for past
+
+                ax.axvspan(
+                    period_start,
+                    period_end,
+                    facecolor=CHEAP_PRICE_COLOR,
+                    alpha=alpha,
+                    zorder=3,  # Above grid lines (z=2) but below price line (z=4)
+                )
+
+        # Draw threshold-based periods with even more subtle highlighting
+        for cheap_idx in cheap_indices_from_threshold:
+            period_start = dates_raw[cheap_idx]
+            period_end = period_start + period_duration
+
+            # Only draw if the period is within the visible time range
+            if period_start <= end_hour and period_end >= start_hour:
+                # Determine if this period is in the past (for dimming)
+                is_past = period_end <= now_local
+
+                # Draw the background rectangle with very subtle highlighting
+                alpha = 0.2 # 0.18 / 0.08
+                if is_past:
+                    alpha = round(alpha / 2, 2)  # Dimmed for past
 
                 ax.axvspan(
                     period_start,
@@ -837,7 +888,7 @@ def render_plot_to_path(
                 day_max = max(inds, key=lambda i: prices_raw[i])
 
                 # Respect current-in-graph behavior: don't duplicate current
-                if LABEL_CURRENT_OPT in (LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE) and current_idx is not None:
+                if LABEL_CURRENT_OPT in (LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE, LABEL_CURRENT_ON_IN_GRAPH_NO_TIME, LABEL_CURRENT_ON_IN_GRAPH_ONLY_MARKER) and current_idx is not None:
                     if current_idx in (day_min, day_max):
                         # Add current (will be added below) and skip copying min/max that collide
                         pass
@@ -860,7 +911,7 @@ def render_plot_to_path(
                     max_indices.add(day_max)
 
             # Add current label if configured to show in graph
-            if LABEL_CURRENT_OPT in (LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE) and current_idx is not None:
+            if LABEL_CURRENT_OPT in (LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE, LABEL_CURRENT_ON_IN_GRAPH_NO_TIME, LABEL_CURRENT_ON_IN_GRAPH_ONLY_MARKER) and current_idx is not None:
                 chosen.add(current_idx)
         else:
             # Global min/max behavior (single min/max for visible range)
@@ -873,7 +924,7 @@ def render_plot_to_path(
                 max_indices = set()
 
             # Add current label if configured to show in graph
-            show_current_in_graph = LABEL_CURRENT_OPT in (LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE) and current_idx is not None
+            show_current_in_graph = LABEL_CURRENT_OPT in (LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE, LABEL_CURRENT_ON_IN_GRAPH_NO_TIME, LABEL_CURRENT_ON_IN_GRAPH_ONLY_MARKER) and current_idx is not None
             if show_current_in_graph:
                 chosen.add(current_idx)
 
@@ -927,37 +978,43 @@ def render_plot_to_path(
     # Draw labels for chosen data points (min, max, current)
     for i in sorted(chosen):
         # Skip current label here if it will be drawn in the header
-        # (current_idx is only in chosen if LABEL_CURRENT_OPT in (LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE))
-        # So this check is technically redundant, but kept for clarity
-        if i == current_idx and LABEL_CURRENT_OPT not in (LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE):
+        if i == current_idx and LABEL_CURRENT_OPT not in (LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE, LABEL_CURRENT_ON_IN_GRAPH_NO_TIME, LABEL_CURRENT_ON_IN_GRAPH_ONLY_MARKER):
             continue
 
-        # Classify this point to determine styling
         # When per-day min/max is enabled we may have multiple min/max indices.
-        # We now use sets for both per-day and global behavior.
         is_min = i in min_indices
         is_max = i in max_indices
         is_current = (current_idx is not None and i == current_idx)
 
         # Determine if price should be shown for this label.
-        # - For min labels: show price only when LABEL_MIN_OPT == LABEL_MIN_ON
-        # - For max labels: show price only when LABEL_MAX_OPT == LABEL_MAX_ON
-        # - For current label: hide price when LABEL_CURRENT_OPT == LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE
         if is_min:
-            show_price = LABEL_MIN_OPT == LABEL_MIN_ON
+            show_price = LABEL_MIN_OPT not in (LABEL_MIN_ON_NO_PRICE, LABEL_MIN_ON_ONLY_MARKER)
         elif is_max:
-            show_price = LABEL_MAX_OPT == LABEL_MAX_ON
+            show_price = LABEL_MAX_OPT not in (LABEL_MAX_ON_NO_PRICE, LABEL_MAX_ON_ONLY_MARKER)
         else:  # current
-            show_price = not (is_current and LABEL_CURRENT_OPT == LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE)
+            show_price = not (is_current and LABEL_CURRENT_OPT in (LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE, LABEL_CURRENT_ON_IN_GRAPH_ONLY_MARKER))
 
-        # Build label text: price + time or just time
+        # Determine if time should be shown for this label.
+        if is_min:
+            show_time = LABEL_MIN_OPT not in (LABEL_MIN_ON_NO_TIME, LABEL_MIN_ON_ONLY_MARKER)
+        elif is_max:
+            show_time = LABEL_MAX_OPT not in (LABEL_MAX_ON_NO_TIME, LABEL_MAX_ON_ONLY_MARKER)
+        else:  # current
+            show_time = not (is_current and LABEL_CURRENT_OPT in (LABEL_CURRENT_ON_IN_GRAPH_NO_TIME, LABEL_CURRENT_ON_IN_GRAPH_ONLY_MARKER))
+
+        # Build label text: price + time, price only, time only, or empty
         # For current price, show minutes; for min/max, show only hour
         time_str = now_local.strftime('%H:%M') if is_current else dates_raw[i].strftime('%H')
-        if show_price:
+        if show_price and show_time:
             price_display = prices_raw[i] * price_multiplier
             label_text = f"{price_display:.{decimals}f}{currency_label}\n{label_at} {time_str}"
-        else:
+        elif show_price and not show_time:
+            price_display = prices_raw[i] * price_multiplier
+            label_text = f"{price_display:.{decimals}f}{currency_label}"
+        elif not show_price and show_time:
             label_text = time_str
+        else:
+            label_text = ""
 
         # Set vertical alignment preference: "bottom" (above the point)
         # Any label that would overflow the axes will be flipped by the bbox-based check below.

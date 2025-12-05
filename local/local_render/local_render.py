@@ -531,7 +531,7 @@ def main():
             # General settings
             "theme": "light",  # Override: light instead of dark (default: dark)
             "cheap_price_points": 5,  # Override: highlight 20 cheapest periods per day (default: 0)
-            "cheap_price_threshold": 1.0,  # Override: highlight periods below 100 öre (default: 0)
+            "cheap_price_threshold": 0.80,  # Override: highlight periods below 80 öre (default: 0)
             "show_cheap_price_line": True,  # Override: show cheap price line (default: False)
             "color_price_line_by_average": False,  # Override: use single color price line (default: True)
             # Price labels

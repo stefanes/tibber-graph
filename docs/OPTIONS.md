@@ -169,6 +169,8 @@ Show current price:
 - `on_current_price_only`: Show in header with current price only (no average price info)
 - `on_in_graph`: Show in graph with price label
 - `on_in_graph_no_price`: Show marker dot in graph without price label
+- `on_in_graph_no_time`: Show in graph with price label without time information
+- `on_in_graph_only_marker`: Show marker dot in graph only (no price or time label)
 - `off`: Do not show current price
 
 ### Label Minimum Price
@@ -179,6 +181,8 @@ Show minimum price label:
 
 - `on` - Show label with price
 - `on_no_price` - Show label without price (time only)
+- `on_no_time` - Show label without time (price only)
+- `on_only_marker` - Show marker only (no price or time label)
 - `off` - Do not show label
 
 ### Label Maximum Price
@@ -189,6 +193,8 @@ Show maximum price label:
 
 - `on` - Show label with price
 - `on_no_price` - Show label without price (time only)
+- `on_no_time` - Show label without time (price only)
+- `on_only_marker` - Show marker only (no price or time label)
 - `off` - Do not show label
 
 ### Label Use Colors

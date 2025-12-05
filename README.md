@@ -13,7 +13,7 @@ Display past and future electricity prices as a graph in Home Assistant - an out
 ![Graph with only defaults](docs/assets/defaults-only.png)
 
 > [!TIP]
-> Check out [`tibber_graph.yaml`](tibber_graph.yaml) with some examples from this README as a starting point for your own setup.
+> Check out [`tibber_graph.yaml`](tibber_graph.yaml) with some live examples from this README as a starting point for your own setup.
 
 ## Installation
 
@@ -343,7 +343,7 @@ data:
     canvas_height: 1080
     transparent_background: true
     show_average_price_line: true
-    cheap_price_points: 3
+    cheap_price_points: 20
   recreate: true
 ```
 
@@ -401,7 +401,7 @@ data:
 
 #### `tibber_graph.export_config`
 
-Export the current configuration for a Tibber Graph entity. This action returns a dictionary containing all explicitly set configuration options and their values, in a format suitable for use with the [`tibber_graph.create_graph`](#tibber_graphcreate_graph) or [`tibber_graph.set_option`](#tibber_graphset_option) actions.
+Export the current configuration for a Tibber Graph entity. This action returns a dictionary containing all explicitly set configuration options and their values, in a format suitable for use with the `tibber_graph.create_graph` or `tibber_graph.set_option` actions.
 
 | Data attribute | Required | Description                                                         |
 | -------------- | -------- | ------------------------------------------------------------------- |
@@ -434,7 +434,7 @@ custom_theme:
 
 Any price sensor can be used as a data source as long as it exposes price data in its attributes in a compatible format. This allows you to use other electricity price providers or roll your own custom price sensor.
 
-Sensors must either follow the data source format below (by transforming the data using a template sensors as with [Nord Pool](#nord-pool) or directly as with [EPEX Spot](#epex-spot)) or you can specify [custom attributes and fields](#custom-attributes--fields) when using the `tibber_graph.create_graph` or `tibber_graph.set_data_source` actions.
+Sensors must either follow the data source format below (by transforming the data using a template sensors as with [Nord Pool](#nord-pool) or directly as with [EPEX Spot](#epex-spot)) or you can specify [custom attributes and fields](#custom-attributes--fields) when using the [`tibber_graph.create_graph`](#tibber_graphcreate_graph) or [`tibber_graph.set_data_source`](#tibber_graphset_data_source) actions.
 
 ```yaml
 # Data source format
@@ -518,7 +518,7 @@ Install and configure the [EPEX Spot integration](https://github.com/mampfes/ha_
 
 ### Custom attributes & fields
 
-You can customize how price data is extracted and transformed using one or more of these parameters when calling the [`tibber_graph.create_graph`](#tibber_graphcreate_graph) or [`tibber_graph.set_data_source`](#tibber_graphset_data_source) actions:
+You can customize how price data is extracted and transformed using one or more of these parameters when calling the `tibber_graph.create_graph` or `tibber_graph.set_data_source` actions:
 
 | Parameter               | Type   | Description                                                                                                                                                                                       |
 | ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -591,7 +591,7 @@ data:
 ## Example Graphs
 
 > [!TIP]
-> Use the configuration snippets below together with the [`tibber_graph.set_option` action](#tibber_graphset_option) to reproduce the example graphs.
+> Use the configuration snippets below together with the [`tibber_graph.create_graph`](#tibber_graphcreate_graph) or [`tibber_graph.set_option`](#tibber_graphset_option) actions to reproduce the example graphs.
 
 <details>
 <summary>Graph rendered with <a href="https://github.com/stefanes/tibber-graph/releases/tag/v0.2.1">version 0.2.1</a> defaults:</summary>
@@ -660,7 +660,7 @@ options:
   # General settings
   theme: "light"
   cheap_price_points: 5
-  cheap_price_threshold: 1.0
+  cheap_price_threshold: 0.8
   show_cheap_price_line: true
   color_price_line_by_average: false
   # Price labels
@@ -683,7 +683,7 @@ custom_theme:
 
 </details>
 
-![Graph with random price data and light mode](docs/assets/random-light.png)
+![Graph with random price data and light mode](docs/assets/light-mode.png)
 
 ## Credits
 

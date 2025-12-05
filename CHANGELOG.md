@@ -4,6 +4,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.1] - 2025-12-05
+
+### Added
+
+- Added new values to the [**Show current price** option](docs/OPTIONS.md#show-current-price) (`on_in_graph_no_time`/`on_in_graph_only_marker`) and the [**Show min price**](docs/OPTIONS.md#label-minimum-price)/[**Show max price**](docs/OPTIONS.md#label-maximum-price) options (`on_no_time`/`on_only_marker`).
+
+### Changed
+
+- Made the cheap price highlighting a bit more discrete and less visually intrusive. Now also distinguishes between cheap price points and cheap price threshold highlights.
+- Improved how the price line is colored when using the [**Color price line by average** option](docs/OPTIONS.md#color-price-line-by-average).
+- Graphs are now automatically rendered when using [actions such as `set_option`, `reset_option`, `set_data_source`, `set_custom_theme`, or `create_graph`](README.md#actions).
+
+### Fixed
+
+- Added back missing `reconfigure_successful` string.
+
 ## [0.7.0] - 2025-11-28
 
 ### Added

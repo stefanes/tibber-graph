@@ -166,7 +166,7 @@ if (Test-Path $localYamlSource) {
     $destYaml = Join-Path $packagesDir "tibber_graph_repo.yaml"
     try {
         Copy-Item -Path $localYamlSource -Destination $destYaml -Force
-        Write-Host "  ✓ \packages\tibber_graph_repo.yaml" -ForegroundColor Green
+        Write-Host "  ✓ " -ForegroundColor Green -NoNewline; Write-Host "\packages\tibber_graph_repo.yaml" -BackgroundColor Green
         $copied++
     }
     catch {

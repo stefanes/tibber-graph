@@ -87,6 +87,8 @@ from .const import (
     LABEL_CURRENT_ON_CURRENT_PRICE_ONLY,
     LABEL_CURRENT_ON_IN_GRAPH,
     LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE,
+    LABEL_CURRENT_ON_IN_GRAPH_NO_TIME,
+    LABEL_CURRENT_ON_IN_GRAPH_ONLY_MARKER,
     LABEL_CURRENT_OFF,
     # Show X-axis options
     SHOW_X_AXIS_ON,
@@ -99,9 +101,13 @@ from .const import (
     # Label max/min options
     LABEL_MAX_ON,
     LABEL_MAX_ON_NO_PRICE,
+    LABEL_MAX_ON_NO_TIME,
+    LABEL_MAX_ON_ONLY_MARKER,
     LABEL_MAX_OFF,
     LABEL_MIN_ON,
     LABEL_MIN_ON_NO_PRICE,
+    LABEL_MIN_ON_NO_TIME,
+    LABEL_MIN_ON_ONLY_MARKER,
     LABEL_MIN_OFF,
     # Y-axis side options
     Y_AXIS_SIDE_LEFT,
@@ -118,6 +124,53 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+async def _render_entity(hass: HomeAssistant, entity_id: str) -> None:
+    """Helper function to trigger rendering for a Tibber Graph entity.
+
+    Args:
+        hass: HomeAssistant instance
+        entity_id: Entity ID of the Tibber Graph entity (camera, image, or sensor)
+
+    Raises:
+        HomeAssistantError: If rendering fails
+    """
+    # Get the entity registry
+    entity_registry = er.async_get(hass)
+
+    # Get the config entry for this entity (works with camera, image, or sensor)
+    config_entry = await get_config_entry_for_device_entity(hass, entity_id, DOMAIN)
+    if not config_entry:
+        _LOGGER.warning("Cannot render %s: not found or is not a Tibber Graph entity", entity_id)
+        return
+
+    # Find the camera entity for this device
+    camera_entity_id = None
+    for entry in entity_registry.entities.values():
+        if (entry.config_entry_id == config_entry.entry_id and
+            entry.platform == DOMAIN and
+            entry.domain == "camera"):
+            camera_entity_id = entry.entity_id
+            break
+
+    if not camera_entity_id:
+        _LOGGER.warning("Cannot render %s: no camera entity found for this device", entity_id)
+        return
+
+    # Get the camera entity component
+    entity_comp = hass.data.get("entity_components", {}).get("camera")
+    if not entity_comp:
+        _LOGGER.warning("Cannot render %s: camera component not loaded", entity_id)
+        return
+
+    # Get the camera entity object and call render method
+    camera_obj = entity_comp.get_entity(camera_entity_id)
+    if camera_obj and hasattr(camera_obj, "async_render_image"):
+        await camera_obj.async_render_image(triggered_by="action")
+        _LOGGER.info("Triggered render for %s via %s", camera_entity_id, entity_id)
+    else:
+        _LOGGER.warning("Cannot render %s: camera entity does not support rendering", entity_id)
 
 
 def _clean_string_or_none(value: Any) -> str | None:
@@ -275,10 +328,10 @@ VALID_OPTIONS = {
     CONF_USE_HOURLY_PRICES: cv.boolean,
     CONF_USE_CENTS: cv.boolean,
     CONF_CURRENCY_OVERRIDE: vol.Any(None, str),
-    CONF_LABEL_CURRENT: vol.In([LABEL_CURRENT_ON, LABEL_CURRENT_ON_CURRENT_PRICE_ONLY, LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE, LABEL_CURRENT_OFF]),
+    CONF_LABEL_CURRENT: vol.In([LABEL_CURRENT_ON, LABEL_CURRENT_ON_CURRENT_PRICE_ONLY, LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE, LABEL_CURRENT_ON_IN_GRAPH_NO_TIME, LABEL_CURRENT_ON_IN_GRAPH_ONLY_MARKER, LABEL_CURRENT_OFF]),
     CONF_LABEL_FONT_SIZE: cv.positive_int,
-    CONF_LABEL_MAX: vol.In([LABEL_MAX_ON, LABEL_MAX_ON_NO_PRICE, LABEL_MAX_OFF]),
-    CONF_LABEL_MIN: vol.In([LABEL_MIN_ON, LABEL_MIN_ON_NO_PRICE, LABEL_MIN_OFF]),
+    CONF_LABEL_MAX: vol.In([LABEL_MAX_ON, LABEL_MAX_ON_NO_PRICE, LABEL_MAX_ON_NO_TIME, LABEL_MAX_ON_ONLY_MARKER, LABEL_MAX_OFF]),
+    CONF_LABEL_MIN: vol.In([LABEL_MIN_ON, LABEL_MIN_ON_NO_PRICE, LABEL_MIN_ON_NO_TIME, LABEL_MIN_ON_ONLY_MARKER, LABEL_MIN_OFF]),
     CONF_LABEL_SHOW_CURRENCY: cv.boolean,
     CONF_LABEL_USE_COLORS: cv.boolean,
     CONF_LABEL_MINMAX_PER_DAY: cv.boolean,
@@ -417,6 +470,9 @@ async def async_handle_set_option(call: ServiceCall) -> None:
     hass.config_entries.async_update_entry(config_entry, options=new_options)
     await hass.config_entries.async_reload(config_entry.entry_id)
 
+    # Trigger render to apply the changes immediately
+    await _render_entity(hass, entity_id)
+
 
 async def async_handle_reset_option(call: ServiceCall) -> None:
     """Handle reset_option service call."""
@@ -446,6 +502,9 @@ async def async_handle_reset_option(call: ServiceCall) -> None:
     # Update the config entry
     hass.config_entries.async_update_entry(config_entry, options=new_options)
     await hass.config_entries.async_reload(config_entry.entry_id)
+
+    # Trigger render to apply the changes immediately
+    await _render_entity(hass, entity_id)
 
 
 async def async_handle_render(call: ServiceCall) -> None:
@@ -564,6 +623,9 @@ async def async_handle_set_data_source(call: ServiceCall) -> None:
     source_name = price_entity_id if price_entity_id else "Tibber Integration"
     _LOGGER.info("Updated data source for %s to: %s", entity_id, source_name)
 
+    # Trigger render to apply the changes immediately
+    await _render_entity(hass, entity_id)
+
 
 async def async_handle_set_custom_theme(call: ServiceCall) -> None:
     """Handle set_custom_theme service call."""
@@ -582,6 +644,8 @@ async def async_handle_set_custom_theme(call: ServiceCall) -> None:
         hass.config_entries.async_update_entry(config_entry, options=new_options)
         await hass.config_entries.async_reload(config_entry.entry_id)
         _LOGGER.info("Cleared custom theme for %s, reverted to configured theme", entity_id)
+        # Trigger render to apply the changes immediately
+        await _render_entity(hass, entity_id)
         return
 
     # Validate the custom theme
@@ -595,6 +659,9 @@ async def async_handle_set_custom_theme(call: ServiceCall) -> None:
     await hass.config_entries.async_reload(config_entry.entry_id)
 
     _LOGGER.info("Set custom theme for %s", entity_id)
+
+    # Trigger render to apply the changes immediately
+    await _render_entity(hass, entity_id)
 
 
 async def async_handle_create_graph(call: ServiceCall) -> dict[str, str]:
@@ -738,6 +805,9 @@ async def async_handle_create_graph(call: ServiceCall) -> dict[str, str]:
     camera_entity_id = f"camera.tibber_graph_{name_sanitized}"
 
     _LOGGER.info("Successfully created Tibber Graph entity: %s (camera: %s)", entity_name, camera_entity_id)
+
+    # Trigger render to apply the changes immediately
+    await _render_entity(hass, camera_entity_id)
 
     return {"entity_id": camera_entity_id}
 

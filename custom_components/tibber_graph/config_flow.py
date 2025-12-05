@@ -26,6 +26,8 @@ from .const import (
     LABEL_CURRENT_ON_CURRENT_PRICE_ONLY,
     LABEL_CURRENT_ON_IN_GRAPH,
     LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE,
+    LABEL_CURRENT_ON_IN_GRAPH_NO_TIME,
+    LABEL_CURRENT_ON_IN_GRAPH_ONLY_MARKER,
     LABEL_CURRENT_OFF,
     # Show X-axis options
     SHOW_X_AXIS_ON,
@@ -38,9 +40,13 @@ from .const import (
     # Label max/min options
     LABEL_MAX_ON,
     LABEL_MAX_ON_NO_PRICE,
+    LABEL_MAX_ON_NO_TIME,
+    LABEL_MAX_ON_ONLY_MARKER,
     LABEL_MAX_OFF,
     LABEL_MIN_ON,
     LABEL_MIN_ON_NO_PRICE,
+    LABEL_MIN_ON_NO_TIME,
+    LABEL_MIN_ON_ONLY_MARKER,
     LABEL_MIN_OFF,
     # General config keys
     CONF_THEME,
@@ -149,7 +155,7 @@ START_GRAPH_AT_SELECTOR = selector.SelectSelector(
 # Label current selector configuration
 LABEL_CURRENT_SELECTOR = selector.SelectSelector(
     selector.SelectSelectorConfig(
-        options=[LABEL_CURRENT_ON, LABEL_CURRENT_ON_CURRENT_PRICE_ONLY, LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE, LABEL_CURRENT_OFF],
+        options=[LABEL_CURRENT_ON, LABEL_CURRENT_ON_CURRENT_PRICE_ONLY, LABEL_CURRENT_ON_IN_GRAPH, LABEL_CURRENT_ON_IN_GRAPH_NO_PRICE, LABEL_CURRENT_ON_IN_GRAPH_NO_TIME, LABEL_CURRENT_ON_IN_GRAPH_ONLY_MARKER, LABEL_CURRENT_OFF],
         mode=selector.SelectSelectorMode.DROPDOWN,
         translation_key="label_current",
     )
@@ -176,7 +182,7 @@ SHOW_Y_AXIS_SELECTOR = selector.SelectSelector(
 # Label max selector configuration
 LABEL_MAX_SELECTOR = selector.SelectSelector(
     selector.SelectSelectorConfig(
-        options=[LABEL_MAX_ON, LABEL_MAX_ON_NO_PRICE, LABEL_MAX_OFF],
+        options=[LABEL_MAX_ON, LABEL_MAX_ON_NO_PRICE, LABEL_MAX_ON_NO_TIME, LABEL_MAX_ON_ONLY_MARKER, LABEL_MAX_OFF],
         mode=selector.SelectSelectorMode.DROPDOWN,
         translation_key="label_max",
     )
@@ -185,7 +191,7 @@ LABEL_MAX_SELECTOR = selector.SelectSelector(
 # Label min selector configuration
 LABEL_MIN_SELECTOR = selector.SelectSelector(
     selector.SelectSelectorConfig(
-        options=[LABEL_MIN_ON, LABEL_MIN_ON_NO_PRICE, LABEL_MIN_OFF],
+        options=[LABEL_MIN_ON, LABEL_MIN_ON_NO_PRICE, LABEL_MIN_ON_NO_TIME, LABEL_MIN_ON_ONLY_MARKER, LABEL_MIN_OFF],
         mode=selector.SelectSelectorMode.DROPDOWN,
         translation_key="label_min",
     )
