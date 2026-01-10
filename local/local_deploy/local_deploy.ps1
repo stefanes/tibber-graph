@@ -8,19 +8,17 @@
     Copies all files from custom_components\tibber_graph to the destination,
     preserving the directory structure and excluding __pycache__ folders.
 
-    If no destination is provided, reads from local_deploy.json in the same directory.
-
     After copying the files, restarts Home Assistant using an API call.
 
-.PARAMETER Destination
-    None. Required information is read from local_deploy.json.
+.PARAMETER i
+    Instance to deploy to. Required information is read from local_deploy.<i>.json.
 
 .PARAMETER y
     Skip restart confirmation prompt and automatically restart Home Assistant.
 
 .PARAMETER z
     Deploy from tibber_graph.zip instead of the source directory.
-    The zip file should be located in custom_components/tibber_graph/tibber_graph.zip.
+    The zip file should be located in local/local_deploy/tibber_graph.zip.
 
 .EXAMPLE
     .\local_deploy.ps1
@@ -30,36 +28,36 @@
 
 .EXAMPLE
     .\local_deploy.ps1 -z -y
+
+.EXAMPLE
+    .\local_deploy.ps1 -i live
 #>
 
 param(
+    [string]$i,
     [switch]$y,
     [switch]$z
 )
 
 $ErrorActionPreference = "Stop"
 
-# If no destination provided, try to read from config file
-if (-not $Destination) {
-    $configPath = Join-Path $PSScriptRoot "local_deploy.json"
-    if (Test-Path $configPath) {
-        try {
-            $config = Get-Content $configPath -Raw | ConvertFrom-Json
-            $Destination = $config.destination
-            $Destination = Join-Path $config.destination "custom_components\tibber_graph" -Resolve
-            $HomeAssistantUrl = $config.host
-            $AccessToken = $config.token
-            Write-Host "Loaded configuration from local_deploy.json" -ForegroundColor Gray
-        }
-        catch {
-            Write-Error "Failed to read local_deploy.json: $_"
-            exit 1
-        }
-    }
-    else {
-        Write-Error "No destination provided and local_deploy.json not found. Create local_deploy.json with: { `"destination`": `"your-path-here`", `"host`": `"http://your-ha-url:8123`", `"token`": `"your-long-lived-token`" }"
+$instance = if ($i) { ".$i" } else { "" }
+$configPath = Join-Path $PSScriptRoot "local_deploy$instance.json"
+if (Test-Path $configPath) {
+    try {
+        $config = Get-Content $configPath -Raw | ConvertFrom-Json
+        $destination = $config.destination
+        $destination = Join-Path $config.destination "custom_components\tibber_graph" -Resolve
+        $HomeAssistantUrl = $config.host
+        $AccessToken = $config.token
+        Write-Host "Loaded configuration from local_deploy$instance.json" -ForegroundColor Gray
+    } catch {
+        Write-Error "Failed to read local_deploy.json: $_"
         exit 1
     }
+} else {
+    Write-Error "local_deploy$instance.json not found. Create local_deploy$instance.json with: { `"destination`": `"your-path-here`", `"host`": `"http://your-ha-url:8123`", `"token`": `"your-long-lived-token`" }"
+    exit 1
 }
 
 # Get the source directory
@@ -89,21 +87,18 @@ if ($z) {
         if ($manifestPath) {
             $Source = $manifestPath.Directory.FullName
             Write-Host "✓ Extraction complete" -ForegroundColor Green
-        }
-        else {
+        } else {
             Write-Error "Could not find manifest.json in extracted zip"
             Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
             exit 1
         }
         Write-Host ""
-    }
-    catch {
+    } catch {
         Write-Error "Failed to extract zip file: $_"
         Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
         exit 1
     }
-}
-else {
+} else {
     # Deploy from source directory
     $Source = Join-Path $PSScriptRoot "..\..\custom_components\tibber_graph" -Resolve
 }
@@ -116,13 +111,13 @@ if (-not (Test-Path $Source)) {
 
 Write-Host "Deploying Tibber Graph integration..." -ForegroundColor Cyan
 Write-Host "Source:      $Source" -ForegroundColor Gray
-Write-Host "Destination: $Destination" -ForegroundColor Gray
+Write-Host "Destination: $destination" -ForegroundColor Gray
 Write-Host ""
 
 # Create destination if it doesn't exist
-if (-not (Test-Path $Destination)) {
+if (-not (Test-Path $destination)) {
     Write-Host "Creating destination directory..." -ForegroundColor Yellow
-    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    New-Item -ItemType Directory -Path $destination -Force | Out-Null
 }
 
 # Copy files, excluding __pycache__
@@ -139,7 +134,7 @@ Get-ChildItem -Path $Source -Recurse -File | ForEach-Object {
 
     # Calculate relative path and destination path
     $relativePath = $_.FullName.Substring($Source.Length + 1)
-    $destPath = Join-Path $Destination $relativePath
+    $destPath = Join-Path $destination $relativePath
     $destDir = Split-Path $destPath -Parent
 
     # Create destination directory if needed
@@ -155,7 +150,7 @@ Get-ChildItem -Path $Source -Recurse -File | ForEach-Object {
 
 # Copy tibber_graph.yaml into the Home Assistant `packages` folder
 $localYamlSource = Join-Path $PSScriptRoot "..\..\tibber_graph.yaml" -Resolve
-$packagesRoot = Split-Path (Split-Path $Destination -Parent) -Parent
+$packagesRoot = Split-Path (Split-Path $destination -Parent) -Parent
 $packagesDir = Join-Path $packagesRoot "packages"
 
 if (Test-Path $localYamlSource) {
@@ -168,12 +163,10 @@ if (Test-Path $localYamlSource) {
         Copy-Item -Path $localYamlSource -Destination $destYaml -Force
         Write-Host "  ✓ " -ForegroundColor Green -NoNewline; Write-Host "\packages\tibber_graph_repo.yaml" -BackgroundColor Green
         $copied++
-    }
-    catch {
+    } catch {
         Write-Warning "Failed to copy tibber_graph.yaml to packages: $_"
     }
-}
-else {
+} else {
     Write-Warning "Local tibber_graph.yaml not found at: $localYamlSource. Skipping copying to packages."
 }
 
@@ -182,7 +175,7 @@ Write-Host "Files copied: $copied" -ForegroundColor Gray
 Write-Host "Files skipped: $skipped" -ForegroundColor Gray
 
 # Update manifest.json version at destination to 'lHHmm'
-$destManifestPath = Join-Path $Destination "manifest.json"
+$destManifestPath = Join-Path $destination "manifest.json"
 if (-Not $z.IsPresent -And (Test-Path $destManifestPath)) {
     try {
         $manifest = Get-Content $destManifestPath -Raw | ConvertFrom-Json
@@ -196,8 +189,7 @@ if (-Not $z.IsPresent -And (Test-Path $destManifestPath)) {
             Write-Host ""
             Write-Host "Updated destination manifest version: $originalVersion → $newVersion" -ForegroundColor Yellow
         }
-    }
-    catch {
+    } catch {
         Write-Warning "Failed to update destination manifest version: $_"
     }
 }
@@ -211,8 +203,7 @@ if ($HomeAssistantUrl -and $AccessToken) {
         $confirmation = 'y'
         Write-Host "Restarting Home Assistant (auto-confirmed with -y)..." -ForegroundColor Yellow
         Write-Host "  Host: $HomeAssistantUrl" -ForegroundColor Gray
-    }
-    else {
+    } else {
         Write-Host "Restart Home Assistant?" -ForegroundColor Yellow
         Write-Host "  Host: $HomeAssistantUrl" -ForegroundColor Gray
         $confirmation = Read-Host "Proceed with restart? (y/N)"
@@ -226,15 +217,14 @@ if ($HomeAssistantUrl -and $AccessToken) {
             $restartUrl = "$HomeAssistantUrl/api/services/homeassistant/restart"
             $headers = @{
                 "Authorization" = "Bearer $AccessToken"
-                "Content-Type" = "application/json"
+                "Content-Type"  = "application/json"
             }
 
-            $response = Invoke-RestMethod -Uri $restartUrl -Method Post -Headers $headers -Body "{}" -TimeoutSec 10
+            Invoke-RestMethod -Uri $restartUrl -Method Post -Headers $headers -Body "{}" -TimeoutSec 10 | Out-Null
 
             Write-Host "✓ Restart request sent successfully!" -ForegroundColor Green
             Write-Host "Home Assistant is restarting..." -ForegroundColor Gray
-        }
-        catch {
+        } catch {
             Write-Host "✗ Failed to restart Home Assistant" -ForegroundColor Red
             Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
 
@@ -243,13 +233,11 @@ if ($HomeAssistantUrl -and $AccessToken) {
                 Write-Host "Status Code: $statusCode" -ForegroundColor Red
             }
         }
-    }
-    else {
+    } else {
         Write-Host "Restart cancelled." -ForegroundColor Gray
         Write-Host "Remember to manually restart Home Assistant to load the changes." -ForegroundColor Yellow
     }
-}
-else {
+} else {
     Write-Host "Remember to restart Home Assistant to load the changes." -ForegroundColor Yellow
     Write-Host "Tip: Add 'host' and 'token' to local_deploy.json for automatic restart." -ForegroundColor Gray
 }

@@ -25,6 +25,6 @@ ENV/
 Thumbs.db
 
 # Tibber Graph
+local_deploy*.json
 local_render.png
-local_deploy.json
 tibber_graph.zip

@@ -30,6 +30,7 @@ from .migration import (
     migrate_show_y_axis_and_tick_marks_merge,
     migrate_cheap_periods_on_x_axis_merge,
     migrate_refresh_mode_option,
+    migrate_label_minmax_per_day_option,
 )
 from .const import (
     DOMAIN,
@@ -157,7 +158,14 @@ from .const import (
 )
 
 from .renderer import render_plot_to_path
-from .helpers import get_graph_file_path, get_unique_id, ensure_timezone, get_entity_friendly_name
+from .helpers import (
+    get_graph_file_path,
+    get_unique_id,
+    ensure_timezone,
+    get_entity_friendly_name,
+    get_tibber_connection,
+    wait_for_tibber_integration,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -189,11 +197,19 @@ async def async_setup_entry(
         entities.append(TibberCam(None, hass, entry, options, entity_name, price_entity_id))
     else:
         # Use Tibber integration as price source
-        if "tibber" not in hass.config.components or "tibber" not in hass.data:
+        # Wait for Tibber integration to be loaded (with indefinite retries)
+        if not await wait_for_tibber_integration(hass, entry_name=entity_name):
             _LOGGER.error("Tibber integration not configured and no price entity provided")
             return
 
-        for home in hass.data["tibber"].get_homes(only_active=True):
+        # Get Tibber connection with retry logic for runtime_data (wait indefinitely)
+        tibber_connection = await get_tibber_connection(hass, entry_name=entity_name)
+
+        if not tibber_connection:
+            _LOGGER.error("Tibber integration not configured and no price entity provided")
+            return
+
+        for home in tibber_connection.get_homes(only_active=True):
             if not home.info:
                 await home.update_info()
             entities.append(TibberCam(home, hass, entry, options, entity_name, None))
@@ -259,6 +275,7 @@ class TibberCam(LocalFile):
         self._options = migrate_show_y_axis_and_tick_marks_merge(self.hass, self._entry, self._options, self._name)
         self._options = migrate_cheap_periods_on_x_axis_merge(self.hass, self._entry, self._options, self._name)
         self._options = migrate_refresh_mode_option(self.hass, self._entry, self._options, self._name)
+        self._options = migrate_label_minmax_per_day_option(self.hass, self._entry, self._options, self._name)
 
     def _get_option(self, key: str, fallback: Any) -> Any:
         """Get an option value with fallback to defaults."""

@@ -41,7 +41,7 @@ LABEL_FONT_WEIGHT = "normal"                # "normal" or "bold" (for in-graph l
 LABEL_MIN = "on"                            # "on" = show min label with price, "on_no_price" = show min label without price, "off" = do not show min label
 LABEL_MAX = "on"                            # "on" = show max label with price, "on_no_price" = show max label without price, "off" = do not show max label
 LABEL_USE_COLORS = False                    # True = color min/max/avg labels; False = use default label color
-LABEL_MINMAX_PER_DAY = True                 # Show min/max labels per day instead of single min/max
+LABEL_MINMAX_PER_DAY = "on"                 # Show min/max labels per day: "on" = per day, "on_from_today" = per day, from today forward only, "off" = single min/max
 
 # X-axis settings
 SHOW_X_AXIS = "on"                          # X-axis visibility: "on" = show axis/labels without tick marks, "on_with_tick_marks" = show axis/labels with tick marks, "off" = hide x-axis completely

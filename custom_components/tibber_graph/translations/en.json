@@ -109,6 +109,13 @@
         "off": "Off"
       }
     },
+    "label_minmax_per_day": {
+      "options": {
+        "on": "On",
+        "on_from_today": "From today forward",
+        "off": "Off"
+      }
+    },
     "cheap_periods_on_x_axis": {
       "options": {
         "on": "On",
@@ -305,7 +312,7 @@
           "currency_override": "Override currency display (e.g., '€', 'SEK', 'öre'). Leave blank for automatic detection based on data source (see [OPTIONS.md](https://github.com/stefanes/tibber-graph/blob/main/docs/OPTIONS.md#currency-override) for details).\nDefault: automatic (reconfigure to reset)",
           "label_current": "Show current price: 'On' (show in header), 'On (current price only)' (show in header, price only), 'In graph' (show in graph), 'In graph (no price)' (show in graph, time only), 'In graph (no time)' (show in graph, price only), 'In graph (only marker)' (show in graph, only marker), or 'Off'.\nDefault: On",
           "label_min": "Show min price label: 'On', 'No price' (time only), 'No time' (price only), 'Only marker', or 'Off'.\nDefault: On",
-          "label_minmax_per_day": "Show separate minimum and maximum labels per day displayed.\nDefault: On",
+          "label_minmax_per_day": "Show min/max labels per day: 'On' = show for each day, 'From today forward' = show from today forward only, 'Off' = show single min/max for entire range.\nDefault: On",
           "label_max": "Show max price label: 'On', 'No price' (time only), 'No time' (price only), 'Only marker', or 'Off'.\nDefault: On",
           "show_x_axis": "X-axis visibility: 'On' = show axis/labels without tick marks, 'On (with tick marks)' = show axis/labels with tick marks, 'Off' = hide completely.\nDefault: On",
           "x_tick_step_hours": "Hours between each time label.\nDefault: 3",

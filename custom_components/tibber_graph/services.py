@@ -12,7 +12,12 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 
 from .themes import get_theme_names, validate_custom_theme
-from .helpers import get_config_entry_for_device_entity, validate_sensor_entity, get_entity_friendly_name
+from .helpers import (
+    get_config_entry_for_device_entity,
+    validate_sensor_entity,
+    get_entity_friendly_name,
+    get_tibber_connection,
+)
 from .const import (
     DOMAIN,
     # Config entry keys
@@ -109,6 +114,10 @@ from .const import (
     LABEL_MIN_ON_NO_TIME,
     LABEL_MIN_ON_ONLY_MARKER,
     LABEL_MIN_OFF,
+    # Label minmax per day options
+    LABEL_MINMAX_PER_DAY_ON,
+    LABEL_MINMAX_PER_DAY_ON_FROM_TODAY,
+    LABEL_MINMAX_PER_DAY_OFF,
     # Y-axis side options
     Y_AXIS_SIDE_LEFT,
     Y_AXIS_SIDE_RIGHT,
@@ -334,7 +343,7 @@ VALID_OPTIONS = {
     CONF_LABEL_MIN: vol.In([LABEL_MIN_ON, LABEL_MIN_ON_NO_PRICE, LABEL_MIN_ON_NO_TIME, LABEL_MIN_ON_ONLY_MARKER, LABEL_MIN_OFF]),
     CONF_LABEL_SHOW_CURRENCY: cv.boolean,
     CONF_LABEL_USE_COLORS: cv.boolean,
-    CONF_LABEL_MINMAX_PER_DAY: cv.boolean,
+    CONF_LABEL_MINMAX_PER_DAY: vol.In([LABEL_MINMAX_PER_DAY_ON, LABEL_MINMAX_PER_DAY_ON_FROM_TODAY, LABEL_MINMAX_PER_DAY_OFF]),
     CONF_PRICE_DECIMALS: vol.Any(None, cv.positive_int),
     CONF_COLOR_PRICE_LINE_BY_AVERAGE: cv.boolean,
     CONF_SHOW_CHEAP_PRICE_LINE: cv.boolean,
@@ -703,12 +712,19 @@ async def async_handle_create_graph(call: ServiceCall) -> dict[str, str]:
         else:
             # Auto-generate entity name based on Tibber home
             try:
-                homes = hass.data["tibber"].get_homes(only_active=True)
-                if homes:
-                    home = homes[0]
-                    if not home.info:
-                        await home.update_info()
-                    entity_name = home.info['viewer']['home']['appNickname'] or home.info['viewer']['home']['address'].get('address1', 'Tibber Graph')
+                # Try to get Tibber connection (limited retries for service call)
+                tibber_connection = await get_tibber_connection(hass, max_retries=3, entry_name="create_graph")
+                if tibber_connection:
+                    homes = tibber_connection.get_homes(only_active=True)
+                    if homes:
+                        home = homes[0]
+                        if not home.info:
+                            await home.update_info()
+                        entity_name = home.info['viewer']['home']['appNickname'] or home.info['viewer']['home']['address'].get('address1', 'Tibber Graph')
+                    else:
+                        entity_name = "Tibber Graph"
+                else:
+                    entity_name = "Tibber Graph"
             except Exception:
                 entity_name = "Tibber Graph"
 

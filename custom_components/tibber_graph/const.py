@@ -215,6 +215,11 @@ SHOW_Y_AXIS_ON = "on"
 SHOW_Y_AXIS_ON_WITH_TICK_MARKS = "on_with_tick_marks"
 SHOW_Y_AXIS_OFF = "off"
 
+# Label minmax per day options
+LABEL_MINMAX_PER_DAY_ON = "on"
+LABEL_MINMAX_PER_DAY_ON_FROM_TODAY = "on_from_today"
+LABEL_MINMAX_PER_DAY_OFF = "off"
+
 # Label max/min options
 LABEL_MAX_ON = "on"
 LABEL_MAX_ON_NO_PRICE = "on_no_price"

@@ -12,6 +12,7 @@ from .const import (
     CONF_LABEL_CURRENT,
     CONF_LABEL_MAX,
     CONF_LABEL_MIN,
+    CONF_LABEL_MINMAX_PER_DAY,
     CONF_SHOW_X_AXIS,
     CONF_SHOW_Y_AXIS,
     CONF_CHEAP_PERIODS_ON_X_AXIS,
@@ -28,6 +29,9 @@ from .const import (
     LABEL_MIN_ON,
     LABEL_MIN_ON_NO_PRICE,
     LABEL_MIN_OFF,
+    LABEL_MINMAX_PER_DAY_ON,
+    LABEL_MINMAX_PER_DAY_ON_FROM_TODAY,
+    LABEL_MINMAX_PER_DAY_OFF,
     SHOW_X_AXIS_ON,
     SHOW_X_AXIS_ON_WITH_TICK_MARKS,
     SHOW_Y_AXIS_ON,
@@ -183,6 +187,55 @@ def migrate_start_graph_at_option(hass, entry, options, name):
         "start_at_midnight", CONF_START_GRAPH_AT,
         START_GRAPH_AT_MIDNIGHT, START_GRAPH_AT_CURRENT_HOUR
     )
+
+
+def migrate_label_minmax_per_day_option(hass, entry, options, name):
+    """Migrate old 'label_minmax_per_day' boolean option to new dropdown.
+
+    This function converts the deprecated boolean option to the new dropdown format:
+    - label_minmax_per_day=True → label_minmax_per_day="on"
+    - label_minmax_per_day=False → label_minmax_per_day="off"
+
+    The migration is performed only once when the old boolean option exists and
+    the new option doesn't exist yet (to avoid overwriting manually configured values).
+    After migration, the option value is updated in the config entry.
+
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry to migrate
+        options: Current options dictionary
+        name: Entity name for logging
+
+    Returns:
+        dict: Updated options dictionary if migration occurred, otherwise original options
+    """
+    if not entry:
+        return options
+
+    has_old_option, old_value, location = _get_old_value(entry, options, CONF_LABEL_MINMAX_PER_DAY)
+
+    # Only migrate if old option exists, is a boolean, and new option doesn't exist
+    if has_old_option and isinstance(old_value, bool):
+        # Check if we already have a string value (already migrated or manually set)
+        current_value = _get_value(entry, options, CONF_LABEL_MINMAX_PER_DAY)
+        if isinstance(current_value, str):
+            # Already migrated or manually set to a string value, skip migration
+            return options
+
+        new_value = LABEL_MINMAX_PER_DAY_ON if old_value else LABEL_MINMAX_PER_DAY_OFF
+
+        _LOGGER.info(
+            "Migrating '%s' option for '%s': %s=%s → %s=%s",
+            location, name, CONF_LABEL_MINMAX_PER_DAY, old_value, CONF_LABEL_MINMAX_PER_DAY, new_value
+        )
+
+        new_options = dict(options) if options else {}
+        new_options[CONF_LABEL_MINMAX_PER_DAY] = new_value
+        # Don't remove the old key since it has the same name, just update the value
+        hass.config_entries.async_update_entry(entry, options=new_options)
+        return new_options
+
+    return options
 
 
 def migrate_dark_black_theme(hass, entry, options, name):

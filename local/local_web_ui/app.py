@@ -184,7 +184,7 @@ def parse_option_value(option_key, form_value, default_fallback):
         'use_hourly_prices', 'use_cents',
         'show_data_source_name',
         'label_show_currency', 'label_use_colors',
-        'color_price_line_by_average', 'show_cheap_price_line', 'label_minmax_per_day'
+        'color_price_line_by_average', 'show_cheap_price_line'
     ]
 
     # Integer options
@@ -233,7 +233,7 @@ def build_render_options(form_data):
         render_options[option_key] = parse_option_value(option_key, form_value, default_value)
 
     # Handle hidden options not in strings.json (not exposed in UI but supported in YAML)
-    hidden_options = ['cheap_boundary_highlight', 'show_cheap_price_line', 'label_use_colors', 'y_tick_use_colors', 'label_minmax_per_day', 'label_show_currency', 'show_data_source_name', 'data_source_name']
+    hidden_options = ['cheap_boundary_highlight', 'show_cheap_price_line', 'label_use_colors', 'y_tick_use_colors', 'label_show_currency', 'show_data_source_name', 'data_source_name']
     for option_key in hidden_options:
         if option_key in form_data:
             default_value = get_default_value(option_key)

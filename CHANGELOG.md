@@ -4,11 +4,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.2] - 2026-01-09
+
+### Added
+
+- 💹 Added a new value to the [**Show min/max per day** option](docs/OPTIONS.md#show-minmax-per-day) (`on_from_today`).
+
+### Fixed
+
+- Handle changes to the [Tibber integration data structure](https://github.com/home-assistant/core/pull/156690) introduced in version 2026.1, causing entries configured to use the [Tibber integration as data source](README.md#data-source) becoming unavailable.
+
 ## [0.7.1] - 2025-12-05
 
 ### Added
 
-- Added new values to the [**Show current price** option](docs/OPTIONS.md#show-current-price) (`on_in_graph_no_time`/`on_in_graph_only_marker`) and the [**Show min price**](docs/OPTIONS.md#label-minimum-price)/[**Show max price**](docs/OPTIONS.md#label-maximum-price) options (`on_no_time`/`on_only_marker`).
+- Added new values to the [**Show current price** option](docs/OPTIONS.md#show-current-price) (`on_in_graph_no_time`/`on_in_graph_only_marker`) and the [**Show min price**](docs/OPTIONS.md#show-min-price)/[**Show max price**](docs/OPTIONS.md#show-max-price) options (`on_no_time`/`on_only_marker`).
 
 ### Changed
 
@@ -25,14 +35,14 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - 🔃 New [**_Sensor_ refresh mode** option](docs/OPTIONS.md#refresh-mode), to update the graph image whenever the price sensor data source updates.
-- 🖌️ New [**Show min/max per day** option](docs/OPTIONS.md#label-minmax-per-day) to display minimum and maximum price labels for each day separately.
+- 🖌️ New [**Show min/max per day** option](docs/OPTIONS.md#show-minmax-per-day) to display minimum and maximum price labels for each day separately.
 - 🖌️ New [**Show data source name** option](docs/OPTIONS.md#show-data-source-name) to display the data source friendly name in the graph footer.
-- 🎬 New [`tibber_graph.export_config` action](README.md#tibber_graphexport_config) to export the current configuration for a Tibber Graph entity, making it easy to recreate entities or share configurations.
+- 🎬 New [`export_config` action](README.md#tibber_graphexport_config) to export the current configuration for a Tibber Graph entity, making it easy to recreate entities or share configurations.
 
 ### Changed
 
 - **Default behavior**: By default the graph now shows minimum and maximum price labels for each day separately when enabled. To restore the previous default behavior, disable the new **Show min/max per day** option.
-- Simplified options UI by removing some of the more exotic options (unlikely to be used by most users). These options can still be set using the [`tibber_graph.create_graph`](README.md#tibber_graphcreate_graph) or [`tibber_graph.set_option`](README.md#tibber_graphset_option) actions, see notes in [OPTIONS.md](docs/OPTIONS.md).
+- Simplified options UI by removing some of the more exotic options (unlikely to be used by most users). These options can still be set using the [`create_graph`](README.md#tibber_graphcreate_graph) or [`set_option`](README.md#tibber_graphset_option) actions, see notes in [OPTIONS.md](docs/OPTIONS.md).
 
 ## [0.6.2] - 2025-11-23
 
@@ -60,7 +70,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- 🔀 Added support for **any** price sensor as a data source when created/updated using the [`tibber_graph.create_graph`](README.md#tibber_graphcreate_graph) or [`tibber_graph.set_data_source`](README.md#tibber_graphset_data_source) actions. See [Custom attributes & fields](README.md#custom-attributes--fields) for details and examples.
+- 🔀 Added support for **any** price sensor as a data source when created/updated using the [`create_graph`](README.md#tibber_graphcreate_graph) or [`set_data_source`](README.md#tibber_graphset_data_source) actions. See [Custom attributes & fields](README.md#custom-attributes--fields) for details and examples.
 
 ### Fixed
 
@@ -75,8 +85,8 @@ All notable changes to this project will be documented in this file.
 
 - 🖼️ **Image entity**: `image.tibber_graph_{entity_name}` exposing the rendered graph as an [image entity](https://www.home-assistant.io/integrations/image/).
 - 🎬 **New actions** (see [README.md](README.md#actions) for usage examples):
-  - `tibber_graph.create_graph` to create entries programmatically with specified configuration, including options and custom themes.
-  - `tibber_graph.delete_graph` to delete entries programmatically.
+  - `create_graph` to create entries programmatically with specified configuration, including options and custom themes.
+  - `delete_graph` to delete entries programmatically.
 
 ### Changed
 
@@ -95,7 +105,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - Fixed an issue with rendering cheap periods on the X-axis, using the **Show cheap periods on X-axis** option, and not showing tick marks.
-- Fixed `tibber_graph.render` action when no `entity_id` is provided.
+- Fixed `render` action when no `entity_id` is provided.
 
 ## [0.5.1] - 2025-11-07
 
@@ -114,11 +124,11 @@ All notable changes to this project will be documented in this file.
 
 - 🎨 **Custom theme support**: Apply [custom color schemes](docs/CUSTOM_THEME.md) dynamically to any Tibber Graph entity. Custom themes persist across restarts and take precedence over the configured theme.
 - 🎬 **Actions for configuration and rendering** (see [README.md](README.md#actions) for usage examples):
-  - `tibber_graph.set_option` to update any UI option.
-  - `tibber_graph.reset_option` to reset options to default values.
-  - `tibber_graph.set_data_source` to change the price data source.
-  - `tibber_graph.render` to render the graph.
-  - `tibber_graph.set_custom_theme` to dynamically set a custom color scheme.
+  - `set_option` to update any UI option.
+  - `reset_option` to reset options to default values.
+  - `set_data_source` to change the price data source.
+  - `render` to render the graph.
+  - `set_custom_theme` to dynamically set a custom color scheme.
 - New **Last update sensor** (`sensor.tibber_graph_{entity_name}_last_update`) that provides the timestamp of the last successful image render for each camera entity, with attributes showing the data source entity ID and friendly name.
 - New **Show additional info in header** option to display average price and percentage difference from average in the header alongside current price.
 - New **Cheap price threshold** option to set a price threshold (e.g., 0.5 = 50 öre) below which periods are highlighted as cheap, working in combination with **Cheap price points**.

@@ -1,8 +1,10 @@
 """Image platform for Tibber Graph component."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
+from typing import Any
 
 from homeassistant.components.image import ImageEntity
 from homeassistant.config_entries import ConfigEntry
@@ -13,7 +15,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, CONF_ENTITY_NAME, CONF_PRICE_ENTITY_ID
-from .helpers import get_graph_file_path, get_unique_id
+from .helpers import get_graph_file_path, get_unique_id, get_tibber_connection, wait_for_tibber_integration
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,12 +40,20 @@ async def async_setup_entry(
         entities.append(TibberGraphImage(hass, entry, entity_name))
     else:
         # Use Tibber integration as price source
-        if "tibber" not in hass.config.components or "tibber" not in hass.data:
+        # Wait for Tibber integration to be loaded (with indefinite retries, quiet mode)
+        if not await wait_for_tibber_integration(hass, quiet=True):
+            _LOGGER.error("Tibber integration not configured and no price entity provided")
+            return
+
+        # Get Tibber connection with retry logic for runtime_data (wait indefinitely)
+        tibber_connection = await get_tibber_connection(hass, quiet=True)
+
+        if not tibber_connection:
             _LOGGER.error("Tibber integration not configured and no price entity provided")
             return
 
         # Create one image entity per Tibber home
-        for home in hass.data["tibber"].get_homes(only_active=True):
+        for home in tibber_connection.get_homes(only_active=True):
             entities.append(TibberGraphImage(hass, entry, entity_name))
 
     _LOGGER.info("Setting up %d Tibber Graph image(s)", len(entities))

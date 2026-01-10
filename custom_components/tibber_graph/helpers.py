@@ -1,15 +1,191 @@
 """Helper functions for Tibber Graph component."""
 from __future__ import annotations
 
+import asyncio
 import datetime
+import logging
+from typing import Any
 from dateutil import tz
+from packaging import version
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant import const as ha_const
+
+_LOGGER = logging.getLogger(__name__)
 
 # Reuse local timezone object
 LOCAL_TZ = tz.tzlocal()
+
+
+def get_home_assistant_version(hass: HomeAssistant) -> version.Version:
+    """Get the Home Assistant version.
+
+    Returns:
+        version.Version: Parsed Home Assistant version
+    """
+    return version.parse(ha_const.__version__)
+
+
+async def get_tibber_connection(hass: HomeAssistant, max_retries: int = 10, entry_name: str = "", quiet: bool = False) -> Any | None:
+    """Get Tibber connection from integration.
+
+    For HA 2026.1+, uses runtime_data with retry logic (OAuth structure).
+    For older versions, uses hass.data (legacy structure).
+
+    Args:
+        hass: Home Assistant instance
+        max_retries: Maximum number of retry attempts for 2026.1+. Use -1 for indefinite retries (default: 10)
+        entry_name: Name of the Tibber Graph entry (for logging, not needed if quiet=True)
+        quiet: If True, suppress all logging (default: False)
+
+    Returns:
+        Tibber connection object if found, None otherwise
+    """
+    ha_version = get_home_assistant_version(hass)
+    use_runtime_data = ha_version >= version.parse("2026.1")
+
+    if not quiet:
+        _LOGGER.debug(
+            "[%s] Home Assistant version: %s -> using '%s' for Tibber connection",
+            entry_name,
+            ha_version,
+            "runtime_data" if use_runtime_data else "hass.data"
+        )
+
+    if use_runtime_data:
+        # HA 2026.1+ - Use runtime_data with retry logic
+        attempt = 0
+        wait_indefinitely = max_retries == -1
+
+        while True:
+            tibber_entries = hass.config_entries.async_entries("tibber")
+            for tibber_entry in tibber_entries:
+                if hasattr(tibber_entry, "runtime_data") and hasattr(
+                    tibber_entry.runtime_data, "tibber_connection"
+                ):
+                    tibber_connection = tibber_entry.runtime_data.tibber_connection
+                    if not quiet:
+                        _LOGGER.debug(
+                            "[%s] Using Tibber integration via config entry 'runtime_data' (OAuth)",
+                            entry_name,
+                        )
+                    return tibber_connection
+
+            # Check if we should continue retrying
+            attempt += 1
+            if not wait_indefinitely and attempt >= max_retries:
+                break
+
+            # Calculate wait time with exponential backoff (0.5s, 1s, 2s, 4s, ..., max 1800s = 30 min)
+            wait_time = min(0.5 * (2 ** attempt), 1800)
+
+            if not quiet:
+                if wait_indefinitely:
+                    _LOGGER.debug(
+                        "[%s] Tibber 'runtime_data' not yet available, waiting %.1fs... (attempt %d)",
+                        entry_name,
+                        wait_time,
+                        attempt,
+                    )
+                else:
+                    _LOGGER.debug(
+                        "[%s] Tibber 'runtime_data' not yet available, waiting %.1fs... (attempt %d/%d)",
+                        entry_name,
+                        wait_time,
+                        attempt,
+                        max_retries,
+                    )
+
+            await asyncio.sleep(wait_time)
+
+        if not quiet:
+            _LOGGER.warning(
+                "[%s] Failed to get Tibber connection via 'runtime_data' after %d attempts",
+                entry_name,
+                max_retries
+            )
+    else:
+        # Pre-2026.1 - Use legacy hass.data structure (no retry needed)
+        if "tibber" in hass.data:
+            tibber_connection = hass.data["tibber"]
+            if not quiet:
+                _LOGGER.debug(
+                    "[%s] Using Tibber integration via 'hass.data' (legacy)",
+                    entry_name,
+                )
+            return tibber_connection
+        else:
+            if not quiet:
+                _LOGGER.warning(
+                    "[%s] Tibber not found in 'hass.data'",
+                    entry_name
+                )
+
+    return None
+
+
+async def wait_for_tibber_integration(hass: HomeAssistant, max_retries: int = 10, entry_name: str = "", quiet: bool = False) -> bool:
+    """Wait for Tibber integration to be loaded.
+
+    During startup, integrations load in parallel and Tibber might not be loaded yet.
+    This function waits and retries until the integration is available.
+
+    Args:
+        hass: Home Assistant instance
+        max_retries: Maximum number of retry attempts. Use -1 for indefinite retries (default: 10)
+        entry_name: Name of the Tibber Graph entry (for logging, not needed if quiet=True)
+        quiet: If True, suppress all logging (default: False)
+
+    Returns:
+        True if Tibber integration is loaded, False if max retries exceeded
+    """
+    attempt = 0
+    wait_indefinitely = max_retries == -1
+
+    while True:
+        # Check if Tibber integration is loaded
+        if "tibber" in hass.config.components:
+            if not quiet:
+                _LOGGER.debug(
+                    "[%s] Tibber integration is loaded",
+                    entry_name,
+                )
+            return True
+
+        # Check if we should continue retrying
+        attempt += 1
+        if not wait_indefinitely and attempt >= max_retries:
+            if not quiet:
+                _LOGGER.warning(
+                    "[%s] Tibber integration not loaded after %d attempts",
+                    entry_name,
+                    max_retries
+                )
+            return False
+
+        # Calculate wait time with exponential backoff (0.5s, 1s, 2s, 4s, ..., max 1800s = 30 min)
+        wait_time = min(0.5 * (2 ** attempt), 1800)
+
+        if not quiet:
+            if wait_indefinitely:
+                _LOGGER.debug(
+                    "[%s] Waiting for Tibber integration to load, waiting %.1fs... (attempt %d)",
+                    entry_name,
+                    wait_time,
+                    attempt,
+                )
+            else:
+                _LOGGER.debug(
+                    "[%s] Waiting for Tibber integration to load, waiting %.1fs... (attempt %d/%d)",
+                    entry_name,
+                    wait_time,
+                    attempt,
+                    max_retries,
+                )
+
+        await asyncio.sleep(wait_time)
 
 
 def ensure_timezone(dt: datetime.datetime, tz_info=None) -> datetime.datetime:

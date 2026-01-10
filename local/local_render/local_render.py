@@ -520,7 +520,7 @@ def main():
             "color_price_line_by_average": False,  # Old default: single color price line (new default: True)
             # Price labels
             "label_current": "on_in_graph",  # Old default: show current label on graph (new default: "on")
-            "label_minmax_per_day": False,  # Override: hide min/max per day (default: True)
+            "label_minmax_per_day": "off",  # Override: hide min/max per day (default: "on")
             # Y-axis settings
             "show_y_axis": "on_with_tick_marks",  # Old default: show Y-axis tick marks (new default: "on")
         }
@@ -571,7 +571,7 @@ def main():
             "label_current": "on_current_price_only",  # Override: show current price only in header (default: "on")
             "label_min": "on_no_price",  # Override: show only time on min label (default: "on")
             "label_max": "on_no_price",  # Override: show only time on max label (default: "on")
-            "label_minmax_per_day": False,  # Override: hide min/max per day (default: True)
+            "label_minmax_per_day": "off",  # Override: hide min/max per day (default: "on")
             # X-axis settings
             "show_x_axis": "on_with_tick_marks",  # Override: show X-axis with tick marks (default: "on")
             "cheap_periods_on_x_axis": "on_comfy",  # Override: show cheap periods in separate row (default: "off")

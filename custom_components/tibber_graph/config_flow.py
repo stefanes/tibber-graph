@@ -1,6 +1,7 @@
 """Config flow for Tibber Graph integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -12,7 +13,11 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv, entity_registry as er, selector
 
 from .themes import get_theme_names
-from .helpers import validate_sensor_entity, get_entity_friendly_name
+from .helpers import (
+    validate_sensor_entity,
+    get_entity_friendly_name,
+    get_tibber_connection,
+)
 from .const import (
     DOMAIN,
     CONF_ENTITY_NAME,
@@ -48,6 +53,10 @@ from .const import (
     LABEL_MIN_ON_NO_TIME,
     LABEL_MIN_ON_ONLY_MARKER,
     LABEL_MIN_OFF,
+    # Label minmax per day options
+    LABEL_MINMAX_PER_DAY_ON,
+    LABEL_MINMAX_PER_DAY_ON_FROM_TODAY,
+    LABEL_MINMAX_PER_DAY_OFF,
     # General config keys
     CONF_THEME,
     CONF_TRANSPARENT_BACKGROUND,
@@ -197,6 +206,15 @@ LABEL_MIN_SELECTOR = selector.SelectSelector(
     )
 )
 
+# Label minmax per day selector configuration
+LABEL_MINMAX_PER_DAY_SELECTOR = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[LABEL_MINMAX_PER_DAY_ON, LABEL_MINMAX_PER_DAY_ON_FROM_TODAY, LABEL_MINMAX_PER_DAY_OFF],
+        mode=selector.SelectSelectorMode.DROPDOWN,
+        translation_key="label_minmax_per_day",
+    )
+)
+
 # Cheap periods on X-axis selector configuration
 CHEAP_PERIODS_ON_X_AXIS_SELECTOR = selector.SelectSelector(
     selector.SelectSelectorConfig(
@@ -260,12 +278,21 @@ class TibberGraphConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     else:
                         # Auto-generate entity name based on Tibber home
                         try:
-                            homes = self.hass.data["tibber"].get_homes(only_active=True)
-                            if homes:
-                                home = homes[0]
-                                if not home.info:
-                                    await home.update_info()
-                                entity_name = home.info['viewer']['home']['appNickname'] or home.info['viewer']['home']['address'].get('address1', 'Tibber Graph')
+                            tibber_connection = await get_tibber_connection(
+                                self.hass, max_retries=3, quiet=True
+                            )
+
+                            if tibber_connection:
+                                homes = tibber_connection.get_homes(only_active=True)
+                                if homes:
+                                    home = homes[0]
+                                    if not home.info:
+                                        await home.update_info()
+                                    entity_name = home.info['viewer']['home']['appNickname'] or home.info['viewer']['home']['address'].get('address1', 'Tibber Graph')
+                                else:
+                                    entity_name = "Tibber Graph"
+                            else:
+                                entity_name = "Tibber Graph"
                         except Exception:
                             entity_name = "Tibber Graph"
 
@@ -496,7 +523,7 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
                 vol.Optional(
                     CONF_LABEL_MINMAX_PER_DAY,
                     default=options.get(CONF_LABEL_MINMAX_PER_DAY, DEFAULT_LABEL_MINMAX_PER_DAY),
-                ): cv.boolean,
+                ): LABEL_MINMAX_PER_DAY_SELECTOR,
                 # X-axis settings
                 vol.Optional(
                     CONF_SHOW_X_AXIS,

@@ -158,11 +158,13 @@
                             </select>
                         </div>
 
-                        <div class="form-group checkbox">
-                            <label>
-                                <input type="checkbox" id="label_minmax_per_day" name="label_minmax_per_day" {% if defaults.label_minmax_per_day %}checked{% endif %}>
-                                <span>Show min/max per day</span>
-                            </label>
+                        <div class="form-group">
+                            <label for="label_minmax_per_day">Show min/max per day</label>
+                            <select id="label_minmax_per_day" name="label_minmax_per_day">
+                                <option value="on" {% if defaults.label_minmax_per_day == 'on' %}selected{% endif %}>On</option>
+                                <option value="on_from_today" {% if defaults.label_minmax_per_day == 'on_from_today' %}selected{% endif %}>From today forward</option>
+                                <option value="off" {% if defaults.label_minmax_per_day == 'off' %}selected{% endif %}>Off</option>
+                            </select>
                         </div>
                     </div>
 
@@ -607,7 +609,7 @@
                 console.log('Overwrite mode:', overwrite);
 
                 // Define list of hidden options (not in UI but supported via YAML)
-                const hiddenOptionKeys = ['cheap_boundary_highlight', 'show_cheap_price_line', 'label_use_colors', 'y_tick_use_colors', 'label_minmax_per_day', 'label_show_currency'];
+                const hiddenOptionKeys = ['cheap_boundary_highlight', 'show_cheap_price_line', 'label_use_colors', 'y_tick_use_colors', 'label_show_currency'];
 
                 // If overwrite mode, reset all fields to defaults first
                 if (overwrite) {

@@ -82,6 +82,9 @@ from .const import (
     LABEL_MIN_ON_NO_TIME,
     LABEL_MIN_ON_ONLY_MARKER,
     LABEL_MIN_OFF,
+    LABEL_MINMAX_PER_DAY_ON,
+    LABEL_MINMAX_PER_DAY_ON_FROM_TODAY,
+    LABEL_MINMAX_PER_DAY_OFF,
     CHEAP_PERIODS_ON_X_AXIS_ON,
     CHEAP_PERIODS_ON_X_AXIS_ON_COMFY,
     CHEAP_PERIODS_ON_X_AXIS_ON_COMPACT,
@@ -871,7 +874,7 @@ def render_plot_to_path(
         # Find indices of min and max prices among candidates (global) or per-day
         current_idx = idx if idx in visible_indices else None
 
-        if LABEL_MINMAX_PER_DAY_OPT and dates_raw:
+        if LABEL_MINMAX_PER_DAY_OPT != LABEL_MINMAX_PER_DAY_OFF and dates_raw:
             # Group indices by full calendar day (use all available data for daily min/max)
             # but only add the day's min/max to labels if that index is within the
             # candidate_indices (which is already restricted to visible or future range).
@@ -880,10 +883,21 @@ def render_plot_to_path(
             for i, d in enumerate(dates_raw):
                 day_to_indices[d.date()].append(i)
 
+            # Determine which days to include based on the option
+            today_date = now_local.date()
+            tomorrow_date = today_date + datetime.timedelta(days=1)
+
             # For each day, pick min and max if enabled
             for day, inds in day_to_indices.items():
                 if not inds:
                     continue
+
+                # Filter days based on the option
+                if LABEL_MINMAX_PER_DAY_OPT == LABEL_MINMAX_PER_DAY_ON_FROM_TODAY:
+                    # Only show min/max for today and tomorrow
+                    if day not in (today_date, tomorrow_date):
+                        continue
+
                 day_min = min(inds, key=lambda i: prices_raw[i])
                 day_max = max(inds, key=lambda i: prices_raw[i])
 
