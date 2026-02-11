@@ -16,7 +16,7 @@ from .helpers import (
     get_config_entry_for_device_entity,
     validate_sensor_entity,
     get_entity_friendly_name,
-    get_tibber_connection,
+    generate_entity_name_from_tibber,
 )
 from .const import (
     DOMAIN,
@@ -711,22 +711,7 @@ async def async_handle_create_graph(call: ServiceCall) -> dict[str, str]:
             entity_name = get_entity_friendly_name(hass, price_entity_id)
         else:
             # Auto-generate entity name based on Tibber home
-            try:
-                # Try to get Tibber connection (limited retries for service call)
-                tibber_connection = await get_tibber_connection(hass, max_retries=3, entry_name="create_graph")
-                if tibber_connection:
-                    homes = tibber_connection.get_homes(only_active=True)
-                    if homes:
-                        home = homes[0]
-                        if not home.info:
-                            await home.update_info()
-                        entity_name = home.info['viewer']['home']['appNickname'] or home.info['viewer']['home']['address'].get('address1', 'Tibber Graph')
-                    else:
-                        entity_name = "Tibber Graph"
-                else:
-                    entity_name = "Tibber Graph"
-            except Exception:
-                entity_name = "Tibber Graph"
+            entity_name = await generate_entity_name_from_tibber(hass)
 
     # Check if entity with this name already exists
     existing_entries = hass.config_entries.async_entries(DOMAIN)

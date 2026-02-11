@@ -16,7 +16,7 @@ from .themes import get_theme_names
 from .helpers import (
     validate_sensor_entity,
     get_entity_friendly_name,
-    get_tibber_connection,
+    generate_entity_name_from_tibber,
 )
 from .const import (
     DOMAIN,
@@ -277,24 +277,7 @@ class TibberGraphConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         entity_name = get_entity_friendly_name(self.hass, price_entity_id)
                     else:
                         # Auto-generate entity name based on Tibber home
-                        try:
-                            tibber_connection = await get_tibber_connection(
-                                self.hass, max_retries=3, quiet=True
-                            )
-
-                            if tibber_connection:
-                                homes = tibber_connection.get_homes(only_active=True)
-                                if homes:
-                                    home = homes[0]
-                                    if not home.info:
-                                        await home.update_info()
-                                    entity_name = home.info['viewer']['home']['appNickname'] or home.info['viewer']['home']['address'].get('address1', 'Tibber Graph')
-                                else:
-                                    entity_name = "Tibber Graph"
-                            else:
-                                entity_name = "Tibber Graph"
-                        except Exception:
-                            entity_name = "Tibber Graph"
+                        entity_name = await generate_entity_name_from_tibber(self.hass)
 
                 user_input[CONF_ENTITY_NAME] = entity_name
 
@@ -322,6 +305,9 @@ class TibberGraphConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Optional(CONF_START_GRAPH_AT, default=DEFAULT_START_GRAPH_AT): START_GRAPH_AT_SELECTOR,
                 }
             ),
+            description_placeholders={
+                "readme_custom_data_source": "[README.md](https://github.com/stefanes/tibber-graph?tab=readme-ov-file#custom-data-source)",
+            },
             errors=errors,
         )
 
@@ -430,7 +416,10 @@ class TibberGraphOptionsFlowHandler(config_entries.OptionsFlowWithReload):
         return self.async_show_form(
             step_id="init",
             data_schema=self._get_options_schema(),
-            description_placeholders={"entity_name": entity_name},
+            description_placeholders={
+                "entity_name": entity_name,
+                "options_currency_override": "[OPTIONS.md](https://github.com/stefanes/tibber-graph/blob/main/docs/OPTIONS.md#currency-override)",
+            },
             errors=errors,
         )
 

@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.3] - 2026-02-11
+
+### Fixed
+
+- Handle changes to the [Tibber integration data structure](https://github.com/home-assistant/core/pull/160903) introduced in version 2026.2, causing entries configured to use the [Tibber integration as data source](README.md#data-source) becoming unavailable.
+
 ## [0.7.2] - 2026-01-09
 
 ### Added

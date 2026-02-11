@@ -19,6 +19,49 @@ _LOGGER = logging.getLogger(__name__)
 LOCAL_TZ = tz.tzlocal()
 
 
+def _verify_tibber_connection_ready(tibber_connection: Any, entry_name: str, quiet: bool) -> bool:
+    """Verify that Tibber connection has homes with data available.
+
+    Args:
+        tibber_connection: Tibber connection object to verify
+        entry_name: Name of the Tibber Graph entry (for logging)
+        quiet: If True, suppress all logging
+
+    Returns:
+        True if connection has homes with data, False otherwise
+    """
+    try:
+        homes = tibber_connection.get_homes(only_active=True)
+        if not homes:
+            if not quiet:
+                _LOGGER.debug(
+                    "[%s] Tibber connection has no active homes",
+                    entry_name,
+                )
+            return False
+
+        # Check if first home has info/data
+        # Note: We don't call update_info() here as it's expensive and should be done by caller
+        home = homes[0]
+        if not home.info:
+            if not quiet:
+                _LOGGER.debug(
+                    "[%s] Tibber connection home has no info data yet",
+                    entry_name,
+                )
+            return False
+
+        return True
+    except Exception as err:
+        if not quiet:
+            _LOGGER.debug(
+                "[%s] Error verifying Tibber connection: %s",
+                entry_name,
+                err,
+            )
+        return False
+
+
 def get_home_assistant_version(hass: HomeAssistant) -> version.Version:
     """Get the Home Assistant version.
 
@@ -31,97 +74,123 @@ def get_home_assistant_version(hass: HomeAssistant) -> version.Version:
 async def get_tibber_connection(hass: HomeAssistant, max_retries: int = 10, entry_name: str = "", quiet: bool = False) -> Any | None:
     """Get Tibber connection from integration.
 
-    For HA 2026.1+, uses runtime_data with retry logic (OAuth structure).
-    For older versions, uses hass.data (legacy structure).
+    Tries multiple methods to get the connection, adapting to different Tibber integration versions:
+    1. pre-2026.1: hass.data["tibber"]
+    2. 2026.1: tibber_entry.runtime_data.tibber_connection
+    3. 2026.2+: tibber_entry.runtime_data.async_get_client(hass)
 
     Args:
         hass: Home Assistant instance
-        max_retries: Maximum number of retry attempts for 2026.1+. Use -1 for indefinite retries (default: 10)
+        max_retries: Maximum number of retry attempts. Use -1 for indefinite retries (default: 10)
         entry_name: Name of the Tibber Graph entry (for logging, not needed if quiet=True)
         quiet: If True, suppress all logging (default: False)
 
     Returns:
         Tibber connection object if found, None otherwise
     """
-    ha_version = get_home_assistant_version(hass)
-    use_runtime_data = ha_version >= version.parse("2026.1")
+    attempt = 0
+    wait_indefinitely = max_retries == -1
 
-    if not quiet:
-        _LOGGER.debug(
-            "[%s] Home Assistant version: %s -> using '%s' for Tibber connection",
-            entry_name,
-            ha_version,
-            "runtime_data" if use_runtime_data else "hass.data"
-        )
+    while True:
+        # Method 1: Try legacy structure (pre-2026.1) - hass.data
+        if "tibber" in hass.data:
+            tibber_connection = hass.data["tibber"]
+            # Verify the connection has homes with data before returning
+            if _verify_tibber_connection_ready(tibber_connection, entry_name, quiet):
+                if not quiet:
+                    _LOGGER.debug(
+                        "[%s] Using Tibber integration via 'hass.data' (pre-2026.1)",
+                        entry_name,
+                    )
+                return tibber_connection
+            elif not quiet:
+                _LOGGER.debug(
+                    "[%s] Tibber connection found but no homes/data available yet",
+                    entry_name,
+                )
 
-    if use_runtime_data:
-        # HA 2026.1+ - Use runtime_data with retry logic
-        attempt = 0
-        wait_indefinitely = max_retries == -1
+        # Method 2 & 3: Try runtime_data structures (2026.1+)
+        tibber_entries = hass.config_entries.async_entries("tibber")
+        for tibber_entry in tibber_entries:
+            if not hasattr(tibber_entry, "runtime_data"):
+                continue
 
-        while True:
-            tibber_entries = hass.config_entries.async_entries("tibber")
-            for tibber_entry in tibber_entries:
-                if hasattr(tibber_entry, "runtime_data") and hasattr(
-                    tibber_entry.runtime_data, "tibber_connection"
-                ):
-                    tibber_connection = tibber_entry.runtime_data.tibber_connection
+            # Method 2: Try old OAuth structure - direct tibber_connection attribute
+            if hasattr(tibber_entry.runtime_data, "tibber_connection"):
+                tibber_connection = tibber_entry.runtime_data.tibber_connection
+                # Verify the connection has homes with data before returning
+                if _verify_tibber_connection_ready(tibber_connection, entry_name, quiet):
                     if not quiet:
                         _LOGGER.debug(
-                            "[%s] Using Tibber integration via config entry 'runtime_data' (OAuth)",
+                            "[%s] Using Tibber integration via 'runtime_data.tibber_connection' (2026.1)",
                             entry_name,
                         )
                     return tibber_connection
-
-            # Check if we should continue retrying
-            attempt += 1
-            if not wait_indefinitely and attempt >= max_retries:
-                break
-
-            # Calculate wait time with exponential backoff (0.5s, 1s, 2s, 4s, ..., max 1800s = 30 min)
-            wait_time = min(0.5 * (2 ** attempt), 1800)
-
-            if not quiet:
-                if wait_indefinitely:
+                elif not quiet:
                     _LOGGER.debug(
-                        "[%s] Tibber 'runtime_data' not yet available, waiting %.1fs... (attempt %d)",
+                        "[%s] Tibber connection found but no homes/data available yet",
                         entry_name,
-                        wait_time,
-                        attempt,
-                    )
-                else:
-                    _LOGGER.debug(
-                        "[%s] Tibber 'runtime_data' not yet available, waiting %.1fs... (attempt %d/%d)",
-                        entry_name,
-                        wait_time,
-                        attempt,
-                        max_retries,
                     )
 
-            await asyncio.sleep(wait_time)
+            # Method 3: Try new structure - async_get_client method
+            if hasattr(tibber_entry.runtime_data, "async_get_client"):
+                try:
+                    tibber_connection = await tibber_entry.runtime_data.async_get_client(hass)
+                    if tibber_connection:
+                        # Verify the connection has homes with data before returning
+                        if _verify_tibber_connection_ready(tibber_connection, entry_name, quiet):
+                            if not quiet:
+                                _LOGGER.debug(
+                                    "[%s] Using Tibber integration via 'runtime_data.async_get_client()' (2026.2+)",
+                                    entry_name,
+                                )
+                            return tibber_connection
+                        elif not quiet:
+                            _LOGGER.debug(
+                                "[%s] Tibber connection found but no homes/data available yet",
+                                entry_name,
+                            )
+                except Exception as err:
+                    if not quiet:
+                        _LOGGER.debug(
+                            "[%s] Failed to get Tibber connection via async_get_client: %s",
+                            entry_name,
+                            err,
+                        )
+
+        # Check if we should continue retrying
+        attempt += 1
+        if not wait_indefinitely and attempt >= max_retries:
+            break
+
+        # Calculate wait time with exponential backoff (0.5s, 1s, 2s, 4s, ..., max 1800s = 30 min)
+        wait_time = min(0.5 * (2 ** attempt), 1800)
 
         if not quiet:
-            _LOGGER.warning(
-                "[%s] Failed to get Tibber connection via 'runtime_data' after %d attempts",
-                entry_name,
-                max_retries
-            )
-    else:
-        # Pre-2026.1 - Use legacy hass.data structure (no retry needed)
-        if "tibber" in hass.data:
-            tibber_connection = hass.data["tibber"]
-            if not quiet:
+            if wait_indefinitely:
                 _LOGGER.debug(
-                    "[%s] Using Tibber integration via 'hass.data' (legacy)",
+                    "[%s] Tibber connection not yet available, waiting %.1fs... (attempt %d)",
                     entry_name,
+                    wait_time,
+                    attempt,
                 )
-            return tibber_connection
-        else:
-            if not quiet:
-                _LOGGER.warning(
-                    "[%s] Tibber not found in 'hass.data'",
-                    entry_name
+            else:
+                _LOGGER.debug(
+                    "[%s] Tibber connection not yet available, waiting %.1fs... (attempt %d/%d)",
+                    entry_name,
+                    wait_time,
+                    attempt,
+                    max_retries,
                 )
+
+        await asyncio.sleep(wait_time)
+
+    if not quiet:
+        _LOGGER.warning(
+            "[%s] Failed to get Tibber connection after %d attempts",
+            entry_name,
+            max_retries
+        )
 
     return None
 
@@ -287,6 +356,37 @@ def get_entity_friendly_name(hass: HomeAssistant, entity_id: str) -> str:
 
     # Fallback to formatted entity ID
     return entity_id.split(".")[-1].replace("_", " ").title()
+
+
+async def generate_entity_name_from_tibber(hass: HomeAssistant, max_retries: int = 3, default_name: str = "Tibber Graph") -> str:
+    """Generate entity name from Tibber connection.
+
+    Attempts to get the Tibber home nickname or address from the Tibber integration.
+    Falls back to the default name if Tibber connection is unavailable or fails.
+
+    Args:
+        hass: Home Assistant instance
+        max_retries: Maximum number of retry attempts (default: 3)
+        default_name: Default name to use if Tibber connection fails (default: "Tibber Graph")
+
+    Returns:
+        str: Generated entity name from Tibber home info or default name
+    """
+    try:
+        # Try to get Tibber connection (limited retries)
+        tibber_connection = await get_tibber_connection(hass, max_retries=max_retries, entry_name="generate_entity_name", quiet=True)
+        if tibber_connection:
+            homes = tibber_connection.get_homes(only_active=True)
+            if homes:
+                home = homes[0]
+                if not home.info:
+                    await home.update_info()
+                # Try to get appNickname first, then address1, finally use default
+                return home.info['viewer']['home']['appNickname'] or home.info['viewer']['home']['address'].get('address1', default_name)
+    except Exception:
+        pass
+
+    return default_name
 
 
 def validate_sensor_entity(hass: HomeAssistant, entity_id: str | None) -> tuple[bool, str | None]:

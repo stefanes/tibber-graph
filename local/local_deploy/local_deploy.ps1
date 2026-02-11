@@ -20,23 +20,21 @@
     Deploy from tibber_graph.zip instead of the source directory.
     The zip file should be located in local/local_deploy/tibber_graph.zip.
 
-.EXAMPLE
-    .\local_deploy.ps1
+.PARAMETER r
+    Only restart Home Assistant. Skips the deployment step.
 
 .EXAMPLE
-    .\local_deploy.ps1 -y
+    .\local_deploy.ps1 -y -r
 
 .EXAMPLE
-    .\local_deploy.ps1 -z -y
-
-.EXAMPLE
-    .\local_deploy.ps1 -i live
+    .\local_deploy.ps1 -i live -z
 #>
 
 param(
     [string]$i,
     [switch]$y,
-    [switch]$z
+    [switch]$z,
+    [switch]$r
 )
 
 $ErrorActionPreference = "Stop"
@@ -60,138 +58,144 @@ if (Test-Path $configPath) {
     exit 1
 }
 
-# Get the source directory
-if ($z) {
-    # Deploy from zip file
-    $zipPath = Join-Path $PSScriptRoot "tibber_graph.zip" -Resolve
+# Skip deployment if only restart is requested
+if (-not $r) {
+    # Get the source directory
+    if ($z) {
+        # Deploy from zip file
+        $zipPath = Join-Path $PSScriptRoot "tibber_graph.zip" -Resolve
 
-    if (-not (Test-Path $zipPath)) {
-        Write-Error "Zip file not found: $zipPath"
-        exit 1
-    }
+        if (-not (Test-Path $zipPath)) {
+            Write-Error "Zip file not found: $zipPath"
+            exit 1
+        }
 
-    # Create temporary directory for extraction
-    $tempDir = Join-Path $env:TEMP "tibber_graph_deploy_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
-    New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+        # Create temporary directory for extraction
+        $tempDir = Join-Path $env:TEMP "tibber_graph_deploy_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+        New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
-    Write-Host "Extracting tibber_graph.zip to temporary location..." -ForegroundColor Cyan
-    Write-Host "  Zip: $zipPath" -ForegroundColor Gray
-    Write-Host "  Temp: $tempDir" -ForegroundColor Gray
+        Write-Host "Extracting tibber_graph.zip to temporary location..." -ForegroundColor Cyan
+        Write-Host "  Zip: $zipPath" -ForegroundColor Gray
+        Write-Host "  Temp: $tempDir" -ForegroundColor Gray
 
-    try {
-        Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
+        try {
+            Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
 
-        # The zip structure should be: version_folder/manifest.json, __init__.py, etc.
-        # Find the directory containing manifest.json
-        $manifestPath = Get-ChildItem -Path $tempDir -Filter "manifest.json" -Recurse -File | Select-Object -First 1
-        if ($manifestPath) {
-            $Source = $manifestPath.Directory.FullName
-            Write-Host "✓ Extraction complete" -ForegroundColor Green
-        } else {
-            Write-Error "Could not find manifest.json in extracted zip"
+            # The zip structure should be: version_folder/manifest.json, __init__.py, etc.
+            # Find the directory containing manifest.json
+            $manifestPath = Get-ChildItem -Path $tempDir -Filter "manifest.json" -Recurse -File | Select-Object -First 1
+            if ($manifestPath) {
+                $Source = $manifestPath.Directory.FullName
+                Write-Host "✓ Extraction complete" -ForegroundColor Green
+            } else {
+                Write-Error "Could not find manifest.json in extracted zip"
+                Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+                exit 1
+            }
+            Write-Host ""
+        } catch {
+            Write-Error "Failed to extract zip file: $_"
             Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
             exit 1
         }
-        Write-Host ""
-    } catch {
-        Write-Error "Failed to extract zip file: $_"
-        Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    } else {
+        # Deploy from source directory
+        $Source = Join-Path $PSScriptRoot "..\..\custom_components\tibber_graph" -Resolve
+    }
+
+    # Verify source exists
+    if (-not (Test-Path $Source)) {
+        Write-Error "Source directory not found: $Source"
         exit 1
     }
-} else {
-    # Deploy from source directory
-    $Source = Join-Path $PSScriptRoot "..\..\custom_components\tibber_graph" -Resolve
-}
 
-# Verify source exists
-if (-not (Test-Path $Source)) {
-    Write-Error "Source directory not found: $Source"
-    exit 1
-}
+    Write-Host "Deploying Tibber Graph integration..." -ForegroundColor Cyan
+    Write-Host "Source:      $Source" -ForegroundColor Gray
+    Write-Host "Destination: $destination" -ForegroundColor Gray
+    Write-Host ""
 
-Write-Host "Deploying Tibber Graph integration..." -ForegroundColor Cyan
-Write-Host "Source:      $Source" -ForegroundColor Gray
-Write-Host "Destination: $destination" -ForegroundColor Gray
-Write-Host ""
-
-# Create destination if it doesn't exist
-if (-not (Test-Path $destination)) {
-    Write-Host "Creating destination directory..." -ForegroundColor Yellow
-    New-Item -ItemType Directory -Path $destination -Force | Out-Null
-}
-
-# Copy files, excluding __pycache__
-Write-Host "Copying files..." -ForegroundColor Cyan
-$copied = 0
-$skipped = 0
-
-Get-ChildItem -Path $Source -Recurse -File | ForEach-Object {
-    # Skip __pycache__ directories
-    if ($_.FullName -match '\\__pycache__\\') {
-        $skipped++
-        return
+    # Create destination if it doesn't exist
+    if (-not (Test-Path $destination)) {
+        Write-Host "Creating destination directory..." -ForegroundColor Yellow
+        New-Item -ItemType Directory -Path $destination -Force | Out-Null
     }
 
-    # Calculate relative path and destination path
-    $relativePath = $_.FullName.Substring($Source.Length + 1)
-    $destPath = Join-Path $destination $relativePath
-    $destDir = Split-Path $destPath -Parent
+    # Copy files, excluding __pycache__
+    Write-Host "Copying files..." -ForegroundColor Cyan
+    $copied = 0
+    $skipped = 0
 
-    # Create destination directory if needed
-    if (-not (Test-Path $destDir)) {
-        New-Item -ItemType Directory -Path $destDir -Force | Out-Null
-    }
-
-    # Copy file
-    Copy-Item -Path $_.FullName -Destination $destPath -Force
-    Write-Host "  ✓ $relativePath" -ForegroundColor Green
-    $copied++
-}
-
-# Copy tibber_graph.yaml into the Home Assistant `packages` folder
-$localYamlSource = Join-Path $PSScriptRoot "..\..\tibber_graph.yaml" -Resolve
-$packagesRoot = Split-Path (Split-Path $destination -Parent) -Parent
-$packagesDir = Join-Path $packagesRoot "packages"
-
-if (Test-Path $localYamlSource) {
-    if (-not (Test-Path $packagesDir)) {
-        New-Item -ItemType Directory -Path $packagesDir -Force | Out-Null
-    }
-
-    $destYaml = Join-Path $packagesDir "tibber_graph_repo.yaml"
-    try {
-        Copy-Item -Path $localYamlSource -Destination $destYaml -Force
-        Write-Host "  ✓ " -ForegroundColor Green -NoNewline; Write-Host "\packages\tibber_graph_repo.yaml" -BackgroundColor Green
-        $copied++
-    } catch {
-        Write-Warning "Failed to copy tibber_graph.yaml to packages: $_"
-    }
-} else {
-    Write-Warning "Local tibber_graph.yaml not found at: $localYamlSource. Skipping copying to packages."
-}
-
-Write-Host "Deployment complete!" -ForegroundColor Green
-Write-Host "Files copied: $copied" -ForegroundColor Gray
-Write-Host "Files skipped: $skipped" -ForegroundColor Gray
-
-# Update manifest.json version at destination to 'lHHmm'
-$destManifestPath = Join-Path $destination "manifest.json"
-if (-Not $z.IsPresent -And (Test-Path $destManifestPath)) {
-    try {
-        $manifest = Get-Content $destManifestPath -Raw | ConvertFrom-Json
-        $originalVersion = $manifest.version
-        # Extract major.minor from original version and append HHMM
-        if ($originalVersion -match '^(\d+\.\d+)') {
-            $timestamp = Get-Date -Format "HHmm"
-            $newVersion = "$originalVersion+$timestamp"
-            $manifest.version = $newVersion
-            $manifest | ConvertTo-Json -Depth 10 | Set-Content $destManifestPath
-            Write-Host ""
-            Write-Host "Updated destination manifest version: $originalVersion → $newVersion" -ForegroundColor Yellow
+    Get-ChildItem -Path $Source -Recurse -File | ForEach-Object {
+        # Skip __pycache__ directories
+        if ($_.FullName -match '\\__pycache__\\') {
+            $skipped++
+            return
         }
-    } catch {
-        Write-Warning "Failed to update destination manifest version: $_"
+
+        # Calculate relative path and destination path
+        $relativePath = $_.FullName.Substring($Source.Length + 1)
+        $destPath = Join-Path $destination $relativePath
+        $destDir = Split-Path $destPath -Parent
+
+        # Create destination directory if needed
+        if (-not (Test-Path $destDir)) {
+            New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+        }
+
+        # Copy file
+        Copy-Item -Path $_.FullName -Destination $destPath -Force
+        Write-Host "  ✓ $relativePath" -ForegroundColor Green
+        $copied++
     }
+
+    # Copy tibber_graph.yaml into the Home Assistant `packages` folder
+    $localYamlSource = Join-Path $PSScriptRoot "..\..\tibber_graph.yaml" -Resolve
+    $packagesRoot = Split-Path (Split-Path $destination -Parent) -Parent
+    $packagesDir = Join-Path $packagesRoot "packages"
+
+    if (Test-Path $localYamlSource) {
+        if (-not (Test-Path $packagesDir)) {
+            New-Item -ItemType Directory -Path $packagesDir -Force | Out-Null
+        }
+
+        $destYaml = Join-Path $packagesDir "tibber_graph_repo.yaml"
+        try {
+            Copy-Item -Path $localYamlSource -Destination $destYaml -Force
+            Write-Host "  ✓ " -ForegroundColor Green -NoNewline; Write-Host "\packages\tibber_graph_repo.yaml" -BackgroundColor Green
+            $copied++
+        } catch {
+            Write-Warning "Failed to copy tibber_graph.yaml to packages: $_"
+        }
+    } else {
+        Write-Warning "Local tibber_graph.yaml not found at: $localYamlSource. Skipping copying to packages."
+    }
+
+    Write-Host "Deployment complete!" -ForegroundColor Green
+    Write-Host "Files copied: $copied" -ForegroundColor Gray
+    Write-Host "Files skipped: $skipped" -ForegroundColor Gray
+
+    # Update manifest.json version at destination to 'lHHmm'
+    $destManifestPath = Join-Path $destination "manifest.json"
+    if (-Not $z.IsPresent -And (Test-Path $destManifestPath)) {
+        try {
+            $manifest = Get-Content $destManifestPath -Raw | ConvertFrom-Json
+            $originalVersion = $manifest.version
+            # Extract major.minor from original version and append HHMM
+            if ($originalVersion -match '^(\d+\.\d+)') {
+                $timestamp = Get-Date -Format "HHmm"
+                $newVersion = "$originalVersion+$timestamp"
+                $manifest.version = $newVersion
+                $manifest | ConvertTo-Json -Depth 10 | Set-Content $destManifestPath
+                Write-Host ""
+                Write-Host "Updated destination manifest version: $originalVersion → $newVersion" -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Warning "Failed to update destination manifest version: $_"
+        }
+    }
+} else {
+    # Restart-only, no deploy
+    Write-Host "Restart-only (skipping deployment)..." -ForegroundColor Yellow
 }
 
 Write-Host ""

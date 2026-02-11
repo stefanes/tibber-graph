@@ -11,7 +11,7 @@
           "start_graph_at": "Start graph at"
         },
         "data_description": {
-          "price_entity_id": "Select a sensor entity containing price data (see [README.md](https://github.com/stefanes/tibber-graph?tab=readme-ov-file#custom-data-source) for details). Leave blank to use Tibber integration.",
+          "price_entity_id": "Select a sensor entity containing price data (see {readme_custom_data_source} for details). Leave blank to use Tibber integration.",
           "entity_name": "Custom name for this entity. Leave blank for automatic name. Must be unique.",
           "theme": "Visual theme: 'Dark' or 'Light'.\nDefault: Dark",
           "start_graph_at": "Starting point: 'Midnight', 'Current hour', or 'Show all' available data.\nDefault: Show all"
@@ -309,7 +309,7 @@
           "price_decimals": "Number of decimal places for prices. Leave empty for automatic.\nDefault: automatic (reconfigure to reset)",
           "use_hourly_prices": "Aggregate to hourly averages.\nDefault: off",
           "use_cents": "Display prices in cents.\nDefault: off",
-          "currency_override": "Override currency display (e.g., '€', 'SEK', 'öre'). Leave blank for automatic detection based on data source (see [OPTIONS.md](https://github.com/stefanes/tibber-graph/blob/main/docs/OPTIONS.md#currency-override) for details).\nDefault: automatic (reconfigure to reset)",
+          "currency_override": "Override currency display (e.g., '€', 'SEK', 'öre'). Leave blank for automatic detection based on data source (see {options_currency_override} for details).\nDefault: automatic (reconfigure to reset)",
           "label_current": "Show current price: 'On' (show in header), 'On (current price only)' (show in header, price only), 'In graph' (show in graph), 'In graph (no price)' (show in graph, time only), 'In graph (no time)' (show in graph, price only), 'In graph (only marker)' (show in graph, only marker), or 'Off'.\nDefault: On",
           "label_min": "Show min price label: 'On', 'No price' (time only), 'No time' (price only), 'Only marker', or 'Off'.\nDefault: On",
           "label_minmax_per_day": "Show min/max labels per day: 'On' = show for each day, 'From today forward' = show from today forward only, 'Off' = show single min/max for entire range.\nDefault: On",
