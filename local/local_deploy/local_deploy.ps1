@@ -59,13 +59,13 @@ if (Test-Path $configPath) {
 }
 
 # Skip deployment if only restart is requested
-if (-not $r) {
+if (-Not $r.IsPresent) {
     # Get the source directory
-    if ($z) {
+    if ($z.IsPresent) {
         # Deploy from zip file
         $zipPath = Join-Path $PSScriptRoot "tibber_graph.zip" -Resolve
 
-        if (-not (Test-Path $zipPath)) {
+        if (-Not (Test-Path $zipPath)) {
             Write-Error "Zip file not found: $zipPath"
             exit 1
         }
@@ -104,7 +104,7 @@ if (-not $r) {
     }
 
     # Verify source exists
-    if (-not (Test-Path $Source)) {
+    if (-Not (Test-Path $Source)) {
         Write-Error "Source directory not found: $Source"
         exit 1
     }
@@ -115,7 +115,7 @@ if (-not $r) {
     Write-Host ""
 
     # Create destination if it doesn't exist
-    if (-not (Test-Path $destination)) {
+    if (-Not (Test-Path $destination)) {
         Write-Host "Creating destination directory..." -ForegroundColor Yellow
         New-Item -ItemType Directory -Path $destination -Force | Out-Null
     }
@@ -138,7 +138,7 @@ if (-not $r) {
         $destDir = Split-Path $destPath -Parent
 
         # Create destination directory if needed
-        if (-not (Test-Path $destDir)) {
+        if (-Not (Test-Path $destDir)) {
             New-Item -ItemType Directory -Path $destDir -Force | Out-Null
         }
 
@@ -148,26 +148,28 @@ if (-not $r) {
         $copied++
     }
 
-    # Copy tibber_graph.yaml into the Home Assistant `packages` folder
-    $localYamlSource = Join-Path $PSScriptRoot "..\..\tibber_graph.yaml" -Resolve
-    $packagesRoot = Split-Path (Split-Path $destination -Parent) -Parent
-    $packagesDir = Join-Path $packagesRoot "packages"
+    if (-Not $i.IsPresent) {
+        # Copy tibber_graph.yaml into the Home Assistant `packages` folder
+        $localYamlSource = Join-Path $PSScriptRoot "..\..\tibber_graph.yaml" -Resolve
+        $packagesRoot = Split-Path (Split-Path $destination -Parent) -Parent
+        $packagesDir = Join-Path $packagesRoot "packages"
 
-    if (Test-Path $localYamlSource) {
-        if (-not (Test-Path $packagesDir)) {
-            New-Item -ItemType Directory -Path $packagesDir -Force | Out-Null
-        }
+        if (Test-Path $localYamlSource) {
+            if (-Not (Test-Path $packagesDir)) {
+                New-Item -ItemType Directory -Path $packagesDir -Force | Out-Null
+            }
 
-        $destYaml = Join-Path $packagesDir "tibber_graph_repo.yaml"
-        try {
-            Copy-Item -Path $localYamlSource -Destination $destYaml -Force
-            Write-Host "  ✓ " -ForegroundColor Green -NoNewline; Write-Host "\packages\tibber_graph_repo.yaml" -BackgroundColor Green
-            $copied++
-        } catch {
-            Write-Warning "Failed to copy tibber_graph.yaml to packages: $_"
+            $destYaml = Join-Path $packagesDir "tibber_graph_repo.yaml"
+            try {
+                Copy-Item -Path $localYamlSource -Destination $destYaml -Force
+                Write-Host "  ✓ " -ForegroundColor Green -NoNewline; Write-Host "\packages\tibber_graph_repo.yaml" -BackgroundColor Green
+                $copied++
+            } catch {
+                Write-Warning "Failed to copy tibber_graph.yaml to packages: $_"
+            }
+        } else {
+            Write-Warning "Local tibber_graph.yaml not found at: $localYamlSource. Skipping copying to packages."
         }
-    } else {
-        Write-Warning "Local tibber_graph.yaml not found at: $localYamlSource. Skipping copying to packages."
     }
 
     Write-Host "Deployment complete!" -ForegroundColor Green
@@ -201,9 +203,9 @@ if (-not $r) {
 Write-Host ""
 
 # Restart Home Assistant if URL and token are provided
-if ($HomeAssistantUrl -and $AccessToken) {
+if ($HomeAssistantUrl -And $AccessToken) {
     # Skip confirmation if -y switch is provided
-    if ($y) {
+    if ($y.IsPresent) {
         $confirmation = 'y'
         Write-Host "Restarting Home Assistant (auto-confirmed with -y)..." -ForegroundColor Yellow
         Write-Host "  Host: $HomeAssistantUrl" -ForegroundColor Gray
@@ -247,7 +249,7 @@ if ($HomeAssistantUrl -and $AccessToken) {
 }
 
 # Clean up temporary directory if created
-if ($z -and $tempDir -and (Test-Path $tempDir)) {
+if ($z.IsPresent -And $tempDir -And (Test-Path $tempDir)) {
     Write-Host ""
     Write-Host "Cleaning up temporary files..." -ForegroundColor Gray
     Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue

@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.4] - 2026-07-21
+
+### Fixed
+
+- Fixed an intermittent rendering issue where some entities could get `FigureCanvasBase` instead of `FigureCanvasAgg`, causing missing renderer methods in concurrent render scenarios.
+
 ## [0.7.3] - 2026-02-11
 
 ### Fixed

@@ -456,7 +456,7 @@ attributes:
 Install and configure the official [Nord Pool integration](https://www.home-assistant.io/integrations/nordpool) and create a template sensor:
 
 > [!IMPORTANT]
-> Replace `{nord_pool_config_entry_id}` and `{nord_pool_area}` area below with your Nord Pool config entry ID and area. You can get the `config_entry_id` by navigating to **[Settings → Devices & services → Entities](https://my.home-assistant.io/redirect/entities/)**, selecting one of the entities belonging to the integration, selecting **⋮ → Related → Integration** and copying the last part of the URL (`.../config/integrations/integration/nordpool#config_entry={nord_pool_config_entry_id}`).
+> Replace `{nord_pool_config_entry_id}` and `{nord_pool_area}` area below with your Nord Pool config entry ID and area. You can get the `config_entry_id` by selecting **[Settings → Devices & services → Nord Pool](https://my.home-assistant.io/redirect/integration/?domain=nordpool) → ⋮ → Copy entry ID**.
 
 ```yaml
 template:

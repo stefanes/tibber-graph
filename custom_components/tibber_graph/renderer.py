@@ -1,11 +1,21 @@
 """Rendering logic for Tibber price graphs using matplotlib."""
 import datetime
+import logging
+import weakref
 
 import matplotlib
+
+# Select a non-interactive backend before importing pyplot.
+# Importing pyplot first can lock in an environment-dependent backend.
+matplotlib.use("Agg")
+
 import matplotlib.colors as mcolors
 import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+_LOGGER = logging.getLogger(__name__)
 
 # Import helper functions
 from .helpers import ensure_timezone
@@ -96,9 +106,6 @@ from .const import (
 
 # Import theme loader for dynamic theme selection
 from .themes import get_theme_config
-
-# Matplotlib heavy imports: import once at module load to reduce per-render overhead
-matplotlib.use("Agg")
 
 # Apply global rc settings once
 plt.rcdefaults()
@@ -353,6 +360,9 @@ def render_plot_to_path(
     if render_options is None:
         render_options = {}
 
+    debug_triggered_by = render_options.get("_triggered_by", "unknown")
+    debug_entity_name = render_options.get("_entity_name", "unknown")
+
     # Extract translations with fallbacks to English
     if translations is None:
         translations = {}
@@ -462,14 +472,18 @@ def render_plot_to_path(
         # Return without modifying the output file to preserve last valid render
         return
 
-    # Clean up any existing figures before creating new ones
-    plt.close("all")
-
     fig_w = (CANVAS_WIDTH_OPT if FORCE_FIXED_SIZE_OPT else width) / 200
     fig_h = (CANVAS_HEIGHT_OPT if FORCE_FIXED_SIZE_OPT else height) / 200
 
     # Create new figure with explicit reference
     fig = plt.figure(figsize=(fig_w, fig_h), dpi=200)
+    # Ensure this specific figure is closed even if an exception occurs
+    # before reaching the explicit cleanup block below.
+    fig_finalizer = weakref.finalize(fig, plt.close, fig)
+    # Defensive guard: ensure this figure always has an Agg canvas even if
+    # pyplot global state was affected by concurrent renders.
+    if not isinstance(fig.canvas, FigureCanvasAgg):
+        FigureCanvasAgg(fig)
     fig.patch.set_facecolor(BACKGROUND_COLOR)
 
     # Create axes
@@ -966,6 +980,19 @@ def render_plot_to_path(
             return fig.canvas.get_renderer()
         except Exception:
             return None
+
+    canvas = getattr(fig, "canvas", None)
+    canvas_type = type(canvas).__name__ if canvas is not None else "None"
+    has_get_renderer = callable(getattr(canvas, "get_renderer", None)) if canvas is not None else False
+    renderer_available = _get_renderer() is not None
+    _LOGGER.debug(
+        "Renderer diagnostics for %s (triggered_by=%s): canvas=%s has_get_renderer=%s renderer_available=%s",
+        debug_entity_name,
+        debug_triggered_by,
+        canvas_type,
+        has_get_renderer,
+        renderer_available,
+    )
 
     def _text_bbox_in_data(text_obj):
         """Return (x0d, y0d, x1d, y1d) of text bounding box in data coords, or None on failure."""
@@ -1693,8 +1720,6 @@ def render_plot_to_path(
     except Exception as err:
         # If rendering fails, preserve the existing output file
         # Log the error but don't raise - gracefully fail without corrupting the image
-        import logging
-        _LOGGER = logging.getLogger(__name__)
         _LOGGER.error("Failed to render graph to %s: %s", out_path, err, exc_info=True)
 
     finally:
@@ -1707,5 +1732,6 @@ def render_plot_to_path(
 
         # Clean up matplotlib objects to prevent memory leaks
         ax.clear()
+        if fig_finalizer.alive:
+            fig_finalizer.detach()
         plt.close(fig)
-        plt.close("all")

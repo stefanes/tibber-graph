@@ -1020,9 +1020,20 @@ class TibberCam(LocalFile):
 
             # Collect rendering options to pass to renderer
             render_options = self._get_render_options()
+            render_options["_triggered_by"] = triggered_by
+            render_options["_entity_name"] = self._name
 
             # Fetch translations for renderer labels
             translations = await self._get_translations()
+
+            _LOGGER.debug(
+                "Render dispatch for %s (triggered_by=%s, points=%d, width=%s, height=%s)",
+                self._name,
+                triggered_by,
+                len(prices),
+                width,
+                height,
+            )
 
             await self.hass.async_add_executor_job(
                 render_plot_to_path,
